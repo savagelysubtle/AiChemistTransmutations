@@ -1,6 +1,6 @@
 application:
-  name: "PDF2MD Converter"
-  version: "1.0.0"
+  name: "AiChemist Transmutation Codex"
+  version: "0.1.0"
   temp_dir: "./temp"  # Relative path for temporary files
   max_workers: 4   # Default number of concurrent workers for batch processing
 

@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-dark-background text-dark-textPrimary;
+    font-family: 'Inter', sans-serif;
+    /* Example: Antialiased fonts for better readability */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* You can add more base styles here, e.g., for headings if needed */
+  /*
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-dark-text;
+  }
+  */
+}

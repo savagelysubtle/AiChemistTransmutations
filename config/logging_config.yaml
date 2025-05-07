@@ -90,37 +90,37 @@ handlers:
     encoding: utf-8
 
 loggers:
-  mdtopdf:
+  aichemist_transmutation_codex:
     level: INFO
     handlers: [console, file_default]
     propagate: false
 
-  mdtopdf.converters:
+  aichemist_transmutation_codex.converters:
     level: INFO
     handlers: [converter_file]
     propagate: true
 
-  mdtopdf.converters.pdf2md:
+  aichemist_transmutation_codex.converters.pdf2md:
     level: DEBUG
     handlers: [pdf2md_file]
     propagate: true
 
-  mdtopdf.converters.md2pdf:
+  aichemist_transmutation_codex.converters.md2pdf:
     level: DEBUG
     handlers: [md2pdf_file]
     propagate: true
 
-  mdtopdf.converters.html2pdf:
+  aichemist_transmutation_codex.converters.html2pdf:
     level: DEBUG
     handlers: [html2pdf_file]
     propagate: true
 
-  mdtopdf.batch_processor:
+  aichemist_transmutation_codex.batch_processor:
     level: DEBUG
     handlers: [batch_processor_file]
     propagate: true
 
-  mdtopdf.electron_bridge:
+  aichemist_transmutation_codex.electron_bridge:
     level: DEBUG
     handlers: [electron_bridge_file]
     propagate: true
