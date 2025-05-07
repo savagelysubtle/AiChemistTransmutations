@@ -1,0 +1,135 @@
+[build-system]
+build-backend = "uv_build"
+requires      = [ "uv-build>=0.6.0,<0.7" ]
+
+[project]
+dependencies = [
+    "markdown>=3.4.3",
+    "markdown-pdf>=0.1.1",
+    "click>=8.1.3",
+    "pymupdf4llm>=0.0.17",
+    "opencv-python>=4.11.0.86",
+    "numpy>=2.2.4",
+    "pytesseract>=0.3.13",
+    "PyYAML>=6.0",
+    "pymupdf>=1.20.0",          # Option 1 for PDF to HTML
+    "pdfminer.six>=20201018",   # Option 2 for PDF to HTML
+    "pdfkit>=1.0.0",            # Option 2 for HTML to PDF (requires wkhtmltopdf)
+    "python-docx>=0.8.11",
+    "mammoth>=1.4.18",
+    "rich>=10.0.0",             # For enhanced CLI output
+    "typer>=0.4.0",             # For better CLI interface
+    "uv>=0.6.12",
+    "node",
+    "nanoid>=2.0.0",
+    "ocrmypdf",
+]
+description = "A versatile document conversion toolkit, part of the AiChemist suite."
+license = { text = "MIT" }
+name = "aichemist-transmutation-codex"
+readme = "README.md"
+requires-python = ">=3.13.0"
+version = "0.1.0"
+
+    [project.optional-dependencies]
+    dev = [
+        "pytest>=7.3.1",
+        "ruff>=0.6.6",
+        "pre-commit>=4.0.0",
+        "mypy>=1.5.0",
+        "pytest-cov>=4.1.0",
+    ]
+
+
+[tool.setuptools.packages.find]
+include = [ "aichemist_transmutation_codex*" ]
+where   = [ "src" ]
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+markers = [
+    "unit: mark a test as a unit test",
+    "file_operations: mark a test relating to file operations",
+]
+pythonpath = [ "src" ]
+testpaths = [ "tests", "unittests", "integrationtests" ]
+tmp_path_retention_count = 2
+tmp_path_retention_policy = "failed"
+
+
+[tool.ruff]
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+include = [ "pyproject.toml", "src/**/*.py", "tests/**/*.py" ]
+indent-width = 4
+line-length = 88
+target-version = "py313"
+
+    [tool.ruff.format]
+    indent-style              = "space"
+    line-ending               = "auto"
+    quote-style               = "double"
+    skip-magic-trailing-comma = false
+
+    [tool.ruff.lint]
+    dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+    fixable = [ "ALL" ]
+    ignore = [ "E501" ]
+    select = [
+        "E4",
+        "E7",
+        "E9",
+        "F",
+        "I",
+        "B",
+        "UP",
+    ]
+    unfixable = [  ]
+
+        [tool.ruff.lint.per-file-ignores]
+        "*/__init__.py" = [ "F401" ]
+        "tests/**/*.py" = [ "S101", "ANN401", "F821", "F823", "F401" ]
+
+[tool.mypy]
+disallow_incomplete_defs = true
+disallow_untyped_defs    = true
+ignore_missing_imports   = true
+python_version           = "3.13"
+warn_return_any          = true
+warn_unused_configs      = true
+
+    [[tool.mypy.overrides]]
+    check_untyped_defs    = false
+    disallow_untyped_defs = false
+    module                = "tests.*"
+
+[tool.uv]
+cache-dir                  = "./.uv_cache"
+dev-dependencies           = [ "aichemist-transmutation-codex[dev]" ]
+extra-index-url            = [ "https://PySimpleGUI.net/install" ]
+index-url                  = "https://pypi.org/simple/"
+link-mode                  = "copy"
+no-build-isolation-package = [ "ruff", "mypy", "pytest", "markdown" ]
+package                    = true
+required-version           = ">=0.6.0"

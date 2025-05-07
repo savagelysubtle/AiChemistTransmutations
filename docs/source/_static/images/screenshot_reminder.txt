@@ -1,0 +1,18 @@
+SCREENSHOT NEEDED
+
+Please create the following screenshots when the GUI is ready:
+
+1. mdtopdf_gui_screenshot.png - Main application window
+2. gui_markdown_to_pdf_tab.png - Markdown to PDF tab
+3. gui_pdf_to_markdown_tab.png - PDF to Markdown tab
+4. gui_markdown_to_html_tab.png - Markdown to HTML tab
+
+Refer to the README.rst file in this directory for guidelines on creating screenshots.
+
+Instructions to take a screenshot:
+- Windows: Press Win+Shift+S, then select the area to capture
+- macOS: Press Shift+Command+4, then select the area to capture
+- Linux: Use a tool like Screenshot or Flameshot
+
+After capturing, save the file with the appropriate name in this directory.
+Then, update the documentation references.

@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+config/user_config.yaml
+logs/*
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+tmp/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.uv_cache/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.ruff_cache/
+.mypy_cache/
+.cursor/
+
+# Project specific
+output/
+*.pdf
+!examples/example.pdf
+!examples/output_examples/*.pdf
+*.html
+!examples/output_examples/*.html
+test.pdf
+
+# Documentation build
+docs/build/
+docs/source/api/
