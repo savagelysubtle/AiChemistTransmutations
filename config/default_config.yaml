@@ -1,0 +1,55 @@
+application:
+  name: "PDF2MD Converter"
+  version: "1.0.0"
+  temp_dir: "./temp"  # Relative path for temporary files
+  max_workers: 4   # Default number of concurrent workers for batch processing
+
+converters:
+  # Settings for PDF to Markdown conversion
+  pdf2md:
+    engine: "enhanced_ocr"  # Options: 'pymupdf4llm', 'enhanced_ocr', 'ocr', 'basic'
+    ocr_enabled: true       # Enable/disable OCR for non-text PDFs
+    ocr_languages: "eng"    # Tesseract language codes (e.g., 'eng+fra')
+    ocr_dpi: 300            # DPI for OCR scanning
+    ocr_psm: 1              # Tesseract page segmentation mode
+    ocr_oem: 3              # Tesseract OCR engine mode
+    force_ocr: false        # Force OCR on all pages
+
+  # Settings for Markdown to PDF conversion
+  md2pdf:
+    engine: "weasyprint"    # Options: 'weasyprint', 'xhtml2pdf', 'reportlab'
+    page_size: "A4"
+    margin_top: "2.54cm"
+    margin_bottom: "2.54cm"
+    margin_left: "2.54cm"
+    margin_right: "2.54cm"
+    custom_css: null      # Path to custom CSS file, or null
+
+  # Settings for HTML to PDF conversion
+  html2pdf:
+    engine: "weasyprint"    # Options: 'weasyprint', 'pdfkit'
+    page_size: "A4"
+    margin_top: "1cm"
+    margin_bottom: "1cm"
+    margin_left: "1cm"
+    margin_right: "1cm"
+    enable_javascript: false # For engines like pdfkit
+
+  # Settings for DOCX to Markdown conversion
+  docx2md:
+    style_map: null       # Path to custom style map JSON, or null
+    image_dir: "images"   # Subdirectory for extracted images (relative to output)
+
+  # Add other converter settings as needed...
+
+logging:
+  level: "INFO"             # Default logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  rotation: "1 day"         # How often to rotate log files (e.g., '1 day', '1 week', '10 MB')
+  retention: "30 days"      # How long to keep log files
+  compression: "zip"        # Compression format for rotated logs (e.g., 'zip', 'gz')
+
+# Electron specific settings (can also be in electron_config.json)
+# electron:
+#   developer_mode: false
+#   check_for_updates: true
+
