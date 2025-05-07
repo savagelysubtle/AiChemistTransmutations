@@ -70,3 +70,25 @@ test.pdf
 # Documentation build
 docs/build/
 docs/source/api/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-error.log*
+yarn.lock
+.pnp.*
+
+# GUI specific (Electron, Vite, React, TypeScript)
+gui/node_modules/
+gui/dist/
+gui/dist-electron/
+gui/out/
+gui/release/
+gui/coverage/
+gui/logs/
+gui/.vite/
+gui/.cache/
+
+# OS generated files
+.DS_Store
+Thumbs.db
