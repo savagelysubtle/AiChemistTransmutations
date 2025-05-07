@@ -1,0 +1,49 @@
+**Current Status: Python Backend Complete, GUI Integration Pending**
+
+1.  **Research and Select Python Library:** - ✅ DONE
+    *   The web search mentions `OCRmyPDF`, `PyMuPDF` + `EasyOCR`/`pytesseract`, and `AWS Textract`.
+    *   `OCRmyPDF` seems like a strong candidate as it's designed to add OCR text layers to PDFs, effectively making them searchable and a common form of "editable." It's open-source and has a Python API.
+    *   `PyMuPDF` is already in your environment (as `fitz`) and could be used to manipulate PDFs, potentially in conjunction with an OCR library if `OCRmyPDF` isn't sufficient.
+    *   `AWS Textract` is a cloud service, which might not be ideal for a local desktop application unless you plan for cloud integration.
+    *   **Decision:** We'll start with `OCRmyPDF` due to its specific focus and Python API.
+
+2.  **Install Dependencies:** - ✅ DONE (for pyproject.toml)
+    *   Add `ocrmypdf` to your `pyproject.toml`.
+    *   `OCRmyPDF` relies on Tesseract OCR engine. You'll need to ensure Tesseract is installed on the user's system and accessible in the PATH. I'll provide a note about this.
+    *   **USER ACTION:** `OCRmyPDF` relies on Tesseract OCR engine. Ensure Tesseract is installed on the user's system and accessible in the PATH. Language packs for Tesseract also need to be installed for desired languages.
+
+3.  **Create New Python Converter Module:** - ✅ DONE
+    *   Create a new file: `src/mdtopdf/converters/pdf_to_editable_pdf.py`.
+    *   Implement a function, e.g., `convert_pdf_to_editable(input_path: Path, output_path: Path, lang: str = "eng", **kwargs) -> Path`.
+        *   This function will use the `ocrmypdf.api.ocr()` method.
+        *   It should handle common options like language for OCR (`lang`).
+        *   Include error handling and logging.
+
+4.  **Integrate with `electron_bridge.py`:** - ✅ DONE
+    *   Define a new `conversion_type`, for example, `"pdf2editable"`.
+    *   Add this new type to the `conversion_map` in `electron_bridge.py`, pointing to your new module and function.
+        *   Example: `"pdf2editable": ("converters.pdf_to_editable_pdf", None, "convert_pdf_to_editable")`
+    *   Update `check_file_extension_compatibility` to ensure the input for `"pdf2editable"` is a `.pdf` file.
+    *   Ensure the output path logic in `convert_with_progress` correctly generates a `.pdf` output file for this new type.
+    *   Add any relevant command-line arguments to `argparse` in `electron_bridge.py`'s `main` function (e.g., `--lang` for OCR language) and pass them via `converter_options`.
+
+5.  **Update `src/mdtopdf/converters/__init__.py`:** - ✅ DONE
+    *   Import and publicly expose the new `convert_pdf_to_editable` function so it can be dynamically imported by the `electron_bridge.py`.
+
+6.  **GUI Integration (Guidance):** - ⏳ PENDING (NEXT MAJOR STEP)
+    *   The Electron/React GUI needs updates:
+        *   Add "PDF to Editable PDF" option in the UI.
+        *   Implement logic to call the Python backend (`electron_bridge.py`) with `conversion_type="pdf2editable"`.
+        *   Consider UI elements for OCR options (e.g., language selection).
+
+7.  **Testing:** - ⏳ PENDING
+    *   Thorough testing is needed after Python dependencies are installed (run `uv pip sync` or `uv pip install -e .`) AND Tesseract is installed on the system.
+    *   Test with various non-editable PDFs.
+    *   Verify text selectability and searchability in output PDFs.
+    *   Test CLI access via `electron_bridge.py`.
+    *   Test through the GUI once integrated.
+
+8.  **Documentation/User Notes:** - ⏳ PENDING
+    *   Update any user-facing documentation.
+    *   Clarify what "editable PDF" means in this context (searchable/selectable text, not a fully re-flowable document).
+    *   Provide clear instructions for Tesseract OCR installation (Windows focus, include PATH and language pack details).

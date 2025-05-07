@@ -1,0 +1,60 @@
+# .github/workflows/python-ci.yml
+name: Python CI
+
+on:
+  push:
+    branches: [ main, master, develop ] # Adjust branches as needed
+  pull_request:
+    branches: [ main, master, develop ] # Adjust branches as needed
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.13"] # Your project uses Python 3.13
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install uv
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH # Add uv to PATH
+
+    - name: Install dependencies using uv
+      run: |
+        uv pip install --system --upgrade pip
+        uv venv .venv # Create a virtual environment (optional but good practice)
+        uv pip sync .venv/pyproject.toml # Install dependencies from pyproject.toml, or use requirements.txt if you have one
+        # If you use requirements.txt:
+        # uv pip install -r requirements.txt --python .venv/bin/python
+
+    # It's good to activate the venv for subsequent steps, though uv can target it.
+    # For simplicity here, we'll assume tools can be run via `uv run` or are globally available if installed that way.
+
+    - name: Lint with Ruff (if you use it)
+      run: |
+        # Assuming Ruff is in pyproject.toml's dev dependencies
+        uv run ruff check .
+        uv run ruff format --check . # Check formatting
+
+    - name: Run tests with Pytest (if you use it)
+      run: |
+        # Assuming Pytest and pytest-cov are in pyproject.toml's dev dependencies
+        uv run pytest --cov=src --cov-report=xml # Adjust 'src' to your source directory
+        # You might need to install other testing dependencies as well
+
+    # Optional: Upload coverage reports
+    # - name: Upload coverage to Codecov
+    #   uses: codecov/codecov-action@v4
+    #   with:
+    #     token: ${{ secrets.CODECOV_TOKEN }} # Add CODECOV_TOKEN to your repo secrets
+    #     files: ./coverage.xml # Path to your coverage report
+    #     fail_ci_if_error: true
