@@ -9,7 +9,7 @@ import ConversionLog from '../components/ConversionLog';
 
 // Updated PlaceholderElectronAPI
 interface PlaceholderElectronAPI {
-  openFileDialog: () => Promise<string[]>;
+  openFileDialog: (options?: { filters?: Array<{ name: string; extensions: string[] }> }) => Promise<string[]>;
   openDirectoryDialog: () => Promise<string | null>;
   runConversion: (args: {
     conversionType: string;
@@ -94,7 +94,16 @@ const ConversionPage: React.FC = () => {
   const handleSelectFilesClick = async () => {
     if (!electronAPI) return;
     try {
-      const files = await electronAPI.openFileDialog();
+      let dialogOptions: { filters?: Array<{ name: string; extensions: string[] }> } = {};
+      if (conversionType === 'merge_to_pdf') {
+        dialogOptions.filters = [{ name: 'PDF Documents', extensions: ['pdf'] }];
+      }
+      // For other conversion types, you might want to set specific filters too, e.g.:
+      // else if (conversionType === 'md2pdf') {
+      //   dialogOptions.filters = [{ name: 'Markdown Files', extensions: ['md', 'markdown'] }];
+      // }
+
+      const files = await electronAPI.openFileDialog(dialogOptions);
       if (files.length > 0) {
         // Add new files, preventing duplicates
         setSelectedFiles(prevFiles => {
@@ -142,11 +151,50 @@ const ConversionPage: React.FC = () => {
   };
 
   const handleRunConversion = async () => {
-    if (!electronAPI || selectedFiles.length === 0) {
-      setConversionLog(prev => [...prev, 'Error: No input files selected or API not available.']);
+    if (!electronAPI) {
+      setConversionLog(prev => [...prev, 'Error: API not available.']);
+      return;
+    }
+    if (selectedFiles.length === 0) {
+      setConversionLog(prev => [...prev, 'Error: No input files selected.']);
       return;
     }
 
+    // Specific handling for PDF Merging
+    if (conversionType === 'merge_to_pdf') {
+      if (selectedFiles.length < 2) {
+        setConversionLog(prev => [...prev, 'Error: PDF Merging requires at least two input files.']);
+        return;
+      }
+      if (!outputDir) {
+        setConversionLog(prev => [...prev, 'Error: An output directory must be selected for PDF Merging.']);
+        return;
+      }
+      setConversionLog(prev => [
+        ...prev,
+        `Starting PDF Merge for ${selectedFiles.length} files: ${selectedFiles.join(', ')}... Output to: ${outputDir}`,
+      ]);
+      try {
+        const result = await electronAPI.runConversion({
+          conversionType: 'merge_to_pdf',
+          inputFiles: selectedFiles,
+          outputDir: outputDir, // Output directory is mandatory for merge
+          options: {}, // No specific options for merge yet, but can be added
+        });
+        setConversionLog(prev => [...prev, `Merge process ended: ${result.message}`]);
+        if (result.success) {
+          // Optionally clear selection on success
+          // setSelectedFiles([]);
+        }
+      } catch (error) {
+        console.error('Error running PDF merge conversion:', error);
+        const errorMessage = (error as any)?.message || JSON.stringify(error);
+        setConversionLog(prev => [...prev, `Error during PDF merge: ${errorMessage}`]);
+      }
+      return; // End here for merge_to_pdf
+    }
+
+    // Existing MDX to MD conversion (client-side handled differently)
     setConversionLog(prev => [...prev, `Starting ${conversionType} conversion for ${selectedFiles.length} file(s): ${selectedFiles.join(', ')}...`]);
 
     if (conversionType === 'mdx2md') {
@@ -183,7 +231,7 @@ const ConversionPage: React.FC = () => {
         }
       }
     } else {
-      // Existing logic for Python-based conversions
+      // Existing logic for Python-based conversions (excluding merge_to_pdf which is handled above)
       if (!electronAPI.runConversion) {
         setConversionLog(prev => [...prev, 'ERROR: Standard runConversion function is not available on electronAPI.']);
         return;
@@ -241,6 +289,19 @@ const ConversionPage: React.FC = () => {
             onSelectFilesClick={handleSelectFilesClick}
             onSelectedFilesChange={handleSelectedFilesChange}
             onClearSelection={handleClearSelection}
+            // Dynamically set props for FileInput based on conversionType
+            buttonText={
+              conversionType === 'merge_to_pdf'
+                ? "Select PDFs to Merge"
+                : "Select Input File(s)"
+            }
+            instructions={
+              conversionType === 'merge_to_pdf'
+                ? "Select two or more PDF files to combine into a single PDF."
+                : undefined // No specific instruction for other types by default
+            }
+            accept={conversionType === 'merge_to_pdf' ? ".pdf" : undefined}
+            allowMultiple={conversionType === 'merge_to_pdf'} // Hint for clarity
           />
           <DirectoryInput outputDir={outputDir} onSelectOutputDirectory={handleSelectOutputDir} />
         </section>

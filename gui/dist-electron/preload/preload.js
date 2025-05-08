@@ -1,7 +1,7 @@
 "use strict";
 const electron = require("electron");
 const electronAPI = {
-  openFileDialog: () => electron.ipcRenderer.invoke("dialog:openFile"),
+  openFileDialog: (options) => electron.ipcRenderer.invoke("dialog:openFile", options),
   openDirectoryDialog: () => electron.ipcRenderer.invoke("dialog:openDirectory"),
   runConversion: (args) => electron.ipcRenderer.invoke("run-conversion", args),
   onConversionEvent: (callback) => {

@@ -3,4 +3,4 @@ require("electron");
 require("node:path");
 require("node:fs");
 require("child_process");
-require("./main-DfOZ9k7w.js");
+require("./main-B1fIVxla.js");

@@ -296,21 +296,55 @@ except ImportError:
         )
 
 
+# Import for PDF Merging
+try:
+    from .pdf_merger import (
+        merge_multiple_pdfs_to_single_pdf as _imported_merge_pdfs,
+    )
+
+    merge_multiple_pdfs_to_single_pdf = cast(Callable[..., Path], _imported_merge_pdfs)
+except ImportError:
+
+    def merge_multiple_pdfs_to_single_pdf(
+        input_paths: list[str | Path],  # Note: list of paths
+        output_path: str | Path,
+        **kwargs: Any,
+    ) -> Path:
+        """Placeholder for PDF merging if dependencies (PyPDF2) are missing.
+
+        Args:
+            input_paths (list[Union[str, Path]]): List of input PDF file paths.
+            output_path (Union[str, Path]): Path for the merged output PDF file.
+            **kwargs (Any): Additional keyword arguments, ignored.
+
+        Returns:
+            Path: This function does not return normally.
+
+        Raises:
+            ImportError: Always raised to indicate missing PyPDF2.
+        """
+        raise ImportError(
+            "PDF Merging functionality (PyPDF2) is not available. "
+            "Please ensure 'PyPDF2' is installed."
+        )
+
+
 __all__ = [
-    "convert_md_to_html",
-    "md_to_html",
-    "convert_md_to_pdf",
-    "convert_pdf_to_md",
-    "convert_pdf_to_md_with_ocr",
-    "convert_pdf_to_md_with_enhanced_ocr",
-    "convert_pdf_to_md_with_pymupdf4llm",
-    "convert_html_to_pdf",
-    "html_to_pdf",
-    "convert_pdf_to_html",
-    "pdf_to_html",
     "convert_docx_to_md",
-    "docx_to_md",
-    "convert_pdf_to_editable",
-    "markdown_to_docx",
     "convert_docx_to_pdf",
+    "convert_html_to_pdf",
+    "convert_md_to_html",
+    "convert_md_to_pdf",
+    "convert_pdf_to_editable",
+    "convert_pdf_to_html",
+    "convert_pdf_to_md",
+    "convert_pdf_to_md_with_enhanced_ocr",
+    "convert_pdf_to_md_with_ocr",
+    "convert_pdf_to_md_with_pymupdf4llm",
+    "docx_to_md",
+    "html_to_pdf",
+    "markdown_to_docx",
+    "md_to_html",
+    "merge_multiple_pdfs_to_single_pdf",
+    "pdf_to_html",
 ]
