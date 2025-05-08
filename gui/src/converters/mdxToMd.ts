@@ -1,13 +1,23 @@
+// This file is being updated to use mdx-bundler directly for more control
+// over MDX component handling, instead of the higher-level mdx-to-md library.
 import {promises as fsPromises} from 'node:fs';
 import {resolve, dirname, join} from 'node:path';
-import {mdxToMd} from 'mdx-to-md'; // The library we installed
+// Remove the old import:
+// import {mdxToMd} from 'mdx-to-md'; // The library we installed
+
+// Add new imports for direct mdx-bundler usage:
+import {bundleMDX} from 'mdx-bundler';
+import {getMDXComponent} from 'mdx-bundler/client';
+import React from 'react'; // Required for getMDXComponent and createElement
+import {renderToStaticMarkup} from 'react-dom/server'; // To render React to HTML string
+import TurndownService from 'turndown'; // To convert HTML to Markdown
 
 /**
- * Converts an MDX file to a Markdown file.
+ * Converts an MDX file to a Markdown file using mdx-bundler directly.
  *
  * MDX is a format that lets you write JSX in your Markdown documents.
  * This function takes an MDX file, processes it to standard Markdown,
- * and saves it.
+ * and saves it. It handles custom components by allowing mappings.
  *
  * @param inputPath The absolute path to the input MDX file.
  * @param outputPath Optional. The absolute path where the output Markdown file should be saved.
@@ -22,74 +32,79 @@ export async function convertMdxToMd(
 ): Promise<string> {
   try {
     // 1. Validate the input path
-    // We use fsPromises.access to check if the file exists and is readable.
-    // If it doesn't exist or we don't have permission, it will throw an error.
     await fsPromises.access(inputPath, fsPromises.constants.R_OK);
 
     // 2. Determine the output path
-    // If an outputPath isn't provided, we'll create one.
-    // For example, if inputPath is /path/to/file.mdx,
-    // outputPath will be /path/to/file.md.
     const finalOutputPath =
       outputPath || inputPath.replace(/\.mdx$/i, '.md');
 
     // Ensure the output directory exists.
-    // `dirname(finalOutputPath)` gets the directory part of the path.
-    // `fsPromises.mkdir` with `recursive: true` creates parent directories if they don't exist.
     await fsPromises.mkdir(dirname(finalOutputPath), {recursive: true});
 
-    // 3. Read the MDX file content
-    // ---------------------------------------------------------------------
-    // mdx-bundler (a transitive dependency of `mdx-to-md`) relies on the
-    // `esbuild` CLI binary being available at runtime. When we bundle our
-    // Electron main process with Vite/rollup that package is marked as
-    // external (see vite.config.ts) which means it will be resolved from
-    // `node_modules` at runtime.  However, on Windows especially, the
-    // `ESBUILD_BINARY_PATH` environment variable often needs to be set so
-    // the JS API can locate its companion executable.  We set it here once
-    // in a cross-platform way so the library can always find the binary
-    // regardless of where the app is launched from.
-
+    // 3. Ensure ESBUILD_BINARY_PATH is set for mdx-bundler
+    // This logic is preserved from the original file as it's important for esbuild.
     if (!process.env.ESBUILD_BINARY_PATH) {
       try {
-        // Resolve the installed esbuild package location (works in both
-        // ESM and CJS since this file is compiled for Node/Electron).
-        // The path we get is something like
-        //   <project>/node_modules/esbuild/lib/main.js
-        // So we walk up a couple directories to the package root.
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const esbuildPkgPath = require.resolve('esbuild/package.json');
         const esbuildDir = dirname(esbuildPkgPath);
-
         const binary =
           process.platform === 'win32'
             ? join(esbuildDir, 'esbuild.exe')
             : join(esbuildDir, 'bin', 'esbuild');
-
         process.env.ESBUILD_BINARY_PATH = binary;
       } catch {
-        // If resolution fails we'll just let mdx-to-md handle errors later.
+        // If resolution fails, we'll let mdx-bundler handle errors later.
+        console.warn('Could not resolve esbuild binary path. mdx-bundler might fail.');
       }
     }
 
-    // 3. Read the MDX file content
-    // The mdxToMd function from the library expects the path to the MDX file.
-    // It internally reads the file.
+    // 4. Bundle the MDX file content using mdx-bundler
+    // The `bundleMDX` function from `mdx-bundler` compiles and bundles the MDX source.
+    // It can take the file path directly.
+    const {code /*, frontmatter */} = await bundleMDX({
+      file: resolve(inputPath), // Use the resolved absolute path
+      // mdxOptions can be used here to pass remark/rehype plugins if needed
+      // mdxOptions: (options, frontmatter) => {
+      //   options.remarkPlugins = [...(options.remarkPlugins ?? [])];
+      //   options.rehypePlugins = [...(options.rehypePlugins ?? [])];
+      //   return options;
+      // },
+    });
 
-    // 4. Convert MDX content to Markdown string
-    // The `mdxToMd` function takes the path to the MDX file.
-    const markdownContent = await mdxToMd(resolve(inputPath));
+    // 5. Get a React component from the bundled code
+    // `getMDXComponent` takes the bundled code and returns a renderable React component.
+    const Component = getMDXComponent(code);
 
-    // 5. Write the Markdown content to the output file
-    // We write the generated markdown string to our target file.
+    // 6. Define mappings for custom components.
+    // This is where we handle the 'Frame' component.
+    // We'll make 'Frame' render its children directly, effectively stripping the Frame tags.
+    const mdxComponents: Record<string, React.ComponentType<any>> = {
+      Frame: (props: {children?: React.ReactNode}) =>
+        React.createElement(React.Fragment, null, props.children),
+      // Add other custom component mappings here if needed.
+      // For standard HTML elements that Turndown will handle, explicit mapping isn't always necessary
+      // unless you want to pre-process them with React or they are used as JSX components.
+    };
+
+    // 7. Render the MDX component to an HTML string
+    // We pass our custom component mappings to the MDX component.
+    const reactElement = React.createElement(Component, {components: mdxComponents});
+    const htmlContent = renderToStaticMarkup(reactElement);
+
+    // 8. Convert the HTML string to Markdown using Turndown
+    const turndownService = new TurndownService({
+      headingStyle: 'atx', // Use '#' for headings
+      codeBlockStyle: 'fenced', // Use ``` for code blocks
+    });
+    const markdownContent = turndownService.turndown(htmlContent);
+
+    // 9. Write the Markdown content to the output file
     await fsPromises.writeFile(finalOutputPath, markdownContent, 'utf8');
 
     console.log(`Successfully converted ${inputPath} to ${finalOutputPath}`);
     return finalOutputPath;
   } catch (error) {
     console.error(`Error during MDX to MD conversion:`, error);
-    // We re-throw the error so that the caller (e.g., the Electron main process)
-    // can handle it and potentially inform the user.
     throw new Error(
       `Failed to convert MDX to MD: ${(error as Error).message}`,
     );

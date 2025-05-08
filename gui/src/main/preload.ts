@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 
 // Define the API that will be exposed to the renderer process
 export interface ElectronAPI {
-  openFileDialog: () => Promise<string[]>;
+  openFileDialog: (options?: { filters?: Array<{ name: string; extensions: string[] }> }) => Promise<string[]>;
   openDirectoryDialog: () => Promise<string | null>;
   runConversion: (args: {
     conversionType: string;
@@ -20,7 +20,7 @@ export interface ElectronAPI {
 }
 
 const electronAPI: ElectronAPI = {
-  openFileDialog: () => ipcRenderer.invoke('dialog:openFile'),
+  openFileDialog: (options) => ipcRenderer.invoke('dialog:openFile', options),
   openDirectoryDialog: () => ipcRenderer.invoke('dialog:openDirectory'),
   runConversion: (args) => ipcRenderer.invoke('run-conversion', args),
   onConversionEvent: (callback) => {

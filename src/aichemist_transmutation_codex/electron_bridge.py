@@ -10,6 +10,7 @@ import importlib
 import json
 import sys
 import time
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -166,6 +167,11 @@ def check_file_extension_compatibility(conversion_type: str, input_path: Path) -
         if extension not in (".docx"):
             compatible = False
             expected = ".docx"
+    # Add compatibility for merge_to_pdf: all input files must be PDFs
+    elif conversion_type == "merge_to_pdf":
+        if extension != ".pdf":
+            compatible = False
+            expected = ".pdf (for all inputs)"
 
     if not compatible:
         error_msg = f"Input file {input_path.name} is not compatible with {conversion_type} conversion. Expected {expected}."
@@ -179,87 +185,182 @@ def check_file_extension_compatibility(conversion_type: str, input_path: Path) -
 
 def convert_with_progress(
     conversion_type: str,
-    input_path: str | Path,
+    input_path: str | Path | Sequence[str | Path],
     output_path: str | Path | None = None,
     **kwargs: Any,
 ) -> Path:
-    """Converts a single file and reports progress to Electron.
+    """Converts a single file or merges multiple files, reporting progress to Electron.
 
-    This function handles the conversion of a single file. It dynamically imports
-    the appropriate converter based on `conversion_type`, executes the conversion,
-    and reports progress updates (initialization, steps, completion/error) to
-    Electron via stdout.
+    For regular conversions, it handles a single input file.
+    For 'merge_to_pdf', it expects `input_path` to be a list of PDF file paths
+    and `output_path` to be the path for the single merged output PDF.
 
     Args:
-        conversion_type (str): The type of conversion (e.g., "pdf2md", "md2pdf").
-        input_path (str | Path): The path to the input file.
+        conversion_type (str): The type of conversion (e.g., "pdf2md", "merge_to_pdf").
+        input_path (Union[str, Path, List[Union[str, Path]]]):
+            Path to the input file for single conversions, or a list of paths
+            for 'merge_to_pdf'.
         output_path (str | Path | None): The desired path for the output file.
-            If it's a directory, a filename will be generated based on the input.
-            If None, the converter typically saves the output next to the input file
-            with an appropriate extension. Defaults to None.
-        **kwargs (Any): Additional keyword arguments to be passed to the specific
-            converter function.
+            If None for single conversions, output is typically saved next to input.
+            For 'merge_to_pdf', this should be the full path to the merged output PDF.
+        **kwargs (Any): Additional keyword arguments.
 
     Returns:
-        Path: The absolute path to the successfully converted output file.
+        Path: The absolute path to the successfully converted/merged output file.
 
     Raises:
-        FileNotFoundError: If `input_path` does not exist.
-        ValueError: If `conversion_type` is unknown or if the input file is
-            incompatible with the selected conversion.
-        ImportError: If the required converter module or its dependencies
-            cannot be loaded.
-        RuntimeError: For other unexpected errors during the conversion process.
+        FileNotFoundError: If any `input_path` does not exist.
+        ValueError: If `conversion_type` is unknown, inputs are incompatible,
+            or `output_path` is invalid for merging.
+        ImportError: If required converter module cannot be loaded.
+        RuntimeError: For other unexpected errors.
     """
     logger = LogManager().get_bridge_logger()
-    input_path = Path(input_path).resolve()
-    if not input_path.exists():
-        logger.error(f"Input file not found: {input_path}")
-        raise FileNotFoundError(f"Input file not found: {input_path}")
 
-    # Handle case where output_path is a directory
-    if output_path is not None:
-        output_path = Path(output_path)
-        if output_path.is_dir():
-            # Create a filename based on the input file, but with correct extension
+    # --- Input Validation and Path Handling ---
+    if conversion_type == "merge_to_pdf":
+        if not isinstance(input_path, Sequence) or isinstance(input_path, (str, bytes)):
+            # bytes is included because str can be bytes-like for Path, but a sequence of paths is expected here.
+            # isinstance(input_path, str) handles the case where a string (a sequence of chars) might be passed.
+            err_msg = "For 'merge_to_pdf', 'input_path' must be a sequence (list, tuple) of file paths, not a single string or bytes."
+            logger.error(err_msg)
+            _report_electron_progress(100, 100, f"Error: {err_msg}", "single_error")
+            raise ValueError(err_msg)
+        if not input_path:  # Check if the sequence is empty
+            err_msg = "For 'merge_to_pdf', 'input_path' sequence cannot be empty."
+            logger.error(err_msg)
+            _report_electron_progress(100, 100, f"Error: {err_msg}", "single_error")
+            raise ValueError(err_msg)
+
+        if output_path is None:
+            err_msg = "For 'merge_to_pdf', 'output_path' (full path for merged PDF) must be specified."
+            logger.error(err_msg)
+            _report_electron_progress(100, 100, f"Error: {err_msg}", "single_error")
+            raise ValueError(err_msg)
+
+        resolved_input_paths: list[Path] = []
+        for i_path in input_path:
+            p = Path(i_path).resolve()
+            if not p.exists():
+                logger.error(f"Input file not found: {p}")
+                raise FileNotFoundError(f"Input file not found: {p}")
+            resolved_input_paths.append(p)
+        # Use the first input's name for general logging if needed, or a generic merge message
+        display_input_name = f"{len(resolved_input_paths)} PDFs"
+        # output_path for merge_to_pdf is expected to be a full file path
+        output_path_obj = Path(output_path).resolve()
+        output_path_obj.parent.mkdir(parents=True, exist_ok=True)
+        if output_path_obj.is_dir() or output_path_obj.suffix.lower() != ".pdf":
+            err_msg = f"For 'merge_to_pdf', 'output_path' must be a full .pdf file path, not a directory or other type. Got: {output_path_obj}"
+            logger.error(err_msg)
+            _report_electron_progress(100, 100, f"Error: {err_msg}", "single_error")
+            raise ValueError(err_msg)
+
+    else:  # Single file conversion
+        if not isinstance(input_path, (str, Path)):
+            err_msg = f"For single conversion '{conversion_type}', 'input_path' must be a string or Path object. Got type: {type(input_path)}"
+            logger.error(err_msg)
+            _report_electron_progress(100, 100, f"Error: {err_msg}", "single_error")
+            raise ValueError(err_msg)
+
+        # Type has been narrowed to str | Path for the 'else' branch and this specific check.
+        resolved_input_path = Path(input_path).resolve()
+        if not resolved_input_path.exists():
+            logger.error(f"Input file not found: {resolved_input_path}")
+            raise FileNotFoundError(f"Input file not found: {resolved_input_path}")
+        display_input_name = resolved_input_path.name
+
+        # Handle single file output_path (directory or full path)
+        if output_path is not None:
+            output_path_obj = Path(output_path)
+            if output_path_obj.is_dir():
+                # Create a filename based on the input file, but with correct extension
+                if conversion_type == "pdf2md":
+                    output_path_obj = (
+                        output_path_obj / resolved_input_path.with_suffix(".md").name
+                    )
+                elif conversion_type == "md2pdf":
+                    output_path_obj = (
+                        output_path_obj / resolved_input_path.with_suffix(".pdf").name
+                    )
+                elif conversion_type == "html2pdf":
+                    output_path_obj = (
+                        output_path_obj / resolved_input_path.with_suffix(".pdf").name
+                    )
+                elif conversion_type == "md2html":
+                    output_path_obj = (
+                        output_path_obj / resolved_input_path.with_suffix(".html").name
+                    )
+                elif conversion_type == "pdf2html":
+                    output_path_obj = (
+                        output_path_obj / resolved_input_path.with_suffix(".html").name
+                    )
+                elif conversion_type == "docx2md":
+                    output_path_obj = (
+                        output_path_obj / resolved_input_path.with_suffix(".md").name
+                    )
+                elif conversion_type == "pdf2editable":
+                    output_path_obj = (
+                        output_path_obj / f"{resolved_input_path.stem}_editable.pdf"
+                    )
+                elif conversion_type == "md2docx":
+                    output_path_obj = (
+                        output_path_obj / resolved_input_path.with_suffix(".docx").name
+                    )
+                elif conversion_type == "docx2pdf":
+                    output_path_obj = (
+                        output_path_obj / resolved_input_path.with_suffix(".pdf").name
+                    )
+                # No specific output name generation for 'merge_to_pdf' here, as it's handled above.
+                logger.info(
+                    f"Output path is a directory, using file path: {output_path_obj}"
+                )
+            # If output_path is a file, it's used directly (resolved below)
+        elif (
+            output_path is None and conversion_type != "merge_to_pdf"
+        ):  # For single conversion, output_path can be None
+            # Default output path logic for single file converters if output_path is None
             if conversion_type == "pdf2md":
-                output_path = output_path / input_path.with_suffix(".md").name
+                output_path_obj = resolved_input_path.with_suffix(".md")
             elif conversion_type == "md2pdf":
-                output_path = output_path / input_path.with_suffix(".pdf").name
-            elif conversion_type == "html2pdf":
-                output_path = output_path / input_path.with_suffix(".pdf").name
-            elif conversion_type == "md2html":
-                output_path = output_path / input_path.with_suffix(".html").name
-            elif conversion_type == "pdf2html":
-                output_path = output_path / input_path.with_suffix(".html").name
-            elif conversion_type == "docx2md":
-                output_path = output_path / input_path.with_suffix(".md").name
-            elif conversion_type == "pdf2editable":
-                output_path = output_path / f"{input_path.stem}_editable.pdf"
-            # Add output path generation for md2docx
-            elif conversion_type == "md2docx":
-                output_path = output_path / input_path.with_suffix(".docx").name
-            # Add output path generation for docx2pdf
-            elif conversion_type == "docx2pdf":
-                output_path = output_path / input_path.with_suffix(".pdf").name
-            logger.info(f"Output path is a directory, using file path: {output_path}")
+                output_path_obj = resolved_input_path.with_suffix(".pdf")
+            # ... (add other single converters' default output path logic if needed)
+            else:  # Fallback for other single converters, or let the converter handle it
+                output_path_obj = (
+                    resolved_input_path.parent
+                    / f"{resolved_input_path.stem}_converted{resolved_input_path.suffix}"
+                )
 
-    logger.info(
-        f"Starting single file conversion: {conversion_type} for {input_path.name}"
-    )
+        if output_path is not None:  # Resolve if it was given
+            output_path_obj = Path(output_path).resolve()  # Ensure it's resolved
+            if output_path_obj.is_dir():  # if still a dir after specific naming, it means it was the root output_dir
+                # This case should have been handled by the specific naming logic above.
+                # If it's still a directory, it means the specific conversion type logic to form a file name failed or was not present.
+                # For safety, we might default to a generic name or raise an error.
+                # However, for merge_to_pdf, output_path_obj is already a file path.
+                # For other types, they should have formed a file name.
+                # If output_path_obj is *still* a directory for a single conversion type, this indicates an issue.
+                # Let's assume the prior logic correctly formed a file path if output_path was a directory.
+                pass  # Path should be a file now.
+            output_path_obj.parent.mkdir(parents=True, exist_ok=True)
+
+    logger.info(f"Starting conversion: {conversion_type} for {display_input_name}")
     _report_electron_progress(0, 100, "Initializing...", "single_progress")
 
     # Check compatibility before importing
-    try:
-        check_file_extension_compatibility(conversion_type, input_path)
-    except ValueError as e:
-        _report_electron_progress(100, 100, f"Error: {e}", "single_error")
-        raise
+    # For merge_to_pdf, compatibility is checked for each file in main() before calling this.
+    # For single files, check here.
+    if conversion_type != "merge_to_pdf":
+        try:
+            check_file_extension_compatibility(
+                conversion_type, Path(resolved_input_path)
+            )  # Use resolved_input_path
+        except ValueError as e:
+            _report_electron_progress(100, 100, f"Error: {e}", "single_error")
+            raise
 
     _report_electron_progress(10, 100, "Importing converter...", "single_progress")
-    # Import the appropriate converter function or class method
     try:
-        # Map conversion type to module and function/method
         conversion_map = {
             "pdf2md": (
                 "converters.pdf_to_markdown",
@@ -276,10 +377,14 @@ def convert_with_progress(
                 None,
                 "convert_pdf_to_editable",
             ),
-            # Add md2docx to the conversion map
             "md2docx": ("converters.markdown_to_docx", None, "markdown_to_docx"),
-            # Add docx2pdf to the conversion map
             "docx2pdf": ("converters.doc_to_pdf", None, "convert_docx_to_pdf"),
+            # Add new 'merge_to_pdf'
+            "merge_to_pdf": (
+                "converters.pdf_merger",
+                None,
+                "merge_multiple_pdfs_to_single_pdf",
+            ),
         }
         if conversion_type not in conversion_map:
             raise ValueError(f"Unknown conversion type: {conversion_type}")
@@ -316,12 +421,26 @@ def convert_with_progress(
     # Perform the actual conversion
     try:
         _report_electron_progress(90, 100, "Finalizing...", "single_progress")
-        result_path = converter_callable(input_path, output_path, **kwargs)
+
+        # Adapt call for merge_to_pdf
+        if conversion_type == "merge_to_pdf":
+            # 'resolved_input_paths' is a list[Path], 'output_path_obj' is a Path
+            result_path = converter_callable(
+                input_paths=resolved_input_paths,  # Pass as 'input_paths'
+                output_path=output_path_obj,  # Pass as 'output_path'
+                **kwargs,
+            )
+        else:
+            # 'resolved_input_path' is a Path, 'output_path_obj' is a Path
+            result_path = converter_callable(
+                resolved_input_path, output_path_obj, **kwargs
+            )  # output_path_obj should be the file path for single conv.
+
         _report_electron_progress(100, 100, "Complete", "single_complete")
-        logger.info(f"Single conversion successful: {result_path}")
+        logger.info(f"Conversion successful: {result_path}")
         return result_path
     except Exception as e:
-        logger.exception(f"Error during single conversion: {e}")
+        logger.exception(f"Error during conversion: {e}")
         _report_electron_progress(100, 100, f"Error: {e}", "single_error")
         raise
 
@@ -432,20 +551,44 @@ def main() -> int:
 
     # --- Basic Input Validation ---
     invalid_files = []
-    for file_path in input_files:
-        if not file_path.exists():
-            invalid_files.append(str(file_path))
-        else:
-            # Check extension compatibility early only if file exists
-            try:
-                check_file_extension_compatibility(conversion_type, file_path)
-            except ValueError as e:
-                # Report error and exit if any file is incompatible
-                logger.error(f"Input validation error: {e}")
-                error_data = {"type": "error", "message": str(e)}
-                print(f"ERROR: {json.dumps(error_data)}")
-                sys.stdout.flush()
-                return 1
+    if conversion_type == "merge_to_pdf":
+        if len(input_files) < 2:
+            error_msg = "PDF merging requires at least two input files."
+            logger.error(error_msg)
+            error_data = {"type": "error", "message": error_msg}
+            print(f"ERROR: {json.dumps(error_data)}")
+            sys.stdout.flush()
+            return 1
+        # For merge_to_pdf, all input files must be PDFs.
+        # Compatibility check for each file.
+        for file_path in input_files:
+            if not file_path.exists():
+                invalid_files.append(str(file_path))
+            else:
+                try:
+                    # Check extension compatibility for each file in the merge list
+                    check_file_extension_compatibility(conversion_type, file_path)
+                except ValueError as e:
+                    logger.error(f"Input validation error for merge: {e}")
+                    error_data = {"type": "error", "message": str(e)}
+                    print(f"ERROR: {json.dumps(error_data)}")
+                    sys.stdout.flush()
+                    return 1
+    else:  # For other conversion types
+        for file_path in input_files:
+            if not file_path.exists():
+                invalid_files.append(str(file_path))
+            else:
+                # Check extension compatibility early only if file exists
+                try:
+                    check_file_extension_compatibility(conversion_type, file_path)
+                except ValueError as e:
+                    # Report error and exit if any file is incompatible
+                    logger.error(f"Input validation error: {e}")
+                    error_data = {"type": "error", "message": str(e)}
+                    print(f"ERROR: {json.dumps(error_data)}")
+                    sys.stdout.flush()
+                    return 1
 
     if invalid_files:
         error_msg = f"Input file(s) not found: {', '.join(invalid_files)}"
@@ -496,21 +639,18 @@ def main() -> int:
     logger.debug(f"Converter options from args: {converter_options}")
 
     try:
-        if len(input_files) == 1:
-            # Single file conversion
+        if len(input_files) == 1 and conversion_type != "merge_to_pdf":
+            # Single file conversion (excluding merge_to_pdf even if one file accidentally passed)
             logger.info("Processing as single file conversion.")
-            input_path = input_files[0]
-            # For single file, output_dir acts as specified output directory
-            # The convert_with_progress function now handles directory vs file path
+            input_path_single = input_files[0]
             output_path_arg = Path(output_dir) if output_dir else None
 
             result_path = convert_with_progress(
                 conversion_type,
-                input_path,
+                input_path_single,  # Pass single path
                 output_path_arg,
                 **converter_options,
             )
-            # Report final success for single file
             success_data = {
                 "type": "single_result",
                 "success": True,
@@ -519,8 +659,53 @@ def main() -> int:
             print(f"RESULT: {json.dumps(success_data)}")
             sys.stdout.flush()
             return 0
+        elif conversion_type == "merge_to_pdf":
+            # PDF Merging (N files to 1 PDF)
+            logger.info("Processing as PDF merge operation.")
+            if not output_dir:
+                error_msg = (
+                    "Output directory (--output-dir) is required for PDF merging."
+                )
+                logger.error(error_msg)
+                error_data = {"type": "error", "message": error_msg}
+                print(f"ERROR: {json.dumps(error_data)}")
+                sys.stdout.flush()
+                return 1
+
+            # Define the output path for the merged PDF
+            # For example, "merged_output.pdf" in the specified output_dir
+            # The GUI should ideally allow specifying the output filename.
+            # For now, bridge generates it.
+            merged_pdf_name = "merged_output.pdf"  # Consider making this configurable via new CLI arg if needed
+
+            # Try to get a filename from the first input file to make it more unique
+            # e.g. if first file is reportA.pdf, merged file could be reportA_merged.pdf
+            # This is a simple heuristic.
+            if input_files:
+                base_name = input_files[0].stem
+                merged_pdf_name = f"{base_name}_merged.pdf"
+
+            output_merged_pdf_path = Path(output_dir) / merged_pdf_name
+            output_merged_pdf_path.parent.mkdir(parents=True, exist_ok=True)
+
+            result_path = convert_with_progress(
+                conversion_type,  # "merge_to_pdf"
+                input_files,  # Pass list of Path objects
+                output_merged_pdf_path,  # Pass the determined single output Path
+                **converter_options,
+            )
+            success_data = {
+                "type": "single_result",  # Report as single_result as it's one output file
+                "success": True,
+                "outputPath": str(result_path),
+                "operation": "merge",  # Add context
+                "inputCount": len(input_files),
+            }
+            print(f"RESULT: {json.dumps(success_data)}")
+            sys.stdout.flush()
+            return 0
         else:
-            # Batch conversion
+            # Batch conversion (for 1-to-1 conversions with multiple files)
             logger.info("Processing as batch file conversion.")
             # Pass the callback to the batch processor
             summary = run_batch(

@@ -58,11 +58,15 @@ app.on('window-all-closed', () => {
 
 // --- IPC Handlers --- (Based on project_brief_gui.rst examples)
 
-ipcMain.handle('dialog:openFile', async () => {
+ipcMain.handle('dialog:openFile', async (_event, options?: { filters?: Array<{ name: string; extensions: string[] }> }) => {
   if (!mainWindow) return [];
-  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+  const dialogOptions: Electron.OpenDialogOptions = {
     properties: ['openFile', 'multiSelections'],
-  });
+  };
+  if (options && options.filters) {
+    dialogOptions.filters = options.filters;
+  }
+  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, dialogOptions);
   return canceled ? [] : filePaths;
 });
 

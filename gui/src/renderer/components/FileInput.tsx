@@ -12,6 +12,14 @@ interface FileInputProps {
   onSelectedFilesChange: (updatedFiles: string[]) => void;
   /** Callback function triggered when the user clicks "Clear Selection". */
   onClearSelection: () => void;
+  /** Optional: File types to accept (e.g., '.pdf,.md'). Passed to file dialog if supported. */
+  accept?: string;
+  /** Optional: Custom text for the main file selection button. */
+  buttonText?: string;
+  /** Optional: Instructional text displayed below the selection button. */
+  instructions?: string;
+  /** Optional: Hint for allowing multiple file selections. */
+  allowMultiple?: boolean;
 }
 
 /**
@@ -25,7 +33,11 @@ const FileInput: React.FC<FileInputProps> = ({
   selectedFiles,
   onSelectFilesClick,
   onSelectedFilesChange,
-  onClearSelection
+  onClearSelection,
+  buttonText = "Select Input File(s)", // Default button text
+  instructions,
+  // 'accept' and 'allowMultiple' are not directly used in this component's rendering
+  // but are part of props for the parent to manage dialog options.
 }) => {
 
   const handleFileCheckboxChange = (filePath: string, isChecked: boolean) => {
@@ -47,8 +59,13 @@ const FileInput: React.FC<FileInputProps> = ({
         onClick={onSelectFilesClick}
         className="w-full bg-dark-primary hover:bg-dark-hoverPrimary text-white font-semibold py-2.5 px-4 rounded-lg shadow-md transition duration-150 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-dark-primary focus:ring-opacity-50"
       >
-        Select Input File(s)
+        {buttonText}
       </button>
+      {instructions && (
+        <p className="text-xs text-center text-dark-textSecondary mt-1">
+          {instructions}
+        </p>
+      )}
 
       {selectedFiles.length > 0 && (
         <div className="mt-3 p-3 border border-dark-border rounded-md bg-dark-surface text-sm shadow">

@@ -30,6 +30,7 @@ const ConversionTypeSelect: React.FC<ConversionTypeSelectProps> = ({ conversionT
         <option value="md2html" className="bg-dark-surface text-dark-textPrimary">Markdown to HTML</option>
         <option value="md2pdf" className="bg-dark-surface text-dark-textPrimary">Markdown to PDF</option>
         <option value="mdx2md" className="bg-dark-surface text-dark-textPrimary">MDX to Markdown</option>
+        <option value="merge_to_pdf" className="bg-dark-surface text-dark-textPrimary">Merge PDFs to Single PDF</option>
         <option value="pdf2editable" className="bg-dark-surface text-dark-textPrimary">PDF to Editable PDF</option>
         <option value="pdf2html" className="bg-dark-surface text-dark-textPrimary">PDF to HTML</option>
         <option value="pdf2md" className="bg-dark-surface text-dark-textPrimary">PDF to Markdown</option>
