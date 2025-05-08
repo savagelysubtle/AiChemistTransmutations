@@ -1,7 +1,8 @@
+\
 Design Decisions and Architectural Choices
 ======================================
 
-This document outlines the key design decisions made for the MDtoPDF project and provides rationale for these choices.
+This document outlines the key design decisions made for the Aichemist Transmutation Codex project and provides rationale for these choices.
 
 1. Converter Architecture
 ------------------------
@@ -230,6 +231,164 @@ We considered but rejected having an abstract BaseConverter with subclasses.
 - Python's duck typing reduces the need for formal interfaces
 - Function-based approach is simpler and more flexible
 - Can refactor to this approach later if complexity increases
+
+9. Converter Matrix and Implementation Status
+--------------------------------------------
+
+.. list-table:: Converter Modules, Libraries, and Status
+   :header-rows: 1
+   :widths: 15 15 35 25 10
+
+   * - Input Format
+     - Output Format
+     - Module File
+     - Library / Tool
+     - Status
+   * - DOCX
+     - Markdown (``.md``)
+     - ``src/aichemist_transmutation_codex/converters/doc_to_markdown.py``
+     - ``python-docx``, ``mammoth``
+     - Completed
+   * - Markdown (``.md``)
+     - PDF (``.pdf``)
+     - ``src/aichemist_transmutation_codex/converters/markdown_to_pdf.py``
+     - ``markdown_pdf``
+     - Completed
+   * - HTML (``.html``)
+     - PDF (``.pdf``)
+     - ``src/aichemist_transmutation_codex/converters/html_to_pdf.py``
+     - ``pdfkit`` (``wkhtmltopdf``)
+     - Completed
+   * - Markdown (``.md``)
+     - HTML (``.html``)
+     - ``src/aichemist_transmutation_codex/converters/markdown_to_html.py``
+     - ``markdown`` + ``pygments``
+     - Completed
+   * - PDF (``.pdf``)
+     - HTML (``.html``)
+     - ``src/aichemist_transmutation_codex/converters/pdf_to_html.py``
+     - ``PyMuPDF`` / ``pdfminer.six``
+     - Completed
+   * - PDF (``.pdf``)
+     - Markdown (``.md``)
+     - ``src/aichemist_transmutation_codex/converters/pdf_to_markdown.py``
+     - ``PyMuPDF`` + ``pytesseract``
+     - Completed
+   * - Scanned PDF (``.pdf``)
+     - Searchable PDF (``.pdf``)
+     - ``src/aichemist_transmutation_codex/converters/pdf_to_editable_pdf.py``
+     - ``ocrmypdf`` (``Tesseract``)
+     - Completed
+   * - Markdown (``.md``)
+     - DOCX (``.docx``)
+     - ``src/aichemist_transmutation_codex/converters/markdown_to_docx.py``
+     - ``pypandoc`` / ``python-docx``
+     - Completed
+   * - DOCX (``.docx``)
+     - PDF (``.pdf``)
+     - ``src/aichemist_transmutation_codex/converters/doc_to_pdf.py``
+     - ``docx2pdf`` / ``pandoc``
+     - Completed
+   * - HTML (``.html``)
+     - Markdown (``.md``)
+     - ``src/aichemist_transmutation_codex/converters/html_to_markdown.py``
+     - ``markdownify`` / ``html2text``
+     - Planned
+   * - DOCX (``.docx``)
+     - HTML (``.html``)
+     - ``src/aichemist_transmutation_codex/converters/doc_to_html.py``
+     - ``python-docx`` / ``pypandoc``
+     - Planned
+   * - PDF (``.pdf``)
+     - DOCX (``.docx``)
+     - ``src/aichemist_transmutation_codex/converters/pdf_to_docx.py``
+     - ``pdf2docx``
+     - Planned
+   * - HTML (``.html``)
+     - DOCX (``.docx``)
+     - ``src/aichemist_transmutation_codex/converters/html_to_docx.py``
+     - ``pypandoc`` / ``html-docx-js`` (Node)
+     - Planned
+   * - Markdown (``.md``)
+     - EPUB (``.epub``)
+     - ``src/aichemist_transmutation_codex/converters/markdown_to_epub.py``
+     - ``pypandoc`` / ``ebooklib``
+     - Idea
+   * - PDF (``.pdf``)
+     - EPUB (``.epub``)
+     - ``src/aichemist_transmutation_codex/converters/pdf_to_epub.py``
+     - ``PyMuPDF`` + ``ebooklib`` (alt: Calibre CLI)
+     - Idea
+   * - TXT (``.txt``)
+     - Markdown (``.md``)
+     - ``src/aichemist_transmutation_codex/converters/txt_to_markdown.py``
+     - Python I/O, ``markdown`` (for parsing)
+     - Idea
+   * - Markdown (``.md``)
+     - TXT (``.txt``)
+     - ``src/aichemist_transmutation_codex/converters/markdown_to_txt.py``
+     - ``markdown`` + ``html2text`` / ``BeautifulSoup``
+     - Idea
+   * - TXT (``.txt``)
+     - PDF (``.pdf``)
+     - ``src/aichemist_transmutation_codex/converters/txt_to_pdf.py``
+     - ``reportlab`` / (TXT->MD->PDF chain)
+     - Idea
+   * - ODT (``.odt``)
+     - Markdown (``.md``)
+     - ``src/aichemist_transmutation_codex/converters/odt_to_markdown.py``
+     - ``odtpy`` / ``pypandoc``
+     - Idea
+   * - ODT (``.odt``)
+     - PDF (``.pdf``)
+     - ``src/aichemist_transmutation_codex/converters/odt_to_pdf.py``
+     - ``pypandoc`` / (ODT->HTML->PDF chain)
+     - Idea
+   * - Markdown (``.md``)
+     - ODT (``.odt``)
+     - ``src/aichemist_transmutation_codex/converters/markdown_to_odt.py``
+     - ``odtpy`` / ``pypandoc``
+     - Idea
+   * - XLSX (``.xlsx``)
+     - Markdown (``.md``)
+     - ``src/aichemist_transmutation_codex/converters/xlsx_to_markdown.py``
+     - ``openpyxl`` / ``pandas``
+     - Idea
+   * - XLSX (``.xlsx``)
+     - CSV (``.csv``)
+     - ``src/aichemist_transmutation_codex/converters/xlsx_to_csv.py``
+     - ``openpyxl`` / ``pandas`` + ``csv`` module
+     - Idea
+   * - CSV (``.csv``)
+     - Markdown (``.md``)
+     - ``src/aichemist_transmutation_codex/converters/csv_to_markdown.py``
+     - ``csv`` module
+     - Idea
+   * - PPTX (``.pptx``)
+     - PDF (``.pdf``)
+     - ``src/aichemist_transmutation_codex/converters/pptx_to_pdf.py``
+     - ``python-pptx`` + ``reportlab`` / ``pypandoc``
+     - Idea
+   * - PPTX (``.pptx``)
+     - Markdown (``.md``)
+     - ``src/aichemist_transmutation_codex/converters/pptx_to_markdown.py``
+     - ``python-pptx``
+     - Idea
+   * - IPYNB (``.ipynb``)
+     - Markdown (``.md``)
+     - ``src/aichemist_transmutation_codex/converters/ipynb_to_markdown.py``
+     - ``nbconvert``
+     - Idea
+   * - IPYNB (``.ipynb``)
+     - HTML (``.html``)
+     - ``src/aichemist_transmutation_codex/converters/ipynb_to_html.py``
+     - ``nbconvert``
+     - Idea
+   * - IPYNB (``.ipynb``)
+     - PDF (``.pdf``)
+     - ``src/aichemist_transmutation_codex/converters/ipynb_to_pdf.py``
+     - ``nbconvert``
+     - Idea
 
 Conclusion
 ----------

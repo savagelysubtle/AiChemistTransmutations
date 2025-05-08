@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from mdtopdf.config import ConfigManager, LogManager
+from aichemist_transmutation_codex.config import ConfigManager, LogManager
 
 # Setup logger using the LogManager singleton
 log_manager = LogManager()
@@ -31,8 +31,22 @@ except ImportError:
     PYMUPDF4LLM_AVAILABLE = False
     logger.debug("PyMuPDF4LLM not available.")
 
-    def parse_pdf_to_markdown(pdf_path: str) -> str:
-        """Placeholder function when pymupdf4llm is not available."""
+    def parse_pdf_to_markdown(pdf_path: str, **kwargs: Any) -> str:
+        """Placeholder function for PyMuPDF4LLM when it's not available.
+
+        This function is defined if the `pymupdf4llm` library cannot be imported.
+        Calling it will always result in an ImportError.
+
+        Args:
+            pdf_path (str): The path to the PDF file.
+            **kwargs (Any): Additional keyword arguments (ignored by this placeholder).
+
+        Returns:
+            str: This function does not return normally.
+
+        Raises:
+            ImportError: Always raised to indicate `pymupdf4llm` is not installed.
+        """
         logger.error(
             "PyMuPDF4LLM is required for this conversion engine. Install it with: pip install pymupdf4llm"
         )
@@ -42,7 +56,8 @@ except ImportError:
 # Try importing OCR dependencies
 try:
     import pytesseract
-    from PIL import Image, ImageEnhance, ImageFilter
+    from PIL import Image, ImageFilter
+    from PIL.ImageEnhance import ImageEnhance
 
     # Get Tesseract path from config or use default
     config = ConfigManager()
@@ -63,8 +78,12 @@ except ImportError:
 
 # For type checking only
 if TYPE_CHECKING:
-    import cv2
-    import numpy as np
+    import cv2  # type: ignore
+    import numpy as np  # type: ignore
+    from PIL import (
+        ImageEnhance,  # type: ignore
+        ImageFilter,  # type: ignore
+    )
 
 # Try importing OpenCV
 try:
@@ -78,7 +97,23 @@ except ImportError:
 
 
 class PDFToMarkdownConverter:
+    """Coordinates PDF to Markdown conversion using different engines.
+
+    This class acts as a dispatcher, selecting the appropriate conversion
+    function based on the configured or specified engine (e.g., "basic",
+    "ocr", "enhanced_ocr", "pymupdf4llm").
+
+    Attributes:
+        settings (dict): Configuration settings specific to "pdf2md" conversions,
+            loaded from `ConfigManager`.
+        logger (logging.Logger): Logger instance for this converter.
+    """
+
     def __init__(self):
+        """Initializes the PDFToMarkdownConverter.
+
+        Loads "pdf2md" specific configurations and sets up a logger.
+        """
         # Get configuration for pdf2md
         config = ConfigManager()
         self.settings = config.get_converter_config("pdf2md")

@@ -23,6 +23,19 @@ dependencies = [
     "node",
     "nanoid>=2.0.0",
     "ocrmypdf",
+    "pypandoc>=1.12",
+    "ebooklib>=0.18",
+    "markdownify>=0.11",
+    "html2text>=2020.1.16",
+    "docx2pdf>=0.1.8",
+    "pdf2docx>=0.5.6",
+    "reportlab>=4.0.0",         # For TXT/PPTX to PDF, general PDF generation
+    "odfpy>=0.9.7",             # For ODT processing
+    "openpyxl>=3.1.0",          # For XLSX processing
+    # pandas is an alternative for XLSX, but openpyxl is more lightweight for direct conversion
+    "python-pptx>=0.6.23",    # For PPTX processing
+    "nbconvert>=7.0.0",       # For IPYNB conversions
+    "beautifulsoup4>=4.12.0", # For HTML stripping (MD to TXT via HTML)
 ]
 description = "A versatile document conversion toolkit, part of the AiChemist suite."
 license = { text = "MIT" }
@@ -38,6 +51,12 @@ version = "0.1.0"
         "pre-commit>=4.0.0",
         "mypy>=1.5.0",
         "pytest-cov>=4.1.0",
+        "sphinx",
+        "sphinx-rtd-theme",
+        "sphinx-autodoc-typehints",
+        "sphinx-copybutton",
+        "sphinx-design",
+
     ]
 
 

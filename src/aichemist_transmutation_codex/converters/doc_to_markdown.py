@@ -6,9 +6,9 @@ This module provides functions to convert Microsoft Word DOCX files to Markdown 
 """
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from mdtopdf.config import ConfigManager, LogManager
+from aichemist_transmutation_codex.config import ConfigManager, LogManager
 
 # Setup logger
 log_manager = LogManager()
@@ -33,6 +33,10 @@ try:
 except ImportError:
     logger.warning("mammoth not found. Install with 'pip install mammoth'")
     MAMMOTH_AVAILABLE = False
+
+if TYPE_CHECKING:
+    from docx.table import Table as DocxTable  # type: ignore
+    from docx.text.paragraph import Paragraph as DocxParagraph  # type: ignore
 
 
 def convert_docx_to_md(
@@ -281,8 +285,19 @@ def _convert_with_python_docx(
         raise RuntimeError(f"python-docx conversion failed: {e}") from e
 
 
-def _format_paragraph(paragraph: docx.text.paragraph.Paragraph) -> str:  # type: ignore
-    """Format a paragraph with runs to maintain inline formatting."""
+def _format_paragraph(paragraph: "DocxParagraph") -> str:
+    """Formats a python-docx Paragraph object into a Markdown string.
+
+    Iterates through the runs in a paragraph, applying bold and italic
+    Markdown formatting based on the run's properties. Underline is converted
+    to italic as Markdown lacks native underline support.
+
+    Args:
+        paragraph (DocxParagraph): The `docx.text.paragraph.Paragraph` object to format.
+
+    Returns:
+        str: A string containing the Markdown representation of the paragraph.
+    """
     formatted_text = ""
     for run in paragraph.runs:
         text = run.text
@@ -299,8 +314,21 @@ def _format_paragraph(paragraph: docx.text.paragraph.Paragraph) -> str:  # type:
     return formatted_text
 
 
-def _format_table(table: docx.table.Table) -> str | None:  # type: ignore
-    """Convert a docx table to Markdown format."""
+def _format_table(table: "DocxTable") -> str | None:
+    """Converts a python-docx Table object into a Markdown table string.
+
+    Constructs a Markdown table with a header row and data rows. Cells containing
+    newlines are converted to use `<br>` tags for line breaks within the table cell.
+    Rows with mismatched column counts compared to the header are skipped with a warning.
+
+    Args:
+        table (DocxTable): The `docx.table.Table` object to format.
+
+    Returns:
+        str | None: A string containing the Markdown table, or None if the input
+            table has no rows. Returns a placeholder string "*Error processing table*"
+            if an exception occurs during formatting.
+    """
     if not table.rows:
         return None
 

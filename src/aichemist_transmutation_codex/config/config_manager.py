@@ -15,6 +15,13 @@ def deep_merge(
     """
     Deeply merges source dictionary into destination dictionary.
     Modifies destination in place.
+
+    Args:
+        source (MutableMapping[Any, Any]): The source dictionary to merge from.
+        destination (MutableMapping[Any, Any]): The destination dictionary to merge into.
+
+    Returns:
+        MutableMapping[Any, Any]: The `destination` dictionary with merged values.
     """
     for key, value in source.items():
         if isinstance(value, MutableMapping):
@@ -44,14 +51,33 @@ class ConfigManager:
     _instance = None
 
     def __new__(cls, *args, **kwargs):
-        """Implement singleton pattern for ConfigManager."""
+        """Creates a new ConfigManager instance if one doesn't exist (Singleton pattern).
+
+        Args:
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            ConfigManager: The singleton instance of the ConfigManager.
+        """
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
     def __init__(self, config_dir: Path | str | None = None):
-        """Initialize the ConfigManager if not already initialized."""
+        """Initializes the ConfigManager, loading configurations from files and environment.
+
+        This constructor is called only once due to the singleton pattern implemented
+        in `__new__`. It sets up configuration paths, loads default, user, and
+        Electron configurations, and applies environment variable overrides.
+
+        Args:
+            config_dir (Path | str | None): The directory where configuration files
+                (e.g., `default_config.yaml`, `user_config.yaml`) are located.
+                If None, defaults to a directory named "config" in the current
+                working directory. Defaults to None.
+        """
         if getattr(self, "_initialized", False):
             return
 
@@ -70,8 +96,15 @@ class ConfigManager:
         self._initialized = True
 
     def _load_yaml(self, filename: str) -> dict[str, Any]:
-        """
-        Load a YAML configuration file. Handles FileNotFoundError.
+        """Loads a YAML configuration file from the config directory.
+
+        Args:
+            filename (str): The name of the YAML file (e.g., "default_config.yaml").
+
+        Returns:
+            dict[str, Any]: The loaded configuration as a dictionary. Returns an
+                empty dictionary if the file is not found, cannot be parsed, or
+                is empty.
         """
         config_path = self.config_dir / filename
         if not config_path.exists():
@@ -87,8 +120,14 @@ class ConfigManager:
             return {}
 
     def _load_json(self, filename: str) -> dict[str, Any]:
-        """
-        Load a JSON configuration file. Handles FileNotFoundError.
+        """Loads a JSON configuration file from the config directory.
+
+        Args:
+            filename (str): The name of the JSON file (e.g., "electron_config.json").
+
+        Returns:
+            dict[str, Any]: The loaded configuration as a dictionary. Returns an
+                empty dictionary if the file is not found or cannot be parsed.
         """
         config_path = self.config_dir / filename
         if not config_path.exists():
@@ -158,7 +197,18 @@ class ConfigManager:
         return config
 
     def _convert_env_value(self, value_str: str) -> Any:
-        """Convert environment variable string to appropriate type."""
+        """Converts an environment variable string to a Python native type.
+
+        Attempts to convert to boolean (True/False for "true"/"yes"/"1" or
+        "false"/"no"/"0"), then integer, then float. If all conversions fail,
+        returns the original string.
+
+        Args:
+            value_str (str): The string value from the environment variable.
+
+        Returns:
+            Any: The converted value (bool, int, float, or str).
+        """
         if value_str.lower() in ("true", "yes", "1"):
             return True
         elif value_str.lower() in ("false", "no", "0"):
@@ -207,11 +257,13 @@ class ConfigManager:
         return merged_config
 
     def get_electron_config(self) -> dict[str, Any]:
-        """
-        Get Electron-specific configuration. (No merging applied here by default)
+        """Gets the Electron-specific configuration.
+
+        This configuration is typically loaded from `electron_config.json` and is
+        not merged with other configuration sources by default.
 
         Returns:
-            Dictionary containing Electron configuration
+            dict[str, Any]: A dictionary containing the Electron configuration.
         """
         # Electron config is typically standalone, no deep merge applied here
         # unless specific requirements arise.
@@ -234,8 +286,13 @@ class ConfigManager:
         return converters_config.get(converter_type, {})
 
     def save_user_config(self, config: dict[str, Any]) -> None:
-        """
-        Save user configuration to file. Ensures config dir exists.
+        """Saves the provided configuration dictionary to the user_config.yaml file.
+
+        Ensures the configuration directory exists before writing. After saving,
+        it reloads the `self.user_config` attribute.
+
+        Args:
+            config (dict[str, Any]): The user configuration dictionary to save.
         """
         try:
             self.config_dir.mkdir(parents=True, exist_ok=True)
@@ -248,8 +305,15 @@ class ConfigManager:
             print(f"Error saving user config to {config_path}: {e}")
 
     def update_user_config(self, section: str, key: str, value: Any) -> None:
-        """
-        Update a specific value in the user configuration.
+        """Updates a specific key-value pair in the user configuration and saves it.
+
+        If the section does not exist in the current user configuration, it will be
+        created. After updating, the entire user configuration is saved to disk.
+
+        Args:
+            section (str): The top-level section in the configuration (e.g., "application").
+            key (str): The configuration key within the section to update.
+            value (Any): The new value for the configuration key.
         """
         if section not in self.user_config:
             self.user_config[section] = {}

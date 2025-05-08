@@ -1,0 +1,246 @@
+/* General Body Styling */
+body {
+    background-color: #1e1e1e; /* Dark gray background */
+    color: #e0e0e0; /* Light gray text */
+    font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif; /* Modern sans-serif font */
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+    color: #ADFF2F; /* Lime green headings */
+    border-bottom-color: #444; /* Darker border for separation */
+}
+
+h1 {
+    border-bottom-width: 2px;
+}
+
+h2 {
+    border-bottom-width: 1px;
+}
+
+/* Links */
+a {
+    color: #87CEFA; /* Light Sky Blue for general links */
+    text-decoration: none;
+}
+
+a:hover {
+    color: #ADFF2F; /* Lime green on hover */
+    text-decoration: underline;
+}
+
+/* Sidebar Styling (sphinx_rtd_theme specific) */
+.wy-nav-side {
+    background-color: #181818; /* Slightly darker sidebar */
+}
+
+.wy-menu-vertical li.current a,
+.wy-menu-vertical li.toctree-l1.current > a {
+    background: #2a2a2a; /* Background for current item */
+    border-right: 3px solid #ADFF2F; /* Lime green indicator */
+    color: #ADFF2F;
+}
+
+.wy-menu-vertical li.current a:hover,
+.wy-menu-vertical li.toctree-l1.current > a:hover {
+    background: #333;
+    color: #ADFF2F;
+}
+
+.wy-menu-vertical a {
+    color: #c0c0c0; /* Lighter gray for sidebar links */
+}
+
+.wy-menu-vertical a:hover {
+    background-color: #2a2a2a;
+    color: #ADFF2F; /* Lime green on hover */
+}
+
+/* Content Area */
+.wy-nav-content {
+    background: #1e1e1e; /* Same as body background */
+}
+
+/* Code Blocks */
+div.highlight, pre {
+    background-color: #2a2a2a !important; /* Dark background for code blocks */
+    border: 1px solid #444;
+    color: #e0e0e0; /* Ensure text in code blocks is light */
+}
+
+/* Pygments Overrides (Monokai has light text, but we can ensure consistency) */
+.highlight .c, .highlight .c1, .highlight .cs { color: #75715e; } /* Comments */
+.highlight .k, .highlight .kc, .highlight .kd, .highlight .kn, .highlight .kp, .highlight .kr, .highlight .kt { color: #66d9ef; } /* Keywords */
+.highlight .s, .highlight .s1, .highlight .s2, .highlight .sb, .highlight .sc, .highlight .sd, .highlight .se, .highlight .sh, .highlight .si, .highlight .sx, .highlight .sr, .highlight .ss, .highlight .sx { color: #ADFF2F; } /* Strings - LIME GREEN! */
+.highlight .n, .highlight .nb, .highlight .nc, .highlight .no, .highlight .nd, .highlight .ni, .highlight .ne, .highlight .nf, .highlight .nl, .highlight .nn, .highlight .nx, .highlight .py, .highlight .na, .highlight .nv { color: #f8f8f2; } /* Names, variables */
+.highlight .mi, .highlight .mf, .highlight .mh, .highlight .il, .highlight .mo, .highlight .mb, .highlight .mx { color: #ae81ff; } /* Numbers */
+.highlight .o, .highlight .ow { color: #f92672; } /* Operators */
+
+/* Admonitions (note, warning, etc.) */
+.admonition {
+    background-color: #2a2a2a;
+    border-left: 5px solid #ADFF2F; /* Lime green left border */
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.admonition-title {
+    color: #ADFF2F; /* Lime green title */
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.admonition p, .admonition ul, .admonition ol {
+    color: #e0e0e0;
+}
+
+/* Specific admonition types if you want different border colors */
+.admonition.note { border-left-color: #87CEFA; /* Light Sky Blue for notes */ }
+.admonition.note .admonition-title { color: #87CEFA; }
+
+.admonition.warning { border-left-color: #FFA500; /* Orange for warnings */ }
+.admonition.warning .admonition-title { color: #FFA500; }
+
+.admonition.important { border-left-color: #ADFF2F; /* Lime for important */ }
+.admonition.important .admonition-title { color: #ADFF2F; }
+
+.admonition.tip { border-left-color: #90EE90; /* Light Green for tips */ }
+.admonition.tip .admonition-title { color: #90EE90; }
+
+.admonition.danger, .admonition.error { border-left-color: #FF4500; /* OrangeRed for danger/error */ }
+.admonition.danger .admonition-title, .admonition.error .admonition-title { color: #FF4500; }
+
+
+/* Tables */
+table.docutils {
+    border-color: #444;
+}
+table.docutils th {
+    background-color: #2a2a2a;
+    color: #ADFF2F; /* Lime green for table headers */
+    border-color: #444;
+}
+table.docutils td {
+    border-color: #444;
+}
+
+/* Breadcrumbs */
+.rst-content .wy-breadcrumbs li a {
+    color: #87CEFA;
+}
+.rst-content .wy-breadcrumbs li a:hover {
+    color: #ADFF2F;
+}
+
+/* Search Box */
+.wy-side-nav-search input[type=text] {
+    background-color: #121212;
+    border-color: #444;
+    color: #e0e0e0;
+}
+.wy-side-nav-search > a, .wy-side-nav-search .wy-dropdown > a {
+    color: #e0e0e0;
+}
+
+/* Version Dropdown */
+.rst-versions .rst-current-version {
+    background-color: #181818;
+    color: #e0e0e0;
+}
+.rst-versions .rst-other-versions dd a {
+    color: #c0c0c0;
+}
+.rst-versions .rst-other-versions dd a:hover {
+    color: #ADFF2F;
+}
+
+/* Sphinx Design Components - basic dark theme compatibility */
+/* Dropdowns / Toggles */
+.sd-dropdown {
+    border: 1px solid #444;
+    background-color: #2a2a2a;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.sd-summary-title {
+    color: #ADFF2F; /* Lime green for dropdown title */
+}
+.sd-dropdown > summary {
+    background-color: #333333;
+}
+.sd-dropdown > summary:hover {
+    background-color: #3a3a3a;
+}
+.sd-dropdown-content {
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+}
+
+/* Tabs */
+.sd-tab-label {
+    color: #c0c0c0;
+    background-color: #333333;
+    border: 1px solid #444 !important;
+}
+.sd-tab-label:hover {
+    color: #ADFF2F;
+    background-color: #3a3a3a;
+}
+input.sd-tab-item:checked + label.sd-tab-label {
+    color: #ADFF2F;
+    background-color: #2a2a2a;
+    border-bottom-color: #2a2a2a !important;
+}
+.sd-tab-content {
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    border-top: none;
+    color: #e0e0e0;
+}
+
+/* Cards */
+.sd-card {
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.sd-card-header, .sd-card-footer {
+    color: #ADFF2F; /* Lime green for card header/footer */
+    background-color: #333333;
+}
+.sd-card-title {
+    color: #ADFF2F;
+}
+.sd-card-text {
+    color: #e0e0e0;
+}
+
+/* Buttons */
+.sd-btn {
+    border-radius: 4px;
+}
+.sd-btn-primary {
+    background-color: #ADFF2F;
+    border-color: #ADFF2F;
+    color: #1e1e1e !important; /* Dark text on lime button */
+}
+.sd-btn-primary:hover {
+    background-color: #8BC34A; /* Darker lime on hover */
+    border-color: #8BC34A;
+    color: #1e1e1e !important;
+}
+.sd-btn-secondary {
+    background-color: #444;
+    border-color: #555;
+    color: #e0e0e0 !important;
+}
+.sd-btn-secondary:hover {
+    background-color: #555;
+    border-color: #666;
+    color: #ffffff !important;
+}
+
+/* Ensure _static directory is created if it doesn't exist.
+   This comment is for the AI; the user will need to ensure this directory
+   is present at docs/source/_static/ for Sphinx to find custom.css */

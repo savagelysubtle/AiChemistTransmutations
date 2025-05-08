@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, IpcMainInvokeEvent } from 'electro
 import path from 'node:path';
 import fs from 'node:fs';
 import { spawn } from 'child_process';
-import { convertMdxToMd } from '../converter/mdxToMd'; // Path relative to dist-electron/main/main.js
+import { convertMdxToMd } from '../converters/mdxToMd'; // Path relative to dist-electron/main/main.js
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -85,9 +85,9 @@ interface RunConversionArgs {
 ipcMain.handle('run-conversion', async (_event: IpcMainInvokeEvent, { conversionType, inputFiles, outputDir, options }: RunConversionArgs) => {
   return new Promise((resolve, reject) => {
     // IMPORTANT: Adjust this path if your script is located elsewhere or if your build process changes structure.
-    // This path assumes electron_bridge.py is in <project_root>/src/mdtopdf/electron_bridge.py
+    // This path assumes electron_bridge.py is in <project_root>/src/aichemist_transmutation_codex/electron_bridge.py
     // and main.ts (after compilation) is in <project_root>/gui/dist-electron/main/main.js
-    const scriptPath = path.resolve(app.getAppPath(), '../src/mdtopdf/electron_bridge.py');
+    const scriptPath = path.resolve(app.getAppPath(), '../src/aichemist_transmutation_codex/electron_bridge.py');
 
     // Determine Python executable: prioritize venv if it exists, otherwise use system python
     // This is a basic approach; more robust venv detection might be needed for different OS/setups.
