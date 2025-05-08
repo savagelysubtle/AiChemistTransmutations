@@ -10,7 +10,7 @@ import importlib
 import sys
 from pathlib import Path
 
-from mdtopdf.config import ConfigManager, LogManager
+from aichemist_transmutation_codex.config import ConfigManager, LogManager
 
 # Initialize LogManager (loads config and sets up logging)
 log_manager = LogManager()
@@ -18,7 +18,14 @@ logger = log_manager.get_logger("cli")
 
 
 def main() -> int:
-    """Run the MDtoPDF CLI application."""
+    """Runs the MDtoPDF command-line interface application.
+
+    Parses command-line arguments, sets up converter options, dynamically imports
+    and calls the appropriate converter function, and handles GUI launch requests.
+
+    Returns:
+        int: 0 on successful conversion or GUI launch, 1 on error.
+    """
     parser = argparse.ArgumentParser(description="MDtoPDF Converter CLI")
 
     # Get config for defaults

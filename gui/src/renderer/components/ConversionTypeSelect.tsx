@@ -22,15 +22,18 @@ const ConversionTypeSelect: React.FC<ConversionTypeSelectProps> = ({ conversionT
         onChange={(e) => onConversionTypeChange(e.target.value)}
         className="p-3 border border-dark-border rounded-md w-full bg-dark-surface text-dark-textPrimary focus:ring-2 focus:ring-dark-primary focus:border-dark-primary appearance-none focus:outline-none"
       >
-        <option value="pdf2md" className="bg-dark-surface text-dark-textPrimary">PDF to Markdown</option>
+        {/* Options sorted alphabetically by display text */}
+        <option value="docx2md" className="bg-dark-surface text-dark-textPrimary">DOCX to Markdown</option>
+        <option value="docx2pdf" className="bg-dark-surface text-dark-textPrimary">DOCX to PDF</option>
+        <option value="html2pdf" className="bg-dark-surface text-dark-textPrimary">HTML to PDF</option>
+        <option value="md2docx" className="bg-dark-surface text-dark-textPrimary">Markdown to DOCX</option>
+        <option value="md2html" className="bg-dark-surface text-dark-textPrimary">Markdown to HTML</option>
         <option value="md2pdf" className="bg-dark-surface text-dark-textPrimary">Markdown to PDF</option>
         <option value="mdx2md" className="bg-dark-surface text-dark-textPrimary">MDX to Markdown</option>
-        <option value="html2pdf" className="bg-dark-surface text-dark-textPrimary">HTML to PDF</option>
-        <option value="md2html" className="bg-dark-surface text-dark-textPrimary">Markdown to HTML</option>
-        <option value="pdf2html" className="bg-dark-surface text-dark-textPrimary">PDF to HTML</option>
-        <option value="docx2md" className="bg-dark-surface text-dark-textPrimary">DOCX to Markdown</option>
         <option value="pdf2editable" className="bg-dark-surface text-dark-textPrimary">PDF to Editable PDF</option>
-        {/* Add other conversion types as needed */}
+        <option value="pdf2html" className="bg-dark-surface text-dark-textPrimary">PDF to HTML</option>
+        <option value="pdf2md" className="bg-dark-surface text-dark-textPrimary">PDF to Markdown</option>
+        {/* Add other conversion types as needed, maintaining alphabetical order */}
       </select>
     </section>
   );

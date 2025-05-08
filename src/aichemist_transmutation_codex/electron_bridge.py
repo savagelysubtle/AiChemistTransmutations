@@ -13,6 +13,16 @@ import time
 from pathlib import Path
 from typing import Any
 
+# Resolve the project's src directory and add it to sys.path
+# This allows absolute imports of modules within the aichemist_transmutation_codex package
+# when electron_bridge.py is run as a script.
+# __file__ is .../AichemistTransmutationCodex/src/aichemist_transmutation_codex/electron_bridge.py
+# .parent is .../AichemistTransmutationCodex/src/aichemist_transmutation_codex
+# .parent.parent (src_path) is .../AichemistTransmutationCodex/src
+_src_path = Path(__file__).resolve().parent.parent
+if str(_src_path) not in sys.path:
+    sys.path.insert(0, str(_src_path))
+
 from aichemist_transmutation_codex.batch_processor import run_batch
 from aichemist_transmutation_codex.config import LogManager
 
@@ -23,7 +33,18 @@ def _report_electron_progress(
     message: str,
     progress_type: str = "single",
 ) -> None:
-    """Report single file progress in JSON format."""
+    """Reports single file progress to Electron via stdout.
+
+    Formats the progress data as a JSON string prefixed with "PROGRESS:".
+
+    Args:
+        current_step (int): The current step in the process.
+        total_steps (int): The total number of steps in the process.
+        message (str): A message describing the current state.
+        progress_type (str): A string indicating the type of progress report
+            (e.g., "single_progress", "single_error", "single_complete").
+            Defaults to "single".
+    """
     progress = int((current_step / total_steps) * 100) if total_steps > 0 else 0
     progress_data = {
         "type": progress_type,  # e.g., "single_progress"
@@ -50,11 +71,20 @@ def _report_electron_batch_progress(
     # failed_count: list[int],
     # lock: threading.Lock
 ) -> None:
-    """
-    Callback function for batch processor to report progress to Electron.
+    """Callback function to report batch processing progress to Electron.
 
-    This function is called by the batch_processor for each completed file.
-    It needs to be thread-safe if modifying shared counters.
+    This function is invoked by the `run_batch` function for each file processed
+    in a batch operation. It formats the progress data as a JSON string
+    prefixed with "BATCH_PROGRESS:" and prints it to stdout.
+
+    Args:
+        file_index (int): The 1-based index of the currently processed file.
+        total_files (int): The total number of files in the batch.
+        file_path_str (str): The string path of the input file being processed.
+        success (bool): True if the file was processed successfully, False otherwise.
+        processing_time (float): The time taken to process the file, in seconds.
+        error_message (str | None): An error message if processing failed,
+            otherwise None.
     """
     # Note: Direct updates to shared counters (successful/failed)
     # should happen outside this callback in the main thread
@@ -90,8 +120,15 @@ def _report_electron_batch_progress(
 
 
 def check_file_extension_compatibility(conversion_type: str, input_path: Path) -> None:
-    """
-    Check file extension compatibility.
+    """Checks if the input file's extension is compatible with the conversion type.
+
+    Args:
+        conversion_type (str): The target conversion type (e.g., "pdf2md").
+        input_path (Path): Path to the input file.
+
+    Raises:
+        ValueError: If the file extension is not compatible with the
+            specified conversion type.
     """
     # ... (function remains the same, logging handled by caller)
     extension = input_path.suffix.lower()
@@ -119,6 +156,16 @@ def check_file_extension_compatibility(conversion_type: str, input_path: Path) -
         if extension != ".pdf":
             compatible = False
             expected = ".pdf"
+    # Add compatibility for md2docx
+    elif conversion_type == "md2docx":
+        if extension not in (".md", ".markdown"):
+            compatible = False
+            expected = ".md or .markdown"
+    # Add compatibility for docx2pdf
+    elif conversion_type == "docx2pdf":
+        if extension not in (".docx"):
+            compatible = False
+            expected = ".docx"
 
     if not compatible:
         error_msg = f"Input file {input_path.name} is not compatible with {conversion_type} conversion. Expected {expected}."
@@ -136,8 +183,33 @@ def convert_with_progress(
     output_path: str | Path | None = None,
     **kwargs: Any,
 ) -> Path:
-    """
-    Convert a single file with progress reporting.
+    """Converts a single file and reports progress to Electron.
+
+    This function handles the conversion of a single file. It dynamically imports
+    the appropriate converter based on `conversion_type`, executes the conversion,
+    and reports progress updates (initialization, steps, completion/error) to
+    Electron via stdout.
+
+    Args:
+        conversion_type (str): The type of conversion (e.g., "pdf2md", "md2pdf").
+        input_path (str | Path): The path to the input file.
+        output_path (str | Path | None): The desired path for the output file.
+            If it's a directory, a filename will be generated based on the input.
+            If None, the converter typically saves the output next to the input file
+            with an appropriate extension. Defaults to None.
+        **kwargs (Any): Additional keyword arguments to be passed to the specific
+            converter function.
+
+    Returns:
+        Path: The absolute path to the successfully converted output file.
+
+    Raises:
+        FileNotFoundError: If `input_path` does not exist.
+        ValueError: If `conversion_type` is unknown or if the input file is
+            incompatible with the selected conversion.
+        ImportError: If the required converter module or its dependencies
+            cannot be loaded.
+        RuntimeError: For other unexpected errors during the conversion process.
     """
     logger = LogManager().get_bridge_logger()
     input_path = Path(input_path).resolve()
@@ -164,6 +236,12 @@ def convert_with_progress(
                 output_path = output_path / input_path.with_suffix(".md").name
             elif conversion_type == "pdf2editable":
                 output_path = output_path / f"{input_path.stem}_editable.pdf"
+            # Add output path generation for md2docx
+            elif conversion_type == "md2docx":
+                output_path = output_path / input_path.with_suffix(".docx").name
+            # Add output path generation for docx2pdf
+            elif conversion_type == "docx2pdf":
+                output_path = output_path / input_path.with_suffix(".pdf").name
             logger.info(f"Output path is a directory, using file path: {output_path}")
 
     logger.info(
@@ -198,12 +276,18 @@ def convert_with_progress(
                 None,
                 "convert_pdf_to_editable",
             ),
+            # Add md2docx to the conversion map
+            "md2docx": ("converters.markdown_to_docx", None, "markdown_to_docx"),
+            # Add docx2pdf to the conversion map
+            "docx2pdf": ("converters.doc_to_pdf", None, "convert_docx_to_pdf"),
         }
         if conversion_type not in conversion_map:
             raise ValueError(f"Unknown conversion type: {conversion_type}")
 
         module_path, class_name, func_name = conversion_map[conversion_type]
-        module = importlib.import_module(f".{module_path}", package="mdtopdf")
+        module = importlib.import_module(
+            f".{module_path}", package="aichemist_transmutation_codex"
+        )
 
         if class_name:
             ConverterClass = getattr(module, class_name)
@@ -243,8 +327,19 @@ def convert_with_progress(
 
 
 def main() -> int:
-    """
-    Execute conversion from command line arguments.
+    """Main entry point for the Electron bridge script.
+
+    This function is executed when the script is run. It parses command-line
+    arguments, determines whether to perform a single or batch conversion,
+    invokes the appropriate conversion logic, and reports results/errors to
+    Electron via stdout using prefixed JSON messages (PROGRESS:, RESULT:, ERROR:, BATCH_PROGRESS:, BATCH_RESULT:).
+
+    The script expects arguments defining the conversion type, input file(s),
+    optional output directory, and other converter-specific options.
+
+    Returns:
+        int: Exit code of the process. 0 for success, 1 for general errors,
+             2 for argument parsing errors.
     """
     logger = LogManager().get_bridge_logger()
 
@@ -305,6 +400,11 @@ def main() -> int:
     # DOCX2MD specific
     parser.add_argument("--style-map", help="Path to DOCX style map JSON")
     parser.add_argument("--image-dir", help="Directory for extracted DOCX images")
+    # MD2DOCX specific
+    parser.add_argument(
+        "--reference-docx",
+        help="Path to a reference DOCX file for styling output of md2docx conversion.",
+    )
     # PDF2EDITABLE specific ( reusing --lang and --force-ocr from PDF2MD for consistency if applicable)
     # --lang is already defined for PDF2MD, can be reused.
     # --force-ocr is already defined for PDF2MD, can be reused.
@@ -380,6 +480,9 @@ def main() -> int:
         converter_options["style_map"] = args.style_map
     if args.image_dir:
         converter_options["image_dir"] = args.image_dir
+    # Add reference_docx to converter_options
+    if args.reference_docx:
+        converter_options["reference_docx"] = args.reference_docx
 
     # String choice options: these will be None if not provided, or the chosen string.
     if args.output_type:

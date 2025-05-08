@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from mdtopdf.config import ConfigManager, LogManager
+from aichemist_transmutation_codex.config import ConfigManager, LogManager
 
 # Setup logger
 log_manager = LogManager()
@@ -27,7 +27,17 @@ except ImportError:
 
 
 def _ensure_path(input_val: str | Path) -> Path:
-    """Ensure the input is a Path object."""
+    """Ensures the input value is a Path object.
+
+    If the input is already a Path object, it's returned directly.
+    If it's a string, it's converted to a Path object.
+
+    Args:
+        input_val (str | Path): The input value, which can be a string path or a Path object.
+
+    Returns:
+        Path: The Path object representation of the input.
+    """
     return Path(input_val)
 
 

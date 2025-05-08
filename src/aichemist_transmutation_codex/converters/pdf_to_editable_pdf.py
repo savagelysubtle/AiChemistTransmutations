@@ -10,10 +10,13 @@ from pathlib import Path
 from typing import Any
 
 import ocrmypdf
-from mdtopdf.config import LogManager  # Assuming LogManager is accessible
 
 # Import specific exceptions directly
 from ocrmypdf.exceptions import InputFileError, MissingDependencyError
+
+from aichemist_transmutation_codex.config import (
+    LogManager,  # Assuming LogManager is accessible
+)
 
 # It's good practice to get a logger specific to this module.
 # The name 'pdf_to_editable_pdf_converter' clearly identifies the source of logs.

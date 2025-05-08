@@ -16,14 +16,35 @@ class LogManager:
     _instance = None
 
     def __new__(cls, *args, **kwargs):
-        """Implement singleton pattern for LogManager."""
+        """Creates a new LogManager instance if one doesn't exist (Singleton pattern).
+
+        Args:
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            LogManager: The singleton instance of the LogManager.
+        """
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
     def __init__(self, logs_dir: Path | None = None, config_dir: Path | None = None):
-        """Initialize the LogManager if not already initialized."""
+        """Initializes the LogManager, setting up paths and logging configurations.
+
+        This constructor is called only once due to the singleton pattern.
+        It defines log and configuration directories, generates a session ID,
+        creates log directories, and applies logging configurations from a YAML file.
+
+        Args:
+            logs_dir (Path | None): The base directory where log files will be stored.
+                If None, defaults to a directory named "logs" in the current working
+                directory. Defaults to None.
+            config_dir (Path | None): The directory where the `logging_config.yaml`
+                file is located. If None, defaults to a directory named "config"
+                in the current working directory. Defaults to None.
+        """
         if self._initialized:
             # If already initialized, potentially update paths if provided?
             # For simplicity now, we assume paths are set on first init.
@@ -48,7 +69,12 @@ class LogManager:
         self._initialized = True
 
     def _create_log_directories(self):
-        """Create necessary log directories if they don't exist."""
+        """Creates the necessary directory structure for log files.
+
+        Ensures that the main log directories (e.g., `logs/python`,
+        `logs/electron`) and subdirectories for specific components
+        (e.g., `logs/python/converters`) exist.
+        """
         # Main log directories
         (self.logs_dir / "python").mkdir(parents=True, exist_ok=True)
         (self.logs_dir / "python" / "converters").mkdir(exist_ok=True)
@@ -65,7 +91,14 @@ class LogManager:
         (self.logs_dir / "electron" / "renderer").mkdir(exist_ok=True)
 
     def _configure_logging(self):
-        """Load and apply logging configuration from YAML file."""
+        """Loads and applies logging configuration from `logging_config.yaml`.
+
+        This method reads the YAML configuration file, updates log file paths
+        to be absolute and include the session ID where appropriate, and then
+        applies the configuration using `logging.config.dictConfig`.
+        If the configuration file is not found or is invalid, it falls back
+        to basic logging.
+        """
         config = None  # Initialize config to None
         config_path = self.config_dir / "logging_config.yaml"
         try:
@@ -153,7 +186,11 @@ class LogManager:
             )
 
     def _setup_basic_logging(self):
-        """Set up basic logging as fallback."""
+        """Sets up a basic logging configuration as a fallback.
+
+        This is used if the `logging_config.yaml` file cannot be found or parsed.
+        It configures a simple console logger with INFO level.
+        """
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -200,11 +237,19 @@ class LogManager:
         return self.get_logger(f"converters.{converter_type}")
 
     def get_batch_logger(self) -> logging.Logger:
-        """Get a logger for batch processing."""
+        """Gets a logger specifically for batch processing operations.
+
+        Returns:
+            logging.Logger: A configured logger instance named "mdtopdf.batch_processor".
+        """
         return self.get_logger("batch_processor")
 
     def get_bridge_logger(self) -> logging.Logger:
-        """Get a logger for the electron bridge."""
+        """Gets a logger specifically for the Electron bridge operations.
+
+        Returns:
+            logging.Logger: A configured logger instance named "mdtopdf.electron_bridge".
+        """
         return self.get_logger("electron_bridge")
 
     def add_file_handler(

@@ -9,7 +9,7 @@ from typing import Any
 
 import markdown
 
-from mdtopdf.config import ConfigManager, LogManager
+from aichemist_transmutation_codex.config import ConfigManager, LogManager
 
 # Setup logger
 log_manager = LogManager()
@@ -89,8 +89,32 @@ def convert_md_to_html(
     output_path: str | Path | None = None,
     **kwargs: Any,  # Accept additional options
 ) -> Path:
-    """
-    Convert a Markdown file to HTML.
+    """Converts a Markdown file to a complete HTML document with styling.
+
+    This function reads a Markdown file, converts its content to HTML using
+    the `md_to_html` helper function (which applies default or custom CSS),
+    and saves the result to an output HTML file.
+
+    Args:
+        input_path (str | Path): The path to the input Markdown file.
+        output_path (str | Path | None): The path where the output HTML file
+            will be saved. If None, it defaults to the same name as the input
+            file but with an ".html" extension, in the same directory.
+            Defaults to None.
+        **kwargs (Any): Additional options. Currently supports:
+            - `custom_css` (str | Path | None): Path to a custom CSS file to
+              be used instead of the default styling. If the path is invalid
+              or the file cannot be read, a warning is logged and default
+              CSS is used.
+
+    Returns:
+        Path: The absolute path to the generated HTML file.
+
+    Raises:
+        FileNotFoundError: If `input_path` does not exist.
+        ValueError: If `input_path` is not a Markdown file (based on extension).
+        RuntimeError: For any other errors encountered during file operations or
+            Markdown conversion.
     """
     input_path = Path(input_path).resolve()
     if not input_path.exists():

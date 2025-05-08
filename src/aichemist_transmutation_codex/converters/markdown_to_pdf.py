@@ -10,7 +10,7 @@ from typing import Any
 
 from markdown_pdf import MarkdownPdf, Section
 
-from mdtopdf.config import ConfigManager, LogManager
+from aichemist_transmutation_codex.config import ConfigManager, LogManager
 
 # Setup logger
 log_manager = LogManager()
@@ -48,16 +48,32 @@ def convert_md_to_pdf(
     output_path: str | Path | None = None,
     **kwargs: Any,  # Accept additional options
 ) -> Path:
-    """
-    Convert a markdown file to PDF.
+    """Converts a Markdown file to a PDF document.
+
+    This function utilizes the `markdown_pdf` library to perform the conversion.
+    It preprocesses the Markdown content to handle custom page break markers
+    and injects basic CSS for table styling if no style tags are present.
+    The document title is extracted from the first H1 header or defaults to the
+    input filename. Metadata (title, author) is added to the PDF.
 
     Args:
-        input_path: Path to the Markdown file
-        output_path: Path to save the PDF file.
-        **kwargs: Additional options like page_break_marker, respect_html_breaks
+        input_path (str | Path): The path to the input Markdown file.
+        output_path (str | Path | None): The path where the output PDF file will be
+            saved. If None, it defaults to the same name as the input file but
+            with a ".pdf" extension, in the same directory. Defaults to None.
+        **kwargs (Any): Additional options. Currently supports:
+            - `page_break_marker` (str): A string that, when found in the
+              Markdown, will be treated as a page break. Defaults to the value
+              in `md2pdf` config or "<!-- pagebreak -->". Common LaTeX commands
+              `\\pagebreak` and `\\newpage` are also recognized.
 
     Returns:
-        Path to the generated PDF file
+        Path: The absolute path to the generated PDF file.
+
+    Raises:
+        FileNotFoundError: If `input_path` does not exist.
+        RuntimeError: For any errors encountered during file operations or
+            PDF generation by the `markdown_pdf` library.
     """
     input_path = Path(input_path).resolve()
     if not input_path.exists():

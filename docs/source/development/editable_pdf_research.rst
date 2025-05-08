@@ -1,3 +1,4 @@
+\
 Editable PDF Workflow & Library Research
 ======================================
 
@@ -15,7 +16,7 @@ This research document compares popular **Python** libraries (and a few notable 
 2. **Post-processing** existing PDFs—merging, splitting, rotating pages, updating metadata, encrypting/decrypting.
 3. **Round-trip editing**: converting PDF → editable format (e.g. DOCX / HTML) → PDF.
 
-The goal is to inform future converter modules that comply with :doc:`800-feature-development <../architecture/800-feature-development>` and :doc:`801-pdf-converter-development <../architecture/801-pdf-converter-development>` guidelines.
+The goal is to inform future converter modules that comply with :doc:`800-feature-development <../architecture/800-feature-development>` and :doc:`801-pdf-converter-development <../architecture/801-pdf-converter-development>` guidelines for the Aichemist Transmutation Codex.
 
 Quick-Look Comparison Matrix
 ---------------------------
@@ -63,25 +64,25 @@ ReportLab
 ~~~~~~~~~
 * **Strengths**: Mature, performant; fine-grained canvas API; supports *static* AcroForms, digital signatures, PDF/A.
 * **Weaknesses**: Creating complex interactive forms programmatically is verbose. Not focused on PDF → other formats.
-* **Ideal For**: Generator modules (Markdown → PDF, HTML → PDF) where we control the entire layout.
+* **Ideal For**: Generator modules (Markdown → PDF, HTML → PDF) where we control the entire layout for Aichemist Transmutation Codex.
 
 borb
 ~~~~
 * **Strengths**: High-level API for tables, paragraphs, charts, **form field creation**, JavaScript actions, encryption.
 * **Weaknesses**: AGPL may require open-sourcing our code or acquiring a commercial licence; community still growing.
-* **Ideal For**: Future modules that need rich interactive PDFs (e.g., invoice forms, survey PDFs).
+* **Ideal For**: Future modules that need rich interactive PDFs (e.g., invoice forms, survey PDFs) for Aichemist Transmutation Codex.
 
 pypdf (successor of PyPDF2)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 * **Strengths**: Pure-Python, no C deps; merge, split, rotate, **read/write AcroForm data**; incremental saves.
 * **Weaknesses**: Cannot create new drawing content without helper libs; form field *creation* is experimental.
-* **Ideal For**: Post-processing, watermarking, filling existing templates.
+* **Ideal For**: Post-processing, watermarking, filling existing templates within Aichemist Transmutation Codex.
 
 PyMuPDF (fitz)
 ~~~~~~~~~~~~~~
 * **Strengths**: Fast C++ core; extract images, text, **convert pages to DOCX/HTML** (`page.get_text("html")`), draw graphics.
 * **Weaknesses**: GPL/commercial; no built-in DOCX *import*; editing form fields limited.
-* **Round-Trip Strategy**: `pdf` → *html*/*docx* (edit externally) → regenerate PDF (via `docx2pdf` or HTML → PDF converter).
+* **Round-Trip Strategy**: `pdf` → *html*/*docx* (edit externally) → regenerate PDF (via `docx2pdf` or HTML → PDF converter for Aichemist Transmutation Codex).
 
 pdf2docx + docx2pdf Workflow
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -96,18 +97,18 @@ LibreOffice). **Caveats**:
 PyPDFForm / pdfforms
 ~~~~~~~~~~~~~~~~~~~~
 If the workflow involves *existing* PDF templates with AcroForm fields, these libraries allow **data binding** to populate
-fields (text, checkboxes, radio buttons) and *optionally flatten* the form afterwards.
+fields (text, checkboxes, radio buttons) and *optionally flatten* the form afterwards for Aichemist Transmutation Codex.
 
 Commercial SDKs (Aspose.PDF, ironpdf)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Commercial libraries provide enterprise-grade features—OCR, redaction, comparison, linearization—but at a cost.
-They may be justified for **WYSIWYG** fidelity requirements or advanced digital signing.
+They may be justified for **WYSIWYG** fidelity requirements or advanced digital signing for Aichemist Transmutation Codex.
 
-Recommended Stack for This Project
-----------------------------------
+Recommended Stack for This Project (Aichemist Transmutation Codex)
+----------------------------------------------------------------
 
 Based on project constraints (open-source preference, Windows platform, Python 3.13, licence compatibility), the
-following tiered approach is proposed:
+following tiered approach is proposed for the Aichemist Transmutation Codex:
 
 1. **Lightweight editing / form filling of existing PDFs** → ``pypdf`` (BSD-2) plus helper utilities.
 2. **Interactive PDF generation (new converter)** → ``borb`` (AGPL) *or* ``ReportLab`` for OSS-only deployments.
@@ -119,11 +120,11 @@ following tiered approach is proposed:
 
    This could be wrapped in a **Python batch helper** exposed through the Electron UI.
 
-Prototype Converter Namespaces
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-* ``src/mdtopdf/converters/pdf_edit.py`` – helper functions based on **pypdf** for merging, form filling, and stamping.
-* ``src/mdtopdf/converters/pdf_to_docx.py`` – wraps **pdf2docx**.
-* ``src/mdtopdf/converters/docx_to_pdf.py`` – wraps **docx2pdf**.
+Prototype Converter Namespaces (for Aichemist Transmutation Codex)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* ``src/aichemist_transmutation_codex/converters/pdf_edit.py`` – helper functions based on **pypdf** for merging, form filling, and stamping.
+* ``src/aichemist_transmutation_codex/converters/pdf_to_docx.py`` – wraps **pdf2docx**.
+* ``src/aichemist_transmutation_codex/converters/docx_to_pdf.py`` – wraps **docx2pdf**.
 
 Next Steps
 ----------
@@ -133,14 +134,14 @@ Next Steps
    * ``pdf2docx`` conversion accuracy with sample invoices.
    * Form field creation with ``borb`` vs ``ReportLab``.
 
-2. **Dependency Impact** – AGPL obligations for ``borb``; if unacceptable, limit to **ReportLab + pypdf** blend.
+2. **Dependency Impact** – AGPL obligations for ``borb``; if unacceptable, limit to **ReportLab + pypdf** blend for Aichemist Transmutation Codex.
 3. **Design Converter APIs** – Follow templates in :doc:`801-pdf-converter-development <../architecture/801-pdf-converter-development>`.
 4. **Unit Tests** – Draft pytest cases under ``tests/unit/test_converters/`` focusing on:
 
    * PDF → DOCX layout assertions.
    * Successful form fill & flatten operations.
 
-5. **GUI Flow** – Extend **electron_bridge.py** to expose *"Edit PDF"* flow in React UI with real-time progress.
+5. **GUI Flow** – Extend **electron_bridge.py** to expose *"Edit PDF"* flow in React UI with real-time progress for Aichemist Transmutation Codex.
 
 References & Further Reading
 ----------------------------
@@ -168,19 +169,19 @@ While many libraries can *generate* PDFs, ensuring a high degree of editability 
     *   The **PDF → DOCX → PDF round-trip workflow** discussed earlier (using `pdf2docx` and `docx2pdf`) is a practical way to achieve deep editability. Users can take the DOCX output, edit it extensively in Microsoft Word (or a compatible editor), and then either:
         *   Save it as a PDF directly from Word.
         *   Use Acrobat to convert the edited DOCX back to PDF.
-        *   Use our `docx2pdf` converter to bring it back to PDF.
+        *   Use our `docx2pdf` converter (part of Aichemist Transmutation Codex) to bring it back to PDF.
     This approach leverages the mature editing capabilities of word processors.
 
 3.  **PDF Structure and Standards**:
     *   Adhering to PDF standards (e.g., PDF/A for archiving, PDF/UA for accessibility) can sometimes influence how well Acrobat interprets and handles a document, though direct editability is more about content structure.
     *   Ensuring fonts are embedded correctly is crucial for consistent appearance and editability of text content.
 
-For this project, providing options to generate PDFs with clear AcroForm fields and facilitating the PDF ⇄ DOCX conversion will offer users good flexibility for editing in Adobe Acrobat.
+For the Aichemist Transmutation Codex project, providing options to generate PDFs with clear AcroForm fields and facilitating the PDF ⇄ DOCX conversion will offer users good flexibility for editing in Adobe Acrobat.
 
-Conceptualizing a Basic GUI PDF Editor Extension
-------------------------------------------------
+Conceptualizing a Basic GUI PDF Editor Extension (Aichemist Transmutation Codex)
+--------------------------------------------------------------------------------
 
-To provide users with direct, albeit basic, PDF editing capabilities within the application, we can conceptualize an extension to the existing Electron/React/TypeScript GUI. This would not aim to replicate advanced features of tools like Adobe Acrobat but would offer convenience for common tasks.
+To provide users with direct, albeit basic, PDF editing capabilities within the application, we can conceptualize an extension to the existing Electron/React/TypeScript GUI for the Aichemist Transmutation Codex. This would not aim to replicate advanced features of tools like Adobe Acrobat but would offer convenience for common tasks.
 
 **Core Architecture & Technologies**:
 
@@ -191,7 +192,7 @@ To provide users with direct, albeit basic, PDF editing capabilities within the 
     *   Creating and filling PDF form fields.
     *   Modifying existing PDF pages (e.g., adding content, drawing).
     *   Saving modified PDFs.
-*   **Python Backend Interaction**: For more complex operations or to ensure consistency with other Python-based converters, the Electron frontend can communicate with the Python backend (`electron_bridge.py`) via IPC.
+*   **Python Backend Interaction**: For more complex operations or to ensure consistency with other Python-based converters, the Electron frontend can communicate with the Python backend (`electron_bridge.py` of Aichemist Transmutation Codex) via IPC.
 
 **Key Features for a Basic Editor**:
 
@@ -207,11 +208,11 @@ To provide users with direct, albeit basic, PDF editing capabilities within the 
     *   Potentially allow adding new, simple form fields (though this adds complexity).
 4.  **Saving Modifications**:
     *   **Client-Side Save**: `pdf-lib` can apply the annotations/changes directly to the PDF byte stream on the client-side and offer it for download/save.
-    *   **Server-Side Save (Optional)**: For consistency or more complex merging, the frontend could send annotation data (e.g., type, position, content) to the Python backend, which then uses a Python PDF library (like `pypdf` or `borb`) to apply these changes and save the file.
+    *   **Server-Side Save (Optional)**: For consistency or more complex merging, the frontend could send annotation data (e.g., type, position, content) to the Python backend, which then uses a Python PDF library (like `pypdf` or `borb` part of Aichemist Transmutation Codex) to apply these changes and save the file.
 
 **High-Level Workflow Example (Adding Text Annotation)**:
 
-1.  User opens a PDF in the GUI editor.
+1.  User opens a PDF in the Aichemist Transmutation Codex GUI editor.
 2.  The PDF is rendered using `react-pdf`.
 3.  User selects the "Add Text" tool from a toolbar.
 4.  User clicks on the rendered PDF page; a text input appears.
@@ -231,12 +232,12 @@ To provide users with direct, albeit basic, PDF editing capabilities within the 
 *   **Undo/Redo**: Implementing a reliable undo/redo system for editing operations adds significant complexity.
 *   **Fidelity**: Ensuring that client-side modifications are rendered correctly across different PDF viewers.
 
-**Integration with Project Rules**:
+**Integration with Project Rules (Aichemist Transmutation Codex)**:
 
 *   This feature would align with **Rule 800 (Feature Development)**, requiring phases for research, implementation (Python backend if needed, TypeScript/React frontend), testing (unit and manual GUI testing), and documentation.
 *   Communication between Electron (TypeScript) and Python would follow guidelines in **Rule 811 (Electron Main/Preload)** and **Global Project Context (001)** regarding async functions and JSON messaging.
 
-This GUI editor would be a significant feature. Starting with a very limited set of annotation tools (e.g., only adding text boxes) and iterating would be a sensible approach.
+This GUI editor would be a significant feature. Starting with a very limited set of annotation tools (e.g., only adding text boxes) and iterating would be a sensible approach for Aichemist Transmutation Codex.
 
 .. note::
    This document complies with :ref:`400-documentation-format` by using **reStructuredText** and residing under

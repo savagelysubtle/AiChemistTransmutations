@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from mdtopdf.config import ConfigManager, LogManager
+from aichemist_transmutation_codex.config import ConfigManager, LogManager
 
 # Setup logger
 log_manager = LogManager()
@@ -39,21 +39,35 @@ except ImportError:
 def convert_pdf_to_html(
     input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
 ) -> Path:
-    """
-    Convert a PDF file to HTML.
+    """Converts a PDF file to an HTML document.
+
+    This function can use either PyMuPDF (fitz) or pdfminer.six as the conversion
+    engine. The engine can be specified via `**kwargs` or configuration.
+    If PyMuPDF is used, it extracts HTML content page by page and wraps it in a
+    basic HTML structure with some default CSS for readability.
+    If pdfminer.six is used, it leverages `extract_text_to_fp`.
 
     Args:
-        input_path: Path to the input PDF file
-        output_path: Path for the output HTML file
-        **kwargs: Additional keyword arguments for the converter
+        input_path (str | Path): Path to the input PDF file.
+        output_path (str | Path | None): Path for the output HTML file.
+            If None, defaults to the input filename with an .html extension.
+            Defaults to None.
+        **kwargs (Any): Additional keyword arguments. Currently supports:
+            - `engine` (str): Specifies the conversion engine to use, either
+              "pymupdf" or "pdfminer". If not provided, it defaults to the
+              value in the `pdf2html` configuration, or "pymupdf" if PyMuPDF
+              is available, otherwise "pdfminer".
 
     Returns:
-        Path to the created HTML file
+        Path: The absolute path to the generated HTML file.
 
     Raises:
-        FileNotFoundError: If the input file doesn't exist
-        ValueError: If the input file is not a PDF file
-        ImportError: If no suitable PDF to HTML converter is available
+        FileNotFoundError: If the `input_path` does not exist.
+        ValueError: If the `input_path` is not a PDF file, or if the specified
+            engine is not supported or available.
+        ImportError: If neither PyMuPDF nor pdfminer.six is available and no
+            valid engine can be selected.
+        RuntimeError: For other errors encountered during the conversion process.
     """
     input_path = Path(input_path).resolve()
     if not input_path.exists():

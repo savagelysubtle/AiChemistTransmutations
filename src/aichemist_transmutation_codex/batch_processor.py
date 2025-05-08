@@ -13,7 +13,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from mdtopdf.config import ConfigManager, LogManager
+from aichemist_transmutation_codex.config import ConfigManager, LogManager
 
 # Setup logger
 log_manager = LogManager()
@@ -26,14 +26,39 @@ BatchSummary = dict[str, Any]
 
 
 def _process_single_file_wrapper(
-    converter_func: Callable,
+    converter_func: Callable[..., Path],
     input_path: Path,
     output_dir: Path | None,
     converter_options: dict[str, Any],
-    # Add a logger specific to this worker/file if needed, or use the main one
 ) -> ConversionResult:
-    """
-    Wrapper function to process a single file with error handling.
+    """Wraps the processing of a single file, handling timing and errors.
+
+    This function is intended to be run in a separate thread or process
+    by the batch processor. It calls the provided converter function
+    and records the outcome.
+
+    Args:
+        converter_func (Callable[..., Path]): The actual converter function
+            (e.g., convert_pdf_to_md). It should accept an input path
+            as its first argument, an optional output_path keyword argument,
+            and other **converter_options. It must return the Path to the
+            output file.
+        input_path (Path): The absolute path to the input file.
+        output_dir (Path | None): The directory where the output file should be
+            saved. If None, the converter function is expected to handle the
+            output path (e.g., save next to input file).
+        converter_options (dict[str, Any]): A dictionary of options specific
+            to the converter_func. This will be passed as **kwargs.
+            If 'output_path' is set by this wrapper, it will be included here.
+
+    Returns:
+        ConversionResult: A tuple containing:
+            - output_path (Path): The path to the generated (or attempted) output file.
+              Will have a '.failed' suffix if conversion failed.
+            - success (bool): True if conversion was successful, False otherwise.
+            - duration (float): Time taken for the conversion in seconds.
+            - error_message (str | None): An error message if conversion failed,
+              None otherwise.
     """
     start_time = time.time()
     error_msg = None
@@ -80,12 +105,46 @@ def run_batch(
     progress_callback: ProgressCallback | None = None,
     **converter_options: Any,
 ) -> BatchSummary:
-    """
-    Run a batch conversion job with concurrent processing.
+    """Runs a batch conversion job with concurrent processing.
+
+    This function orchestrates the conversion of multiple files using a
+    thread pool. It dynamically loads the appropriate converter based on
+    `conversion_type`.
+
+    Args:
+        conversion_type (str): The type of conversion to perform (e.g.,
+            "pdf2md", "md2pdf"). This key is used to look up the
+            converter module and function.
+        input_files (list[str | Path]): A list of input file paths.
+            Can be strings or Path objects.
+        output_dir (str | Path | None): The directory where all output files
+            will be saved. If None, converters might save outputs next to
+            their respective input files (behavior depends on the specific
+            converter). Defaults to None.
+        max_workers (int | None): The maximum number of worker threads to use.
+            If None, the value is sourced from the application configuration,
+            defaulting to 4 if not set there.
+        progress_callback (ProgressCallback | None): An optional callback function
+            invoked after each file is processed. It receives:
+            (current_index, total_files, input_file_path_str, success_status,
+            processing_time_seconds, error_message_or_none). Defaults to None.
+        **converter_options (Any): Additional keyword arguments passed directly
+            to the individual converter functions. These are specific to the
+            `conversion_type` being used.
+
+    Returns:
+        BatchSummary: A dictionary summarizing the batch operation, including
+            total files, number successful, number failed, total time, and
+            a list of detailed results for each file.
+
+    Raises:
+        ValueError: If `conversion_type` is unsupported.
+        ImportError: If the converter module or function for the specified
+            `conversion_type` cannot be imported or found.
     """
     # Convert paths
-    input_paths = [Path(f) for f in input_files]
-    output_dir_path = Path(output_dir) if output_dir else None
+    input_paths: list[Path] = [Path(f) for f in input_files]
+    output_dir_path: Path | None = Path(output_dir) if output_dir else None
 
     # Get configuration
     config = ConfigManager()
