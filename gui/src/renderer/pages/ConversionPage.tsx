@@ -6,6 +6,7 @@ import FileInput from '../components/FileInput';
 import DirectoryInput from '../components/DirectoryInput';
 import ConversionOptions from '../components/ConversionOptions';
 import ConversionLog from '../components/ConversionLog';
+import MergeOptions from '../components/MergeOptions';
 
 // Updated PlaceholderElectronAPI
 interface PlaceholderElectronAPI {
@@ -53,7 +54,28 @@ const ConversionPage: React.FC = () => {
     pdfRenderer: 'auto',
   });
 
+  // State for PDF Merge Options
+  const [mergeOrderedFiles, setMergeOrderedFiles] = useState<string[]>([]);
+  const [mergeOutputFileName, setMergeOutputFileName] = useState<string>('merged_document.pdf');
+
   const electronAPI = getElectronAPI();
+
+  // Effect to synchronize mergeOrderedFiles with selectedFiles when conversionType is merge_to_pdf
+  useEffect(() => {
+    if (conversionType === 'merge_to_pdf') {
+      // This ensures that mergeOrderedFiles reflects selectedFiles when switching to merge mode
+      // or when selectedFiles change while in merge mode.
+      // A more sophisticated sync might be needed if preserving order across deselection/reselection is desired.
+      setMergeOrderedFiles(selectedFiles);
+      if (selectedFiles.length === 0) {
+        setMergeOutputFileName('merged_document.pdf'); // Reset if no files
+      }
+    } else {
+      // Clear merge specific states if not in merge mode to avoid confusion
+      setMergeOrderedFiles([]);
+      // setMergeOutputFileName('merged_document.pdf'); // Optionally reset filename
+    }
+  }, [selectedFiles, conversionType]);
 
   const handleClearLog = () => {
     setConversionLog([]);
@@ -129,11 +151,22 @@ const ConversionPage: React.FC = () => {
     setSelectedFiles(updatedFiles);
   };
 
+  // Specific handler for removing a file from the merge list (called by MergeOptions component)
+  const handleRemoveFileFromMerge = (filePathToRemove: string) => {
+    // This updates both selectedFiles and mergeOrderedFiles to keep them in sync
+    const updatedSelectedFiles = selectedFiles.filter(file => file !== filePathToRemove);
+    setSelectedFiles(updatedSelectedFiles);
+    // mergeOrderedFiles will be updated by the useEffect hook watching selectedFiles
+    setConversionLog(prev => [...prev, `Removed ${filePathToRemove.split(/[\\/]/).pop()} from merge list.`]);
+  };
+
   const handleClearSelection = () => {
     if (selectedFiles.length > 0) {
         setConversionLog(prev => [...prev, "Cleared all selected files."]);
     }
     setSelectedFiles([]);
+    // mergeOrderedFiles will be cleared by the useEffect hook
+    setMergeOutputFileName('merged_document.pdf'); // Reset merge output name as well
   };
 
   const handleSelectOutputDir = async () => {
@@ -155,14 +188,18 @@ const ConversionPage: React.FC = () => {
       setConversionLog(prev => [...prev, 'Error: API not available.']);
       return;
     }
-    if (selectedFiles.length === 0) {
+
+    // Use mergeOrderedFiles for input if in merge_to_pdf mode, otherwise use selectedFiles
+    const currentInputFiles = conversionType === 'merge_to_pdf' ? mergeOrderedFiles : selectedFiles;
+
+    if (currentInputFiles.length === 0) {
       setConversionLog(prev => [...prev, 'Error: No input files selected.']);
       return;
     }
 
     // Specific handling for PDF Merging
     if (conversionType === 'merge_to_pdf') {
-      if (selectedFiles.length < 2) {
+      if (currentInputFiles.length < 2) {
         setConversionLog(prev => [...prev, 'Error: PDF Merging requires at least two input files.']);
         return;
       }
@@ -170,21 +207,27 @@ const ConversionPage: React.FC = () => {
         setConversionLog(prev => [...prev, 'Error: An output directory must be selected for PDF Merging.']);
         return;
       }
+      if (!mergeOutputFileName || mergeOutputFileName.trim() === '') {
+        setConversionLog(prev => [...prev, 'Error: An output file name must be specified for the merged PDF.']);
+        // Optionally, you could force a default name here if you prefer
+        // setMergeOutputFileName('merged_output.pdf'); // and then proceed
+        return;
+      }
       setConversionLog(prev => [
         ...prev,
-        `Starting PDF Merge for ${selectedFiles.length} files: ${selectedFiles.join(', ')}... Output to: ${outputDir}`,
+        `Starting PDF Merge for ${currentInputFiles.length} files: ${currentInputFiles.join(', ')}... Output to: ${outputDir}/${mergeOutputFileName}`,
       ]);
       try {
         const result = await electronAPI.runConversion({
           conversionType: 'merge_to_pdf',
-          inputFiles: selectedFiles,
-          outputDir: outputDir, // Output directory is mandatory for merge
-          options: {}, // No specific options for merge yet, but can be added
+          inputFiles: currentInputFiles, // Use the (potentially reordered) mergeOrderedFiles
+          outputDir: outputDir,
+          options: { outputFileName: mergeOutputFileName }, // Pass the desired output filename
         });
         setConversionLog(prev => [...prev, `Merge process ended: ${result.message}`]);
         if (result.success) {
           // Optionally clear selection on success
-          // setSelectedFiles([]);
+          // setSelectedFiles([]); // This would also clear mergeOrderedFiles via useEffect
         }
       } catch (error) {
         console.error('Error running PDF merge conversion:', error);
@@ -195,18 +238,18 @@ const ConversionPage: React.FC = () => {
     }
 
     // Existing MDX to MD conversion (client-side handled differently)
-    setConversionLog(prev => [...prev, `Starting ${conversionType} conversion for ${selectedFiles.length} file(s): ${selectedFiles.join(', ')}...`]);
+    setConversionLog(prev => [...prev, `Starting ${conversionType} conversion for ${currentInputFiles.length} file(s): ${currentInputFiles.join(', ')}...`]);
 
     if (conversionType === 'mdx2md') {
       if (!electronAPI.convertMdxToMd) {
         setConversionLog(prev => [...prev, 'ERROR: MDX to MD conversion function is not available on electronAPI.']);
         return;
       }
-      if (selectedFiles.length > 1) {
+      if (currentInputFiles.length > 1) {
           setConversionLog(prev => [...prev, 'Note: MDX to MD conversion will be processed one file at a time for multiple selections.']);
       }
       // Loop through selected files for MDX to MD conversion
-      for (const inputFile of selectedFiles) {
+      for (const inputFile of currentInputFiles) { // Use currentInputFiles here too
         try {
           setConversionLog(prev => [...prev, `Converting ${inputFile} (MDX to MD)...`]);
           let targetOutputFile;
@@ -257,7 +300,7 @@ const ConversionPage: React.FC = () => {
 
         const result = await electronAPI.runConversion({
           conversionType,
-          inputFiles: selectedFiles,
+          inputFiles: currentInputFiles, // Use currentInputFiles
           outputDir: outputDir || undefined,
           options, // Pass the dynamically constructed options
         });
@@ -279,7 +322,19 @@ const ConversionPage: React.FC = () => {
       <main className="flex-grow space-y-6">
         <ConversionTypeSelect
           conversionType={conversionType}
-          onConversionTypeChange={setConversionType}
+          onConversionTypeChange={(newType) => {
+            setConversionType(newType);
+            // If switching away from merge_to_pdf, selectedFiles remains, but merge options might hide.
+            // If switching TO merge_to_pdf, useEffect will handle mergeOrderedFiles.
+            // Reset output filename for merge if user switches type then switches back with files already selected.
+            if (newType === 'merge_to_pdf' && selectedFiles.length > 0) {
+                setMergeOutputFileName('merged_document.pdf');
+            } else if (newType !== 'merge_to_pdf') {
+                // Optionally clear merge-specific states if desired when switching away
+                // setMergeOrderedFiles([]); // Already handled by useEffect
+                // setMergeOutputFileName('merged_document.pdf');
+            }
+          }}
         />
 
         <section className="p-6 border border-dark-border rounded-lg shadow-lg bg-dark-surface space-y-4">
@@ -289,28 +344,46 @@ const ConversionPage: React.FC = () => {
             onSelectFilesClick={handleSelectFilesClick}
             onSelectedFilesChange={handleSelectedFilesChange}
             onClearSelection={handleClearSelection}
-            // Dynamically set props for FileInput based on conversionType
             buttonText={
               conversionType === 'merge_to_pdf'
-                ? "Select PDFs to Merge"
+                ? "Select PDFs to Merge (Min. 2)"
                 : "Select Input File(s)"
             }
             instructions={
               conversionType === 'merge_to_pdf'
-                ? "Select two or more PDF files to combine into a single PDF."
-                : undefined // No specific instruction for other types by default
+                ? "Select two or more PDF files to combine. Order and output name can be set below."
+                : undefined
             }
             accept={conversionType === 'merge_to_pdf' ? ".pdf" : undefined}
-            allowMultiple={conversionType === 'merge_to_pdf'} // Hint for clarity
+            allowMultiple={true} // Always allow multiple for FileInput, merge logic will check count
           />
-          <DirectoryInput outputDir={outputDir} onSelectOutputDirectory={handleSelectOutputDir} />
+          <DirectoryInput
+            outputDir={outputDir}
+            onSelectOutputDirectory={handleSelectOutputDir}
+            buttonText={
+              conversionType === 'merge_to_pdf'
+                ? "Select Output Directory (Required for Merge)"
+                : "Select Output Directory (Optional)"
+            }
+          />
         </section>
+
+        {/* Conditionally render MergeOptions only for 'merge_to_pdf' and if files are selected */}
+        {conversionType === 'merge_to_pdf' && selectedFiles.length > 0 && (
+          <MergeOptions
+            orderedFilePaths={mergeOrderedFiles} // Pass the ordered list
+            onOrderChange={setMergeOrderedFiles} // Pass the setter for order changes
+            outputFileName={mergeOutputFileName} // Pass current output filename
+            onOutputFileNameChange={setMergeOutputFileName} // Pass setter for filename changes
+            onRemoveFile={handleRemoveFileFromMerge} // Pass the remove handler
+            defaultFileName="merged_document.pdf"
+          />
+        )}
 
         <ConversionOptions
           conversionType={conversionType}
           ocrLang={ocrLang}
           onOcrLangChange={setOcrLang}
-          // Pass pdfToEditableOptions and its setter
           pdfToEditableOptions={pdfToEditableOptions}
           onPdfToEditableOptionsChange={setPdfToEditableOptions}
         />
@@ -319,7 +392,7 @@ const ConversionPage: React.FC = () => {
           <h2 className="text-2xl font-semibold mb-3 text-dark-textPrimary">3. Start Conversion</h2>
           <button
             onClick={handleRunConversion}
-            disabled={selectedFiles.length === 0 || !electronAPI}
+            disabled={selectedFiles.length === 0 || !electronAPI || (conversionType === 'merge_to_pdf' && (mergeOrderedFiles.length < 2 || !outputDir || !mergeOutputFileName))}
             className="w-full bg-dark-primary hover:bg-dark-hoverPrimary text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-150 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-dark-primary focus:ring-opacity-50"
           >
             Run Conversion

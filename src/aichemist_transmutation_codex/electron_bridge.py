@@ -381,7 +381,7 @@ def convert_with_progress(
             "docx2pdf": ("converters.doc_to_pdf", None, "convert_docx_to_pdf"),
             # Add new 'merge_to_pdf'
             "merge_to_pdf": (
-                "converters.pdf_merger",
+                "merger.pdf_merger",
                 None,
                 "merge_multiple_pdfs_to_single_pdf",
             ),
@@ -428,7 +428,6 @@ def convert_with_progress(
             result_path = converter_callable(
                 input_paths=resolved_input_paths,  # Pass as 'input_paths'
                 output_path=output_path_obj,  # Pass as 'output_path'
-                **kwargs,
             )
         else:
             # 'resolved_input_path' is a Path, 'output_path_obj' is a Path
@@ -523,6 +522,12 @@ def main() -> int:
     parser.add_argument(
         "--reference-docx",
         help="Path to a reference DOCX file for styling output of md2docx conversion.",
+    )
+    # Add new argument for the output file name for merging
+    parser.add_argument(
+        "--output-file-name",
+        help="The desired file name for the merged PDF (e.g., 'merged_document.pdf'). Used only with 'merge_to_pdf'.",
+        default=None,
     )
     # PDF2EDITABLE specific ( reusing --lang and --force-ocr from PDF2MD for consistency if applicable)
     # --lang is already defined for PDF2MD, can be reused.
@@ -672,21 +677,30 @@ def main() -> int:
                 sys.stdout.flush()
                 return 1
 
-            # Define the output path for the merged PDF
-            # For example, "merged_output.pdf" in the specified output_dir
-            # The GUI should ideally allow specifying the output filename.
-            # For now, bridge generates it.
-            merged_pdf_name = "merged_output.pdf"  # Consider making this configurable via new CLI arg if needed
+            if not args.output_file_name:
+                error_msg = (
+                    "Output file name (--output-file-name) is required for PDF merging."
+                )
+                logger.error(error_msg)
+                error_data = {"type": "error", "message": error_msg}
+                print(f"ERROR: {json.dumps(error_data)}")
+                sys.stdout.flush()
+                return 1
 
-            # Try to get a filename from the first input file to make it more unique
-            # e.g. if first file is reportA.pdf, merged file could be reportA_merged.pdf
-            # This is a simple heuristic.
-            if input_files:
-                base_name = input_files[0].stem
-                merged_pdf_name = f"{base_name}_merged.pdf"
+            # Construct the full output path for the merged PDF
+            output_merged_pdf_path = Path(output_dir) / args.output_file_name
+            output_merged_pdf_path.parent.mkdir(
+                parents=True, exist_ok=True
+            )  # Ensure parent dir exists
 
-            output_merged_pdf_path = Path(output_dir) / merged_pdf_name
-            output_merged_pdf_path.parent.mkdir(parents=True, exist_ok=True)
+            # Validate that the constructed path is a .pdf file
+            if output_merged_pdf_path.suffix.lower() != ".pdf":
+                error_msg = f"Output file name '{args.output_file_name}' must result in a .pdf file. Full path: {output_merged_pdf_path}"
+                logger.error(error_msg)
+                error_data = {"type": "error", "message": error_msg}
+                print(f"ERROR: {json.dumps(error_data)}")
+                sys.stdout.flush()
+                return 1
 
             result_path = convert_with_progress(
                 conversion_type,  # "merge_to_pdf"

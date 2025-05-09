@@ -20,6 +20,7 @@ This project provides a suite of tools for converting documents between various 
    introduction
    installation
    usage
+   usage/index
    architecture/index
    development/index
    api/modules
