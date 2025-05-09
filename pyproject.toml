@@ -1,6 +1,6 @@
 [build-system]
 build-backend = "uv_build"
-requires      = [ "uv-build>=0.6.0,<0.7" ]
+requires      = [ "uv-build>=0.6.0,<0.8" ]
 
 [project]
 # Project name changed to align with the primary package directory src/aichemist_transmutation_codex
