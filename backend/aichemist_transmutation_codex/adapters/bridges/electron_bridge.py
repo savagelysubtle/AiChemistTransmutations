@@ -24,8 +24,8 @@ if str(_src_path) not in sys.path:
     sys.path.insert(0, str(_src_path))
 
 # Imports from the aichemist_transmutation_codex package MUST come AFTER sys.path modification
-from aichemist_transmutation_codex.batch_processor import run_batch
-from aichemist_transmutation_codex.utils import LogManager  # Corrected import
+from backend.aichemist_transmutation_codex.services import run_batch
+from backend.aichemist_transmutation_codex.utils import LogManager  # Corrected import
 
 
 def _report_electron_progress(
