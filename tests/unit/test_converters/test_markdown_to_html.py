@@ -3,7 +3,6 @@
 import os
 
 import pytest  # type: ignore
-
 from mdtopdf.converters.markdown_to_html import convert_md_to_html
 
 

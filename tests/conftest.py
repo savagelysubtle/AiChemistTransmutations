@@ -1,6 +1,5 @@
 """Pytest configuration for MDtoPDF tests."""
 
-import os
 import tempfile
 from pathlib import Path
 
@@ -23,7 +22,7 @@ def example_md_path():
 @pytest.fixture
 def example_md_content(example_md_path):
     """Content of the example markdown file."""
-    with open(example_md_path, "r", encoding="utf-8") as f:
+    with open(example_md_path, encoding="utf-8") as f:
         return f.read()
 
 

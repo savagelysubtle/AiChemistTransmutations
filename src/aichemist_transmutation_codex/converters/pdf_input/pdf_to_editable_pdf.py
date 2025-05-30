@@ -1,5 +1,4 @@
-"""
-PDF to Editable PDF Converter using OCRmyPDF.
+"""PDF to Editable PDF Converter using OCRmyPDF.
 
 This module provides functionality to convert non-editable (e.g., scanned) PDFs
 into PDFs with a text layer, making them searchable and text-selectable.
@@ -30,8 +29,7 @@ def convert_pdf_to_editable(
     force_ocr: bool = False,
     **kwargs: Any,
 ) -> Path:
-    """
-    Converts a PDF to an editable PDF by adding an OCR text layer.
+    """Converts a PDF to an editable PDF by adding an OCR text layer.
 
     "Editable" here means the PDF will have selectable and searchable text.
     It does not mean the PDF structure becomes like a word processing document.

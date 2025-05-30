@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-"""
-Electron Bridge module for MDtoPDF Converter.
+"""Electron Bridge module for MDtoPDF Converter.
 
 Provides interfaces between the converter and an Electron frontend with progress reporting.
 """

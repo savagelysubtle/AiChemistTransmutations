@@ -1,5 +1,4 @@
-"""
-Module containing various document conversion implementations.
+"""Module containing various document conversion implementations.
 
 This package contains different converter modules for converting
 between different formats such as Markdown, PDF, HTML, etc.

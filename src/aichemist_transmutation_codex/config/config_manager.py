@@ -12,8 +12,7 @@ import yaml
 def deep_merge(
     source: MutableMapping[Any, Any], destination: MutableMapping[Any, Any]
 ) -> MutableMapping[Any, Any]:
-    """
-    Deeply merges source dictionary into destination dictionary.
+    """Deeply merges source dictionary into destination dictionary.
     Modifies destination in place.
 
     Args:
@@ -41,8 +40,7 @@ def deep_merge(
 
 
 class ConfigManager:
-    """
-    Manages configuration settings from multiple sources.
+    """Manages configuration settings from multiple sources.
 
     This class implements the singleton pattern to ensure only one
     configuration manager is active throughout the application.
@@ -142,8 +140,7 @@ class ConfigManager:
             return {}
 
     def _load_environment_variables(self) -> dict[str, Any]:
-        """
-        Load configuration from environment variables.
+        """Load configuration from environment variables.
 
         For variables like MDTOPDF_FEATURE_NEW_FLAG=True, creates:
         {'feature': {'new_flag': True}}
@@ -223,8 +220,7 @@ class ConfigManager:
                     return value_str
 
     def get_config(self, section: str) -> dict[str, Any]:
-        """
-        Get configuration for a specific section, merging from all sources.
+        """Get configuration for a specific section, merging from all sources.
 
         Priority order (highest to lowest):
         1. Environment variables
@@ -270,8 +266,7 @@ class ConfigManager:
         return self.electron_config
 
     def get_converter_config(self, converter_type: str) -> dict[str, Any]:
-        """
-        Get configuration for a specific converter, performing a deep merge.
+        """Get configuration for a specific converter, performing a deep merge.
 
         Args:
             converter_type: Type of converter (e.g., 'pdf2md', 'md2pdf')
@@ -328,9 +323,7 @@ class ConfigManager:
         default: Any = None,
         value_type: type | None = None,
     ) -> Any:
-        """
-        Get a specific configuration value with type checking from the merged config.
-        """
+        """Get a specific configuration value with type checking from the merged config."""
         # Use get_config to ensure deep merge has happened
         section_config = self.get_config(section)
         value = section_config.get(key, default)

@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-"""
-DOCX to Markdown converter module.
+"""DOCX to Markdown converter module.
 
 This module provides functions to convert Microsoft Word DOCX files to Markdown format.
 """
@@ -44,8 +43,7 @@ def convert_docx_to_md(
     output_path: str | Path | None = None,
     **kwargs: Any,
 ) -> Path:
-    """
-    Convert a DOCX file to Markdown format.
+    """Convert a DOCX file to Markdown format.
 
     This function converts a Microsoft Word document (DOCX) to Markdown format,
     preserving formatting, headers, lists, tables, and images where possible.
@@ -66,7 +64,7 @@ def convert_docx_to_md(
         FileNotFoundError: If input file doesn't exist
         ValueError: If input file is not a DOCX file
         ImportError: If required dependencies are not installed
-    """
+    """  # noqa: E501
     # Get config
     config = ConfigManager()
     settings = config.get_converter_config("docx2md")

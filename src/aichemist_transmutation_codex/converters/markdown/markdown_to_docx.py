@@ -24,8 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_pandoc_path() -> str:
-    """
-    Attempts to find the path to the pandoc executable.
+    """Attempts to find the path to the pandoc executable.
     Checks common installation locations and the system PATH.
     Raises FileNotFoundError if pandoc is not found.
     """
@@ -101,8 +100,7 @@ def markdown_to_docx(
     reference_docx: str | Path | None = None,
     **kwargs: Any,
 ) -> Path:
-    """
-    Converts a Markdown file to a DOCX document using pypandoc.
+    """Converts a Markdown file to a DOCX document using pypandoc.
 
     Args:
         input_path: Path to the input Markdown file (as str or Path).
@@ -244,9 +242,7 @@ print("Hello, Pandoc!")
         print(f"Progress: {percentage}% - {message}")
 
     try:
-        print(
-            f"Attempting to convert {str(test_md_file)} to {str(output_docx_file)}..."
-        )
+        print(f"Attempting to convert {test_md_file!s} to {output_docx_file!s}...")
         # Attempt to find pandoc before conversion (optional, but good for pre-check)
         try:
             print(f"Pandoc found at: {get_pandoc_path()}")
@@ -261,7 +257,7 @@ print("Hello, Pandoc!")
         converted_file_path = markdown_to_docx(
             test_md_file, output_docx_file, progress_callback=sample_progress_callback
         )
-        print(f"Conversion successful! Output file: {str(converted_file_path)}")
+        print(f"Conversion successful! Output file: {converted_file_path!s}")
     except FileNotFoundError as e:
         print(f"Error: {e}")
         print(

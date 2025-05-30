@@ -1,5 +1,4 @@
-"""
-PDF to Markdown converter.
+"""PDF to Markdown converter.
 
 This module provides functionality to convert PDF documents to Markdown format,
 preserving document structure and formatting where possible.
@@ -154,9 +153,7 @@ class PDFToMarkdownConverter:
 
 
 def _enhance_image_for_ocr(image: Image.Image) -> Image.Image:
-    """
-    Apply image enhancements to improve OCR accuracy.
-    """
+    """Apply image enhancements to improve OCR accuracy."""
     logger.debug("Enhancing image for OCR...")
     # Step 1: Convert to grayscale
     if image.mode != "L":
@@ -196,9 +193,7 @@ def _enhance_image_for_ocr(image: Image.Image) -> Image.Image:
 
 
 def _deskew_image(image: Image.Image) -> Image.Image:
-    """
-    Correct skewed text in images using OpenCV.
-    """
+    """Correct skewed text in images using OpenCV."""
     if not OPENCV_AVAILABLE:
         logger.debug("OpenCV not available, skipping deskew.")
         return image
@@ -269,9 +264,7 @@ def _extract_text_from_page(page: Any) -> str:
 
 
 def _process_paragraphs(text: str) -> list[str]:
-    """
-    Process raw extracted text into cleaned paragraphs.
-    """
+    """Process raw extracted text into cleaned paragraphs."""
     text = re.sub(r"(\w+)-\n(\w+)", r"\1\2", text)  # Fix hyphenated words
     text = re.sub(r"\s*\n\s*", "\n\n", text)  # Normalize line breaks to double newlines
     paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
@@ -284,9 +277,7 @@ def convert_pdf_to_md(
     auto_ocr: bool = True,  # Kept for backward compatibility, use engine config
     **kwargs: Any,  # Catch other potential args
 ) -> Path:
-    """
-    Convert a PDF file to Markdown (Basic - text extraction only).
-    """
+    """Convert a PDF file to Markdown (Basic - text extraction only)."""
     if fitz is None:
         logger.error("PyMuPDF is required for PDF conversion.")
         raise ImportError("PyMuPDF is required. Install it with: pip install pymupdf")
@@ -405,8 +396,7 @@ def convert_pdf_to_md(
 def convert_pdf_to_md_with_ocr(
     input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
 ) -> Path:
-    """
-    Convert a PDF file to Markdown using OCR for pages with no extractable text.
+    """Convert a PDF file to Markdown using OCR for pages with no extractable text.
     (Essentially calls convert_pdf_to_md with auto_ocr=True implicitly)
     """
     logger.info("Using standard OCR engine for PDF to Markdown.")
@@ -418,9 +408,7 @@ def convert_pdf_to_md_with_ocr(
 def convert_pdf_to_md_with_enhanced_ocr(
     input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
 ) -> Path:
-    """
-    Convert PDF to Markdown with advanced OCR techniques (deskewing, full preprocessing).
-    """
+    """Convert PDF to Markdown with advanced OCR techniques (deskewing, full preprocessing)."""
     if fitz is None:
         logger.error("PyMuPDF is required.")
         raise ImportError("PyMuPDF is required.")
@@ -538,9 +526,7 @@ def convert_pdf_to_md_with_enhanced_ocr(
 def convert_pdf_to_md_with_pymupdf4llm(
     input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
 ) -> Path:
-    """
-    Convert a PDF file to Markdown using PyMuPDF4LLM.
-    """
+    """Convert a PDF file to Markdown using PyMuPDF4LLM."""
     if not PYMUPDF4LLM_AVAILABLE:
         logger.error("PyMuPDF4LLM is required for this engine.")
         raise ImportError("PyMuPDF4LLM is required.")

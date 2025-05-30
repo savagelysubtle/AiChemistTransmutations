@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-"""
-PDF to HTML converter module.
+"""PDF to HTML converter module.
 
 This module converts PDF files to HTML.
 """

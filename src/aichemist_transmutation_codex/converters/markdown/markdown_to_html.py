@@ -1,5 +1,4 @@
-"""
-Markdown to HTML converter.
+"""Markdown to HTML converter.
 
 This module converts Markdown documents to HTML format with basic styling.
 """
@@ -53,8 +52,7 @@ blockquote {
 
 
 def md_to_html(markdown_content: str, custom_css: str | None = None) -> str:
-    """
-    Convert markdown content to HTML with styling.
+    """Convert markdown content to HTML with styling.
 
     Args:
         markdown_content: Markdown content to convert
