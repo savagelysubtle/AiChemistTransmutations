@@ -1,5 +1,4 @@
-"""
-Batch Processing Engine.
+"""Batch Processing Engine.
 
 This module provides a centralized, reusable batch processing engine for converting
 files between different formats, with support for concurrent processing and progress tracking.

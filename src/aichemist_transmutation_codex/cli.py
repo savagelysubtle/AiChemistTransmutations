@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-"""
-MDtoPDF CLI module.
+"""MDtoPDF CLI module.
 
 Provides a command-line interface for the MDtoPDF converter.
 """

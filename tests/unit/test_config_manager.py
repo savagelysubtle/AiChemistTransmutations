@@ -1,12 +1,9 @@
 import json
 import os
-import time
-from pathlib import Path
 from unittest import mock
 
 import pytest
 import yaml
-
 from mdtopdf.config.config_manager import ConfigManager
 from mdtopdf.config.log_manager import LogManager
 

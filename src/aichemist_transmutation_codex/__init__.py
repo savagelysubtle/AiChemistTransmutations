@@ -1,5 +1,4 @@
-"""
-MDtoPDF package for converting between various document formats.
+"""MDtoPDF package for converting between various document formats.
 
 This package provides tools to convert between Markdown, HTML, PDF, and other formats.
 """

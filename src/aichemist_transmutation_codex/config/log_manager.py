@@ -9,9 +9,7 @@ import yaml
 
 
 class LogManager:
-    """
-    Manages logging configuration and provides logging utilities.
-    """
+    """Manages logging configuration and provides logging utilities."""
 
     _instance = None
 
@@ -198,8 +196,7 @@ class LogManager:
         )
 
     def get_logger(self, name: str) -> logging.Logger:
-        """
-        Get a logger with a specific name.
+        """Get a logger with a specific name.
 
         Args:
             name: The name of the logger (will be prefixed with 'mdtopdf.')
@@ -214,8 +211,7 @@ class LogManager:
         return logging.getLogger(name)
 
     def generate_session_id(self) -> str:
-        """
-        Create a unique session ID.
+        """Create a unique session ID.
 
         Returns:
             A string containing timestamp and unique identifier
@@ -225,8 +221,7 @@ class LogManager:
         return f"{timestamp}_{unique_id}"
 
     def get_converter_logger(self, converter_type: str) -> logging.Logger:
-        """
-        Get a logger specifically for a converter.
+        """Get a logger specifically for a converter.
 
         Args:
             converter_type: Type of converter (e.g., 'pdf2md', 'md2pdf')
@@ -259,8 +254,7 @@ class LogManager:
         level: int = logging.DEBUG,
         formatter: logging.Formatter | None = None,
     ) -> None:
-        """
-        Add a file handler to a logger.
+        """Add a file handler to a logger.
 
         Args:
             logger: The logger to add the handler to
@@ -294,8 +288,7 @@ class LogManager:
             )
 
     def create_session_file_path(self, component: str, filename: str) -> str:
-        """
-        Create an absolute log file path with session ID.
+        """Create an absolute log file path with session ID.
 
         Args:
             component: Component sub-path (e.g., 'converters/pdf2md')

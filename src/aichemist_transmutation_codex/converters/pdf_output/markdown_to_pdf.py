@@ -1,5 +1,4 @@
-"""
-Markdown to PDF converter.
+"""Markdown to PDF converter.
 
 This module converts Markdown documents to PDF format, preserving structure.
 """

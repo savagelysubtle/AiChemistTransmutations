@@ -1,14 +1,11 @@
 import logging
-import logging as original_logging  # Keep for spec
 import logging.config  # Import for patching target
-import os
 import time
 from pathlib import Path
 from unittest import mock
 
 import pytest
 import yaml
-
 from mdtopdf.config.log_manager import LogManager
 
 
@@ -26,8 +23,7 @@ def mock_dirs(tmp_path):
 
 @pytest.fixture(scope="function")
 def reset_log_manager_singleton(mock_dirs):
-    """
-    Fixture to reset the LogManager singleton state and mock logging.config.dictConfig.
+    """Fixture to reset the LogManager singleton state and mock logging.config.dictConfig.
     Does NOT automatically instantiate LogManager.
     """
     # print("Resetting LogManager singleton (fixture setup)...") # Debug

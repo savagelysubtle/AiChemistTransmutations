@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-"""
-HTML to PDF converter module.
+"""HTML to PDF converter module.
 
 This module provides functionality to convert HTML files to PDF.
 """
@@ -44,8 +43,7 @@ def _ensure_path(input_val: str | Path) -> Path:
 def convert_html_to_pdf(
     input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
 ) -> Path:
-    """
-    Convert an HTML file to PDF using pdfkit.
+    """Convert an HTML file to PDF using pdfkit.
 
     Args:
         input_path: Path to the input HTML file.
