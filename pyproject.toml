@@ -44,11 +44,11 @@ dependencies = [
     ]
 
     [project.scripts]
-    codex      = "aichemist_transmutation_codex.interfaces.cli.cli:cli_app"
-    docs-build = "aichemist_transmutation_codex.scripts.build_docs:main"
+    codex      = "transmutation_codex.interfaces.cli.cli:cli_app"
+    docs-build = "transmutation_codex.scripts.build_docs:main"
 
 [tool.setuptools.packages.find]
-include = [ "aichemist_transmutation_codex*" ]
+include = [ "transmutation_codex/*" ]
 where   = [ "backend" ]
 
 [build-system]
