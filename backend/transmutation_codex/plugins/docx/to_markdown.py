@@ -7,7 +7,7 @@ This module provides functions to convert Microsoft Word DOCX files to Markdown 
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from aichemist_transmutation_codex.config import ConfigManager, LogManager
+from transmutation_codex.core.config import ConfigManager, LogManager
 
 # Setup logger
 log_manager = LogManager()
