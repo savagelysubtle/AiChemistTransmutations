@@ -1,4 +1,6 @@
 import React from 'react';
+// import CustomScrollbar from './CustomScrollbar';
+import { Scrollbars } from 'react-custom-scrollbars-2';
 
 /**
  * Props for the FileInput component.
@@ -78,24 +80,31 @@ const FileInput: React.FC<FileInputProps> = ({
               Clear Selection
             </button>
           </div>
-          <ul className="space-y-1 max-h-32 overflow-y-auto p-1">
-            {selectedFiles.map((file, index) => (
-              <li key={index} className="flex items-center justify-between p-1.5 bg-dark-background border border-dark-border rounded hover:bg-opacity-50 hover:bg-dark-border text-dark-textSecondary">
-                <label htmlFor={`file-checkbox-${index}`} className="flex items-center space-x-2 cursor-pointer flex-grow min-w-0">
-                  <input
-                    type="checkbox"
-                    id={`file-checkbox-${index}`}
-                    checked={true}
-                    onChange={(e) => handleFileCheckboxChange(file, e.target.checked)}
-                    className="form-checkbox h-4 w-4 text-dark-primary bg-dark-surface border-dark-border rounded focus:ring-dark-primary focus:ring-offset-dark-background"
-                  />
-                  <span className="truncate text-dark-textPrimary" title={file}>
-                    {file.split(/[\\/]/).pop() || file}
-                  </span>
-                </label>
-              </li>
-            ))}
-          </ul>
+          <Scrollbars
+            autoHeight
+            autoHeightMax={128} // max-h-32 (8rem = 128px)
+            className="rounded" // Applies to the outer div of Scrollbars
+            // The ul below already has p-1, which is the content padding.
+          >
+            <ul className="space-y-1 p-1">
+              {selectedFiles.map((file, index) => (
+                <li key={index} className="flex items-center justify-between p-1.5 bg-dark-background border border-dark-border rounded hover:bg-opacity-50 hover:bg-dark-border text-dark-textSecondary">
+                  <label htmlFor={`file-checkbox-${index}`} className="flex items-center space-x-2 cursor-pointer flex-grow min-w-0">
+                    <input
+                      type="checkbox"
+                      id={`file-checkbox-${index}`}
+                      checked={true}
+                      onChange={(e) => handleFileCheckboxChange(file, e.target.checked)}
+                      className="form-checkbox h-4 w-4 text-dark-primary bg-dark-surface border-dark-border rounded focus:ring-dark-primary focus:ring-offset-dark-background"
+                    />
+                    <span className="truncate text-dark-textPrimary" title={file}>
+                      {file.split(/[\\/]/).pop() || file}
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </Scrollbars>
         </div>
       )}
     </div>
