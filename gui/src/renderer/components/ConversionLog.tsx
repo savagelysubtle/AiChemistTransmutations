@@ -1,4 +1,5 @@
 import React from 'react';
+import { Scrollbars } from 'react-custom-scrollbars-2';
 
 /**
  * Props for the ConversionLog component.
@@ -25,14 +26,20 @@ const ConversionLog: React.FC<ConversionLogProps> = ({ logs, onClearLog }) => {
           Clear Log
         </button>
       </div>
-      <div className="h-64 overflow-y-auto p-3 border border-dark-border rounded-md bg-dark-background text-sm font-mono text-dark-textSecondary shadow-inner">
-        {logs.length === 0 && <p className="italic text-dark-textSecondary opacity-75">Awaiting conversion actions...</p>}
-        {logs.map((log, index) => (
-          <p key={index} className="whitespace-pre-wrap break-words text-dark-textSecondary py-0.5">
-            {log}
-          </p>
-        ))}
-      </div>
+      <Scrollbars
+        autoHeight
+        autoHeightMax={256}
+        className="border border-dark-border rounded-md bg-dark-background text-sm font-mono text-dark-textSecondary shadow-inner"
+      >
+        <div className="p-3">
+          {logs.length === 0 && <p className="italic text-dark-textSecondary opacity-75">Awaiting conversion actions...</p>}
+          {logs.map((log, index) => (
+            <p key={index} className="whitespace-pre-wrap break-words text-dark-textSecondary py-0.5">
+              {log}
+            </p>
+          ))}
+        </div>
+      </Scrollbars>
     </section>
   );
 };

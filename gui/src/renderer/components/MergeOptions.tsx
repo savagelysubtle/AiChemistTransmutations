@@ -1,5 +1,7 @@
 import React from 'react';
 import { ChevronUp, ChevronDown, XCircle } from 'lucide-react'; // Using lucide-react for icons
+// import CustomScrollbar from './CustomScrollbar'; // Import the new CustomScrollbar component
+import { Scrollbars } from 'react-custom-scrollbars-2';
 
 /**
  * Interface for the props of the MergeOptions component.
@@ -52,6 +54,10 @@ const MergeOptions: React.FC<MergeOptionsProps> = ({
   defaultFileName = "merged_output.pdf", // Sets a default if none provided
   onRemoveFile,
 }) => {
+  // State to keep track of the index of the item being dragged
+  const [draggedItemIndex, setDraggedItemIndex] = React.useState<number | null>(null);
+  // State to keep track of the index of the item being hovered over during a drag
+  const [dragOverItemIndex, setDragOverItemIndex] = React.useState<number | null>(null);
 
   /**
    * Handles moving a file up in the merge order.
@@ -98,6 +104,74 @@ const MergeOptions: React.FC<MergeOptionsProps> = ({
     onOutputFileNameChange(event.target.value);
   };
 
+  /**
+   * Handles the start of a drag operation on a list item.
+   * @param event The React drag event.
+   * @param index The index of the list item being dragged.
+   */
+  const handleDragStart = (event: React.DragEvent<HTMLLIElement>, index: number) => {
+    setDraggedItemIndex(index); // Set the index of the item being dragged
+    event.dataTransfer.effectAllowed = 'move'; // Indicate that a move operation is allowed
+    // You could optionally set dataTransfer data here if needed for inter-component or external drops
+    // event.dataTransfer.setData('text/plain', orderedFilePaths[index]);
+  };
+
+  /**
+   * Handles a dragged item being over another list item (potential drop target).
+   * @param event The React drag event.
+   * @param index The index of the list item being dragged over.
+   */
+  const handleDragOver = (event: React.DragEvent<HTMLLIElement>, index: number) => {
+    event.preventDefault(); // This is crucial to allow a drop
+    if (index !== draggedItemIndex) {
+      setDragOverItemIndex(index); // Set for visual feedback on the potential drop target
+    }
+  };
+
+  /**
+   * Handles a dragged item leaving the area of another list item.
+   */
+  const handleDragLeave = () => {
+    setDragOverItemIndex(null); // Clear visual feedback for drop target
+  };
+
+  /**
+   * Handles a dragged item being dropped onto another list item (the drop target).
+   * @param event The React drag event.
+   * @param targetIndex The index of the list item where the dragged item is dropped.
+   */
+  const handleDrop = (event: React.DragEvent<HTMLLIElement>, targetIndex: number) => {
+    event.preventDefault(); // Prevent default browser handling
+    if (draggedItemIndex === null || draggedItemIndex === targetIndex) {
+      // If nothing was being dragged, or dropped on itself, do nothing
+      setDraggedItemIndex(null);
+      setDragOverItemIndex(null);
+      return;
+    }
+
+    // Create a new array for the modified order
+    const newOrder = [...orderedFilePaths];
+    // Remove the dragged item from its original position
+    const draggedItem = newOrder.splice(draggedItemIndex, 1)[0];
+    // Insert the dragged item at the target position
+    newOrder.splice(targetIndex, 0, draggedItem);
+
+    onOrderChange(newOrder); // Notify parent component of the order change
+
+    // Reset drag states
+    setDraggedItemIndex(null);
+    setDragOverItemIndex(null);
+  };
+
+  /**
+   * Handles the end of a drag operation (fired on the source element of the drag).
+   */
+  const handleDragEnd = () => {
+    // Clean up drag states regardless of where the drop occurred
+    setDraggedItemIndex(null);
+    setDragOverItemIndex(null);
+  };
+
   // If there are no files, don't render anything for reordering or filename.
   // The parent component (`ConversionPage`) will decide whether to show this component at all.
   if (orderedFilePaths.length === 0) {
@@ -116,59 +190,84 @@ const MergeOptions: React.FC<MergeOptionsProps> = ({
         <label className="block text-sm font-medium text-dark-textSecondary">
           Order of PDF files for merging (Top is first):
         </label>
-        {/* Unordered list to display the files */}
-        <ul className="space-y-1.5 p-2 border border-dark-border rounded-md max-h-60 overflow-y-auto bg-dark-input">
-          {/*
-            Map over the 'orderedFilePaths' array to create a list item for each file.
-            'filePath' is the path string, 'index' is its position in the array.
-          */}
-          {orderedFilePaths.map((filePath, index) => (
-            <li
-              key={filePath} // React needs a unique 'key' for list items for efficient updates
-              className="flex items-center justify-between p-2 bg-dark-background border border-dark-border rounded shadow-sm hover:bg-dark-surface-hover"
-            >
-              {/* Display the file name (extracted from the full path) */}
-              <span className="truncate text-dark-textPrimary text-sm" title={filePath}>
-                {index + 1}. {filePath.split(/[\\/]/).pop() || filePath}
-              </span>
+        {/* Unordered list to display the files - now wrapped with CustomScrollbar */}
+        {/*
+          The CustomScrollbar component will handle the scrolling behavior and appearance.
+          The `className` prop on CustomScrollbar defines its maximum height, border, and background.
+          The `ul` inside it just needs padding and list-specific styles.
+        */}
+        {/* <CustomScrollbar className="p-0 border border-dark-border rounded-md max-h-60 bg-dark-input"> */}
+        <Scrollbars
+          autoHeight
+          autoHeightMax={240} // max-h-60 (15rem = 240px)
+          className="border border-dark-border rounded-md bg-dark-input" // p-0 is effectively default
+          // The ul below has its own p-2 for content padding.
+        >
+          <ul className="space-y-1.5 p-2">
+            {/*
+              Map over the 'orderedFilePaths' array to create a list item for each file.
+              'filePath' is the path string, 'index' is its position in the array.
+            */}
+            {orderedFilePaths.map((filePath, index) => (
+              <li
+                key={filePath} // React needs a unique 'key' for list items for efficient updates
+                draggable={true} // Make the list item draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+                className={`
+                  flex items-center justify-between p-2 bg-dark-background border border-dark-border rounded shadow-sm
+                  hover:bg-dark-surface-hover transition-all duration-150 ease-in-out
+                  ${draggedItemIndex === index ? 'opacity-40 cursor-grabbing' : 'cursor-grab'}
+                  ${dragOverItemIndex === index && draggedItemIndex !== null && draggedItemIndex !== index ? 'ring-2 ring-dark-primary ring-inset' : ''}
+                `}
+              >
+                {/* Display the file name (extracted from the full path) */}
+                <span className="truncate text-dark-textPrimary text-sm" title={filePath}>
+                  {index + 1}. {filePath.split(/[\\/]/).pop() || filePath}
+                </span>
 
-              {/* Container for action buttons (Remove, Move Up, Move Down) */}
-              <div className="flex items-center space-x-1.5">
-                {/* Remove File Button */}
-                <button
-                  onClick={() => onRemoveFile(filePath)}
-                  title="Remove this file from merge list"
-                  className="p-1 text-dark-danger hover:text-red-500 transition-colors duration-150 focus:outline-none"
-                  aria-label={`Remove ${filePath.split(/[\\/]/).pop()}`}
-                >
-                  <XCircle size={18} />
-                </button>
+                {/* Container for action buttons (Remove, Move Up, Move Down) */}
+                <div className="flex items-center space-x-1.5">
+                  {/* Remove File Button */}
+                  <button
+                    onClick={() => onRemoveFile(filePath)}
+                    title="Remove this file from merge list"
+                    className="p-1 text-dark-danger hover:text-red-500 transition-colors duration-150 focus:outline-none"
+                    aria-label={`Remove ${filePath.split(/[\\/]/).pop()}`}
+                  >
+                    <XCircle size={18} />
+                  </button>
 
-                {/* Move Up Button: Disabled if it's the first item */}
-                <button
-                  onClick={() => handleMoveUp(index)}
-                  disabled={index === 0}
-                  title="Move file up"
-                  className="p-1 text-dark-textSecondary hover:text-dark-textPrimary disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-150 focus:outline-none"
-                  aria-label={`Move ${filePath.split(/[\\/]/).pop()} up`}
-                >
-                  <ChevronUp size={20} />
-                </button>
+                  {/* Move Up Button: Disabled if it's the first item */}
+                  <button
+                    onClick={() => handleMoveUp(index)}
+                    disabled={index === 0}
+                    title="Move file up"
+                    className="p-1 text-dark-textSecondary hover:text-dark-textPrimary disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-150 focus:outline-none"
+                    aria-label={`Move ${filePath.split(/[\\/]/).pop()} up`}
+                  >
+                    <ChevronUp size={20} />
+                  </button>
 
-                {/* Move Down Button: Disabled if it's the last item */}
-                <button
-                  onClick={() => handleMoveDown(index)}
-                  disabled={index === orderedFilePaths.length - 1}
-                  title="Move file down"
-                  className="p-1 text-dark-textSecondary hover:text-dark-textPrimary disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-150 focus:outline-none"
-                  aria-label={`Move ${filePath.split(/[\\/]/).pop()} down`}
-                >
-                  <ChevronDown size={20} />
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+                  {/* Move Down Button: Disabled if it's the last item */}
+                  <button
+                    onClick={() => handleMoveDown(index)}
+                    disabled={index === orderedFilePaths.length - 1}
+                    title="Move file down"
+                    className="p-1 text-dark-textSecondary hover:text-dark-textPrimary disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-150 focus:outline-none"
+                    aria-label={`Move ${filePath.split(/[\\/]/).pop()} down`}
+                  >
+                    <ChevronDown size={20} />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        {/* </CustomScrollbar> */}
+        </Scrollbars>
       </div>
 
       {/* Subsection for Output File Name */}
@@ -228,10 +327,12 @@ export default MergeOptions;
 //     must be an array of strings, 'onOrderChange' must be a function with a specific signature).
 //   - This helps catch errors early if you try to use the component with incorrect props.
 //
-// useState (not used directly in this component, but relevant for its parent):
+// useState (e.g., const [name, setName] = useState('')):
 //   - A React Hook that lets you add state to functional components.
 //   - Example: const [count, setCount] = useState(0);
 //   - 'count' is the state variable, 'setCount' is the function to update it.
+//   - In this component, it's used for `draggedItemIndex` and `dragOverItemIndex` to manage
+//     the state of the drag-and-drop operation.
 //
 // Props (e.g., orderedFilePaths, onOrderChange):
 //   - Data and functions passed from a parent component to a child component.
@@ -251,39 +352,4 @@ export default MergeOptions;
 //     `myArray.map(item => <li key={item.id}>{item.name}</li>)`
 //
 // Key prop in lists:
-//   - When rendering a list of elements using `map()`, React needs a unique `key` prop
-//     for each list item (e.g., `<li key={filePath}>`).
-//   - Keys help React identify which items have changed, are added, or are removed,
-//     allowing for more efficient updates to the DOM. File paths are unique here.
-//
-// Spreading an array ([...orderedFilePaths]):
-//   - This is JavaScript's spread syntax. `[...someArray]` creates a new shallow copy
-//     of `someArray`.
-//   - It's important in React when updating state that is an array or object because
-//     React relies on immutable updates. You should create a new array/object
-//     instead of modifying the existing one directly to ensure React detects the change.
-//
-// Event Handlers (e.g., onClick, onChange):
-//   - Props on HTML-like elements (JSX) that specify functions to be called when
-//     certain events occur (like a button click or an input field's value changing).
-//   - Example: `<button onClick={() => console.log('Clicked!')}>Click Me</button>`
-//
-// Tailwind CSS classes (e.g., "p-6", "border-dark-border", "rounded-lg"):
-//   - Utility classes provided by the Tailwind CSS framework. Each class applies a
-//     specific style (e.g., "p-6" means padding of 6 units, "rounded-lg" means
-//     large rounded corners).
-//   - This approach allows for rapidly building custom designs directly in the HTML/JSX
-//     without writing separate CSS files for many common styles.
-//
-// Lucide-react icons (<ChevronUp />, <ChevronDown />):
-//  - A library of simply designed SVG icons, imported as React components.
-//  - They are easily customizable with size and color props.
-//
-// Conditional Rendering (if (orderedFilePaths.length === 0) return null;):
-//  - A common pattern in React where you decide whether to render a piece of UI
-//    based on certain conditions. If the condition is met to not render,
-//    returning `null` tells React to render nothing for that part.
-//
-// Input onBlur event:
-//  - This event fires when an input element loses focus (e.g., user clicks away).
-//  - Used here for a simple auto-correction (adding .pdf if missing).
+//   - When rendering a list of elements using `map()`, React needs a unique `
