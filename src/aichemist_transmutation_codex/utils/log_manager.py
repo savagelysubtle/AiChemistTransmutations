@@ -1,19 +1,98 @@
+import json
 import logging
 import logging.config
-import os
+import sys
 import uuid
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
-import yaml
+
+class SessionIdFilter(logging.Filter):
+    """A logging filter to add a session ID to log records."""
+
+    def __init__(self, session_id: str, name: str = "") -> None:
+        """Initializes the SessionIdFilter.
+
+        Args:
+            session_id (str): The session ID to add to log records.
+            name (str): The name of the filter. Defaults to "".
+        """
+        super().__init__(name)
+        self.session_id = session_id
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Adds the session ID to the log record.
+
+        Args:
+            record (logging.LogRecord): The log record to process.
+
+        Returns:
+            bool: Always True to indicate the record should be processed.
+        """
+        record.session_id = self.session_id
+        return True
+
+
+class JsonFormatter(logging.Formatter):
+    """Formats log records as JSON strings, prefixed for Electron bridge."""
+
+    def __init__(
+        self, session_id: str, fmt: str | None = None, datefmt: str | None = None
+    ) -> None:
+        """Initializes the JsonFormatter.
+
+        Args:
+            session_id (str): The active session ID.
+            fmt (Optional[str]): The log record format. Not directly used for JSON
+                structure but kept for compatibility. Defaults to None.
+            datefmt (Optional[str]): The date format string. Defaults to None.
+        """
+        super().__init__(fmt, datefmt)
+        self.session_id = session_id  # Store session_id if needed directly, though filter is preferred
+
+    def format(self, record: logging.LogRecord) -> str:
+        """Formats a log record as a JSON string prefixed with 'LOG_MESSAGE:'.
+
+        Includes standard log fields as well as the session_id.
+
+        Args:
+            record (logging.LogRecord): The log record to format.
+
+        Returns:
+            str: The JSON formatted log message with prefix.
+        """
+        log_entry = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "session_id": getattr(
+                record, "session_id", self.session_id
+            ),  # Fallback if filter not used
+            "level": record.levelname,
+            "name": record.name,
+            "module": record.module,
+            "funcName": record.funcName,
+            "lineno": record.lineno,
+            "message": record.getMessage(),
+        }
+        # Handle exc_info if present
+        if record.exc_info:
+            log_entry["exc_info"] = self.formatException(record.exc_info)
+
+        return f"LOG_MESSAGE:{json.dumps(log_entry)}"
 
 
 class LogManager:
-    """Manages logging configuration and provides logging utilities."""
+    """Manages logging configuration and provides logging utilities.
+
+    This class implements the singleton pattern and configures logging
+    programmatically for both file output and structured JSON output to stdout
+    for integration with an Electron GUI.
+    """
 
     _instance = None
+    _initialized = False  # Class attribute for initialization flag
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args: Any, **kwargs: Any) -> "LogManager":
         """Creates a new LogManager instance if one doesn't exist (Singleton pattern).
 
         Args:
@@ -25,209 +104,127 @@ class LogManager:
         """
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
+            # _initialized flag is instance-specific, set in __init__
         return cls._instance
 
-    def __init__(self, logs_dir: Path | None = None, config_dir: Path | None = None):
-        """Initializes the LogManager, setting up paths and logging configurations.
+    def __init__(self, logs_dir: Path | None = None) -> None:
+        """Initializes the LogManager. Called only once for the singleton.
 
-        This constructor is called only once due to the singleton pattern.
-        It defines log and configuration directories, generates a session ID,
-        creates log directories, and applies logging configurations from a YAML file.
+        Sets up paths, generates a session ID, creates log directories, and
+        applies programmatic logging configurations.
 
         Args:
-            logs_dir (Path | None): The base directory where log files will be stored.
-                If None, defaults to a directory named "logs" in the current working
-                directory. Defaults to None.
-            config_dir (Path | None): The directory where the `logging_config.yaml`
-                file is located. If None, defaults to a directory named "config"
-                in the current working directory. Defaults to None.
+            logs_dir (Optional[Path]): The base directory where log files will be
+                stored. If None, defaults to "logs" in the current working
+                directory (`Path.cwd() / "logs"`).
         """
         if self._initialized:
-            # If already initialized, potentially update paths if provided?
-            # For simplicity now, we assume paths are set on first init.
-            # Re-initialization logic might be needed if paths can change runtime.
             return
 
-        # Use provided paths or default
-        self.logs_dir = logs_dir if logs_dir is not None else Path("logs")
-        self.config_dir = config_dir if config_dir is not None else Path("config")
+        self.logs_dir = logs_dir if logs_dir is not None else Path.cwd() / "logs"
         self.session_id = self.generate_session_id()
 
-        # Ensure log directories exist
         self._create_log_directories()
+        self._configure_programmatic_logging()
 
-        # Load and apply logging configuration
-        self._configure_logging()
+        self.root_logger = logging.getLogger()  # Get the root logger
+        LogManager._initialized = True  # Use class attribute for singleton init state
 
-        # Get root logger
-        self.root_logger = logging.getLogger()
-
-        # Mark as initialized
-        self._initialized = True
-
-    def _create_log_directories(self):
+    def _create_log_directories(self) -> None:
         """Creates the necessary directory structure for log files.
 
-        Ensures that the main log directories (e.g., `logs/python`,
-        `logs/electron`) and subdirectories for specific components
-        (e.g., `logs/python/converters`) exist.
+        Ensures that the main log directory `logs/python` exists.
+        Other component-specific directories can be created by `add_file_handler`
+        if needed.
         """
-        # Main log directories
-        (self.logs_dir / "python").mkdir(parents=True, exist_ok=True)
-        (self.logs_dir / "python" / "converters").mkdir(exist_ok=True)
-        (self.logs_dir / "python" / "batch_processor").mkdir(exist_ok=True)
-        (self.logs_dir / "python" / "electron_bridge").mkdir(exist_ok=True)
+        python_logs_dir = self.logs_dir / "python"
+        python_logs_dir.mkdir(parents=True, exist_ok=True)
+        # Example: Create other specific directories if always needed
+        # (python_logs_dir / "converters").mkdir(exist_ok=True)
+        # (python_logs_dir / "batch_processor").mkdir(exist_ok=True)
 
-        # Converter-specific directories
-        (self.logs_dir / "python" / "converters" / "pdf2md").mkdir(exist_ok=True)
-        (self.logs_dir / "python" / "converters" / "md2pdf").mkdir(exist_ok=True)
-        (self.logs_dir / "python" / "converters" / "html2pdf").mkdir(exist_ok=True)
+    def _configure_programmatic_logging(self) -> None:
+        """Configures logging programmatically.
 
-        # Electron directories
-        (self.logs_dir / "electron" / "main").mkdir(parents=True, exist_ok=True)
-        (self.logs_dir / "electron" / "renderer").mkdir(exist_ok=True)
-
-    def _configure_logging(self):
-        """Loads and applies logging configuration from `logging_config.yaml`.
-
-        This method reads the YAML configuration file, updates log file paths
-        to be absolute and include the session ID where appropriate, and then
-        applies the configuration using `logging.config.dictConfig`.
-        If the configuration file is not found or is invalid, it falls back
-        to basic logging.
+        Sets up a root logger with two handlers:
+        1. A StreamHandler outputting JSON to stdout for the Electron bridge.
+        2. A FileHandler for general application logging to a session-specific file.
         """
-        config = None  # Initialize config to None
-        config_path = self.config_dir / "logging_config.yaml"
-        try:
-            if not config_path.exists():
-                self._setup_basic_logging()
-                logging.warning(f"Logging config file not found: {config_path}")
-                return
+        root_logger = logging.getLogger()  # Configure the root logger
+        root_logger.setLevel(logging.DEBUG)  # Set root logger level
 
-            with open(config_path, encoding="utf-8") as f:
-                config = yaml.safe_load(f)
+        # Prevent multiple handlers if re-initializing (though singleton should prevent)
+        if root_logger.hasHandlers():
+            for handler in root_logger.handlers[:]:
+                root_logger.removeHandler(handler)
 
-            if not isinstance(config, dict):  # Check if YAML load was successful
-                raise ValueError(f"Invalid YAML content in {config_path}")
+        # Add session ID filter to the root logger
+        session_filter = SessionIdFilter(self.session_id)
+        root_logger.addFilter(session_filter)
 
-            # Update filenames with session ID and absolute paths
-            if "handlers" in config:
-                handlers_to_process = list(
-                    config["handlers"].items()
-                )  # Iterate over a copy
-                for handler_name, handler_config in handlers_to_process:
-                    if (
-                        isinstance(handler_config, dict)
-                        and "filename" in handler_config
-                    ):
-                        try:
-                            original_relative_path = Path(handler_config["filename"])
-                            absolute_parent_dir = (
-                                self.logs_dir / original_relative_path.parent
-                            )
+        # 1. JSON Formatter and StreamHandler for stdout (Electron bridge)
+        json_formatter = JsonFormatter(
+            session_id=self.session_id, datefmt="%Y-%m-%dT%H:%M:%S.%fZ"
+        )
+        stdout_handler = logging.StreamHandler(sys.stdout)
+        stdout_handler.setFormatter(json_formatter)
+        stdout_handler.setLevel(logging.INFO)  # Example: INFO level for GUI
+        root_logger.addHandler(stdout_handler)
 
-                            # Ensure parent directory exists (important for logging setup)
-                            absolute_parent_dir.mkdir(parents=True, exist_ok=True)
-
-                            # Add session ID to the filename for specific session logs
-                            if handler_name.endswith(
-                                "_session_file"
-                            ) and not original_relative_path.name.startswith("_"):
-                                session_filename = f"{original_relative_path.stem}_{self.session_id}{original_relative_path.suffix}"
-                                absolute_path = absolute_parent_dir / session_filename
-                            else:
-                                # Use original filename but ensure path is absolute
-                                absolute_path = (
-                                    absolute_parent_dir / original_relative_path.name
-                                )
-
-                            handler_config["filename"] = str(absolute_path)
-                            # print(f"Updated handler '{handler_name}' filename to: {absolute_path}") # Debugging
-                        except Exception as handler_ex:
-                            # Log specific handler error and potentially remove/disable it
-                            logging.error(
-                                f"Error processing handler '{handler_name}': {handler_ex}. Skipping handler."
-                            )
-                            # Optionally remove the problematic handler: del config['handlers'][handler_name]
-                            # For now, we log and continue, but dictConfig might still fail later if structure is bad
-
-            # Apply configuration if loaded and processed
-            if config:
-                logging.config.dictConfig(config)
-                logging.info(
-                    f"Logging configured from {config_path} with session ID: {self.session_id}"
-                )
-            else:
-                # This case should ideally be caught earlier (file not found, invalid YAML)
-                self._setup_basic_logging()
-                logging.warning(
-                    "Logging config was not loaded or processed correctly. Using basic config."
-                )
-
-        except (
-            FileNotFoundError
-        ):  # Should be caught by exists() check, but just in case
-            self._setup_basic_logging()
-            logging.warning(f"Logging config file not found during open: {config_path}")
-        except (
-            yaml.YAMLError,
-            ValueError,
-        ) as e:  # Catch YAML parsing errors or value errors
-            self._setup_basic_logging()
-            logging.error(f"Error loading or parsing logging config {config_path}: {e}")
-        except Exception as e:
-            # Catch potential errors during dictConfig application or other issues
-            self._setup_basic_logging()
-            logging.error(
-                f"Unexpected error configuring logging from {config_path}: {e}"
-            )
-
-    def _setup_basic_logging(self):
-        """Sets up a basic logging configuration as a fallback.
-
-        This is used if the `logging_config.yaml` file cannot be found or parsed.
-        It configures a simple console logger with INFO level.
-        """
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        # 2. Standard Formatter and FileHandler for persistent logs
+        log_file_path = self.logs_dir / "python" / f"app_session_{self.session_id}.log"
+        file_formatter = logging.Formatter(
+            "%(asctime)s - %(session_id)s - %(name)s - %(levelname)s - %(module)s.%(funcName)s:%(lineno)d - %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        file_handler = logging.FileHandler(log_file_path, encoding="utf-8")
+        file_handler.setFormatter(file_formatter)
+        file_handler.setLevel(logging.DEBUG)  # Example: DEBUG level for file logs
+        root_logger.addHandler(file_handler)
+
+        logging.info(
+            f"Logging configured programmatically. Session ID: {self.session_id}. "
+            f"File log: {log_file_path}"
         )
 
     def get_logger(self, name: str) -> logging.Logger:
-        """Get a logger with a specific name.
+        """Gets a logger instance with the specified name, prefixed.
+
+        The logger name will be prefixed with 'aichemist_codex.' to ensure
+        all application logs are under a common namespace.
 
         Args:
-            name: The name of the logger (will be prefixed with 'mdtopdf.')
+            name (str): The specific name for the logger (e.g., `__name__` from
+                the calling module).
 
         Returns:
-            A configured logger instance
+            logging.Logger: A configured logger instance.
         """
-        # Add mdtopdf prefix if not already present
-        if not name.startswith("mdtopdf"):
-            name = f"mdtopdf.{name}"
-
-        return logging.getLogger(name)
+        logger_name = f"aichemist_codex.{name}"
+        return logging.getLogger(logger_name)
 
     def generate_session_id(self) -> str:
-        """Create a unique session ID.
+        """Creates a unique session ID.
+
+        Combines a timestamp with a short UUID for uniqueness.
 
         Returns:
-            A string containing timestamp and unique identifier
+            str: A string representing the unique session ID (e.g.,
+                 "20231027_153000_a1b2c3d4").
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         unique_id = str(uuid.uuid4())[:8]
         return f"{timestamp}_{unique_id}"
 
     def get_converter_logger(self, converter_type: str) -> logging.Logger:
-        """Get a logger specifically for a converter.
+        """Gets a logger specifically for a converter.
 
         Args:
-            converter_type: Type of converter (e.g., 'pdf2md', 'md2pdf')
+            converter_type (str): Type of converter (e.g., 'pdf2md', 'md2pdf').
 
         Returns:
-            A configured logger for the specified converter
+            logging.Logger: A configured logger for the specified converter,
+                            e.g., `aichemist_codex.converters.pdf2md`.
         """
         return self.get_logger(f"converters.{converter_type}")
 
@@ -235,7 +232,8 @@ class LogManager:
         """Gets a logger specifically for batch processing operations.
 
         Returns:
-            logging.Logger: A configured logger instance named "mdtopdf.batch_processor".
+            logging.Logger: A configured logger instance named
+                            `aichemist_codex.batch_processor`.
         """
         return self.get_logger("batch_processor")
 
@@ -243,67 +241,112 @@ class LogManager:
         """Gets a logger specifically for the Electron bridge operations.
 
         Returns:
-            logging.Logger: A configured logger instance named "mdtopdf.electron_bridge".
+            logging.Logger: A configured logger instance named
+                            `aichemist_codex.electron_bridge`.
         """
         return self.get_logger("electron_bridge")
 
     def add_file_handler(
         self,
         logger: logging.Logger,
-        filepath: str,
+        filepath: str | Path,
         level: int = logging.DEBUG,
         formatter: logging.Formatter | None = None,
     ) -> None:
-        """Add a file handler to a logger.
+        """Adds a file handler to a given logger instance.
+
+        Ensures the directory for the log file exists.
 
         Args:
-            logger: The logger to add the handler to
-            filepath: Absolute path where logs will be written
-            level: Logging level for this handler
-            formatter: Custom formatter (or None to use default)
+            logger (logging.Logger): The logger instance to add the handler to.
+            filepath (str | Path): Absolute or relative path for the log file.
+                If relative, it's based on the current working directory.
+                It's recommended to use paths generated via
+                `create_session_file_path` or absolute paths.
+            level (int): Logging level for this handler. Defaults to `logging.DEBUG`.
+            formatter (Optional[logging.Formatter]): Custom formatter. If None,
+                a default formatter including session_id is used.
         """
         try:
-            # Ensure directory exists using pathlib for robustness
             log_path = Path(filepath)
             log_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Create handler
-            handler = logging.FileHandler(filepath)
+            handler = logging.FileHandler(log_path, encoding="utf-8")
             handler.setLevel(level)
 
-            # Set formatter
             if formatter is None:
                 formatter = logging.Formatter(
-                    "%(asctime)s [%(levelname)s] %(name)s:%(lineno)d - %(message)s",
+                    "%(asctime)s - %(session_id)s - %(name)s - %(levelname)s - %(message)s",
                     datefmt="%Y-%m-%d %H:%M:%S",
                 )
             handler.setFormatter(formatter)
+            # Add session filter if this handler is for a logger not descending from root
+            # or if finer control per handler is needed.
+            # For now, relying on root logger's filter.
+            # session_filter = SessionIdFilter(self.session_id)
+            # handler.addFilter(session_filter)
 
-            # Add to logger
             logger.addHandler(handler)
-            # print(f"Added file handler for {filepath} to logger {logger.name}") # Debug
+            # Use a general logger for LogManager's own messages if needed,
+            # or print for setup diagnostics.
+            # print(f"Added file handler for {log_path} to logger {logger.name}")
         except Exception as e:
-            logging.error(
-                f"Failed to add file handler for {filepath} to logger {logger.name}: {e}"
+            # Log this error using a basic configuration or print,
+            # as the main logging might not be fully set up or could be the source of error.
+            print(
+                f"CRITICAL: Failed to add file handler for {filepath} "
+                f"to logger {logger.name}: {e}"
             )
 
-    def create_session_file_path(self, component: str, filename: str) -> str:
-        """Create an absolute log file path with session ID.
+    def create_session_file_path(
+        self, component_path: str, filename_base: str, extension: str = "log"
+    ) -> Path:
+        """Creates an absolute log file path with session ID for a component.
+
+        The path will be structured under `logs_dir/python/component_path/`.
 
         Args:
-            component: Component sub-path (e.g., 'converters/pdf2md')
-            filename: Base filename
+            component_path (str): The sub-path for the component relative to
+                `logs_dir/python/` (e.g., "converters/pdf2md", "utils").
+            filename_base (str): The base name for the log file (e.g., "conversion_details").
+            extension (str): The file extension without a leading dot. Defaults to "log".
 
         Returns:
-            Full absolute path to the log file as a string
+            Path: The absolute `Path` object for the log file.
         """
-        # Construct the absolute base path using the instance's logs_dir
-        base_path = self.logs_dir / "python" / component
-        base_path.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
+        target_dir = self.logs_dir / "python" / component_path
+        target_dir.mkdir(parents=True, exist_ok=True)
 
-        # Split filename into base and extension
-        name, ext = os.path.splitext(filename)
-        session_filename = f"{name}_{self.session_id}{ext}"
+        session_filename = f"{filename_base}_{self.session_id}.{extension}"
+        return target_dir / session_filename
 
-        # Return the absolute path as a string
-        return str(base_path / session_filename)
+
+# Example of how LogManager might be used (typically not in this file):
+# if __name__ == "__main__":
+#     # Initialize LogManager (usually done at application startup)
+#     # The first call to LogManager() or LogManager(logs_dir=Path("my_app_logs"))
+#     # will initialize the singleton.
+#     log_manager = LogManager()
+
+#     # Get a logger for the current module or a specific component
+#     module_logger = log_manager.get_logger(__name__)
+#     module_logger.info("LogManager example: Info message from module.")
+#     module_logger.debug("LogManager example: Debug message, check file log.")
+
+#     converter_logger = log_manager.get_converter_logger("test_converter")
+#     converter_logger.warning("LogManager example: Warning from test_converter.")
+
+#     try:
+#         x = 1 / 0
+#     except ZeroDivisionError:
+#         module_logger.error("LogManager example: An error occurred!", exc_info=True)
+
+#     # Example of adding a specific handler
+#     # custom_log_path = log_manager.create_session_file_path("custom_component", "special_ops")
+#     # special_logger = log_manager.get_logger("custom_component.special_ops")
+#     # log_manager.add_file_handler(special_logger, custom_log_path, level=logging.INFO)
+#     # special_logger.info("This goes to the special_ops session log and stdout.")
+#     # module_logger.info("This info still goes to general logs and stdout.")
+
+#     print(f"Logs are being managed. Session ID: {log_manager.session_id}")
+#     print(f"Main session log likely at: {log_manager.logs_dir / 'python' / f'app_session_{log_manager.session_id}.log'}")
