@@ -9,7 +9,8 @@ import importlib
 import sys
 from pathlib import Path
 
-from aichemist_transmutation_codex.config import ConfigManager, LogManager
+from transmutation_codex.core.logger import LogManager
+from transmutation_codex.core.settings import ConfigManager
 
 # Initialize LogManager (loads config and sets up logging)
 log_manager = LogManager()
@@ -33,8 +34,8 @@ def main() -> int:
 
     parser.add_argument(
         "conversion_type",
-        choices=["md2pdf", "md2html", "pdf2md", "pdf2html", "html2pdf", "docx2md"],
-        help="Type of conversion (e.g., pdf2md, md2html)",
+        choices=["md2pdf", "md2html", "pdf2md", "pdf2html", "html2pdf", "docx2md", "txt2pdf"],
+        help="Type of conversion (e.g., pdf2md, md2html, txt2pdf)",
     )
     parser.add_argument("input_path", help="Input file path")
     parser.add_argument("--output", help="Output file path (optional)")
@@ -105,6 +106,20 @@ def main() -> int:
         help="Prefer Mammoth engine",
     )
 
+    # TXT to PDF specific options
+    txt2pdf_group = parser.add_argument_group("TXT to PDF Options")
+    txt2pdf_group.add_argument(
+        "--font-name",
+        default=config.get_value("txt2pdf", "font_name", "Helvetica"),
+        help="Font name for PDF output (default: %(default)s)",
+    )
+    txt2pdf_group.add_argument(
+        "--font-size",
+        type=int,
+        default=config.get_value("txt2pdf", "font_size", 10),
+        help="Font size for PDF output (default: %(default)s)",
+    )
+
     try:
         args = parser.parse_args()
     except SystemExit as e:
@@ -152,6 +167,9 @@ def main() -> int:
         converter_options["style_map"] = args.style_map
         converter_options["image_dir"] = args.image_dir
         converter_options["use_mammoth"] = args.use_mammoth
+    elif args.conversion_type == "txt2pdf":
+        converter_options["font_name"] = args.font_name
+        converter_options["font_size"] = args.font_size
     # Add options for other converters if needed
 
     logger.debug(f"Converter options: {converter_options}")
@@ -169,6 +187,7 @@ def main() -> int:
             "md2html": ("converters.markdown_to_html", None, "convert_md_to_html"),
             "pdf2html": ("converters.pdf_to_html", None, "convert_pdf_to_html"),
             "docx2md": ("converters.docx_to_markdown", None, "convert_docx_to_md"),
+            "txt2pdf": ("plugins.txt.to_pdf", None, "convert_txt_to_pdf"),
         }
 
         if args.conversion_type not in conversion_map:
@@ -179,7 +198,9 @@ def main() -> int:
 
         # Dynamically import the module within mdtopdf package
         try:
-            module = importlib.import_module(f".{module_path}", package="mdtopdf")
+            module = importlib.import_module(
+                f".{module_path}", package="transmutation_codex"
+            )
         except ImportError as import_err:
             logger.error(
                 f"Failed to import converter module '{module_path}': {import_err}"

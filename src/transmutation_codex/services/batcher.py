@@ -12,7 +12,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from aichemist_transmutation_codex.config import ConfigManager, LogManager
+from transmutation_codex.core import ConfigManager, LogManager
 
 # Setup logger
 log_manager = LogManager()
@@ -169,6 +169,7 @@ def run_batch(
         "md2html": ("converters.markdown_to_html", None, "convert_md_to_html"),
         "pdf2html": ("converters.pdf_to_html", None, "convert_pdf_to_html"),
         "docx2md": ("converters.docx_to_markdown", None, "convert_docx_to_md"),
+        "txt2pdf": ("plugins.txt.to_pdf", None, "convert_txt_to_pdf"),
     }
 
     if conversion_type not in conversion_map:
@@ -179,8 +180,8 @@ def run_batch(
 
     # Import and get the callable (function or class method)
     try:
-        logger.debug(f"Importing module: . {module_path} from package mdtopdf")
-        module = importlib.import_module(f".{module_path}", package="mdtopdf")
+        logger.debug(f"Importing module: . {module_path} from package transmutation_codex")
+        module = importlib.import_module(f".{module_path}", package="transmutation_codex")
         if class_name:
             ConverterClass = getattr(module, class_name)
             # Instantiate the converter class (it might use config internally)

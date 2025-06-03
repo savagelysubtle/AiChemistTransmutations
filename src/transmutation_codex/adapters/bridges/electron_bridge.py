@@ -13,19 +13,18 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-# Resolve the project's src directory and add it to sys.path
-# This allows absolute imports of modules within the aichemist_transmutation_codex package
-# when electron_bridge.py is run as a script.
-# __file__ is .../AichemistTransmutationCodex/src/aichemist_transmutation_codex/electron_bridge.py
-# .parent is .../AichemistTransmutationCodex/src/aichemist_transmutation_codex
-# .parent.parent (src_path) is .../AichemistTransmutationCodex/src
-_src_path = Path(__file__).resolve().parent.parent
-if str(_src_path) not in sys.path:
-    sys.path.insert(0, str(_src_path))
+# Resolve the project's 'backend' directory and add it to sys.path
+# This allows absolute imports of modules within the transmutation_codex package
+# when electron_bridge.py is run as a script from its location in backend/transmutation_codex/adapters/bridges/
+# __file__ is .../AiChemistTransmutationCodex/backend/transmutation_codex/adapters/bridges/electron_bridge.py
+# .parent.parent.parent.parent is .../AiChemistTransmutationCodex/backend
+_backend_dir_path = Path(__file__).resolve().parent.parent.parent.parent
+if str(_backend_dir_path) not in sys.path:
+    sys.path.insert(0, str(_backend_dir_path))
 
-# Imports from the aichemist_transmutation_codex package MUST come AFTER sys.path modification
-from backend.aichemist_transmutation_codex.services import run_batch
-from backend.aichemist_transmutation_codex.utils import LogManager  # Corrected import
+# Imports from the transmutation_codex package MUST come AFTER sys.path modification
+from transmutation_codex.core.logger import LogManager
+from transmutation_codex.services.batcher import run_batch
 
 
 def _report_electron_progress(
@@ -167,11 +166,16 @@ def check_file_extension_compatibility(conversion_type: str, input_path: Path) -
         if extension not in (".docx"):
             compatible = False
             expected = ".docx"
-    # Add compatibility for merge_to_pdf: all input files must be PDFs
+    # Add compatibility for merge_to_pdf
     elif conversion_type == "merge_to_pdf":
         if extension != ".pdf":
             compatible = False
             expected = ".pdf (for all inputs)"
+    # Add compatibility for txt2pdf
+    elif conversion_type == "txt2pdf":
+        if extension not in (".txt"):
+            compatible = False
+            expected = ".txt"
 
     if not compatible:
         error_msg = f"Input file {input_path.name} is not compatible with {conversion_type} conversion. Expected {expected}."
@@ -311,6 +315,11 @@ def convert_with_progress(
                     output_path_obj = (
                         output_path_obj / resolved_input_path.with_suffix(".pdf").name
                     )
+                # Add output path logic for txt2pdf
+                elif conversion_type == "txt2pdf":
+                    output_path_obj = (
+                        output_path_obj / resolved_input_path.with_suffix(".pdf").name
+                    )
                 # No specific output name generation for 'merge_to_pdf' here, as it's handled above.
                 logger.info(
                     f"Output path is a directory, using file path: {output_path_obj}"
@@ -324,12 +333,33 @@ def convert_with_progress(
                 output_path_obj = resolved_input_path.with_suffix(".md")
             elif conversion_type == "md2pdf":
                 output_path_obj = resolved_input_path.with_suffix(".pdf")
+            elif conversion_type == "html2pdf":
+                output_path_obj = resolved_input_path.with_suffix(".pdf")
+            elif conversion_type == "md2html":
+                output_path_obj = resolved_input_path.with_suffix(".html")
+            elif conversion_type == "pdf2html":
+                output_path_obj = resolved_input_path.with_suffix(".html")
+            elif conversion_type == "docx2md":
+                output_path_obj = resolved_input_path.with_suffix(".md")
+            elif conversion_type == "pdf2editable":
+                output_path_obj = resolved_input_path.with_name(f"{resolved_input_path.stem}_editable.pdf")
+            elif conversion_type == "md2docx":
+                output_path_obj = resolved_input_path.with_suffix(".docx")
+            elif conversion_type == "docx2pdf":
+                output_path_obj = resolved_input_path.with_suffix(".pdf")
+            elif conversion_type == "txt2pdf":
+                output_path_obj = resolved_input_path.with_suffix(".pdf")
             # ... (add other single converters' default output path logic if needed)
             else:  # Fallback for other single converters, or let the converter handle it
-                output_path_obj = (
-                    resolved_input_path.parent
-                    / f"{resolved_input_path.stem}_converted{resolved_input_path.suffix}"
-                )
+                # This fallback should ideally not be hit if all common types are handled above.
+                # If a new converter is added, its default output naming should be specified.
+                new_suffix = ".converted" # Generic suffix if type is unknown
+                if conversion_type.endswith("2pdf"): new_suffix = ".pdf"
+                elif conversion_type.endswith("2md"): new_suffix = ".md"
+                elif conversion_type.endswith("2html"): new_suffix = ".html"
+                elif conversion_type.endswith("2docx"): new_suffix = ".docx"
+                output_path_obj = resolved_input_path.with_suffix(new_suffix) if new_suffix != ".converted" else resolved_input_path.with_name(f"{resolved_input_path.stem}_converted{resolved_input_path.suffix}")
+                logger.warning(f"Conversion type {conversion_type} has no explicit default output naming. Using generic: {output_path_obj.name}")
 
         if output_path is not None:  # Resolve if it was given
             output_path_obj = Path(output_path).resolve()  # Ensure it's resolved
@@ -369,7 +399,7 @@ def convert_with_progress(
             ),
             "md2pdf": ("converters.markdown_to_pdf", None, "convert_md_to_pdf"),
             "html2pdf": ("converters.html_to_pdf", None, "convert_html_to_pdf"),
-            "md2html": ("converters.markdown_to_html", None, "convert_md_to_html"),
+            "md2html": ("plugins.markdown.to_html", None, "convert_md_to_html"),
             "pdf2html": ("converters.pdf_to_html", None, "convert_pdf_to_html"),
             "docx2md": ("converters.docx_to_markdown", None, "convert_docx_to_md"),
             "pdf2editable": (
@@ -385,14 +415,15 @@ def convert_with_progress(
                 None,
                 "merge_multiple_pdfs_to_single_pdf",
             ),
+            # Add new 'txt2pdf'
+            "txt2pdf": ("plugins.txt.to_pdf", None, "convert_txt_to_pdf"),
         }
         if conversion_type not in conversion_map:
             raise ValueError(f"Unknown conversion type: {conversion_type}")
 
         module_path, class_name, func_name = conversion_map[conversion_type]
-        module = importlib.import_module(
-            f".{module_path}", package="aichemist_transmutation_codex"
-        )
+        # Corrected import to work with 'backend' in sys.path and 'transmutation_codex' as the package
+        module = importlib.import_module(f"transmutation_codex.{module_path}")
 
         if class_name:
             ConverterClass = getattr(module, class_name)
@@ -529,6 +560,18 @@ def main() -> int:
         help="The desired file name for the merged PDF (e.g., 'merged_document.pdf'). Used only with 'merge_to_pdf'.",
         default=None,
     )
+    # TXT2PDF specific arguments
+    parser.add_argument(
+        "--font-name",
+        help="Font name to use for TXT to PDF conversion (e.g., 'Helvetica', 'Times-Roman'). Default: 'Helvetica'.",
+        default="Helvetica",
+    )
+    parser.add_argument(
+        "--font-size",
+        type=int,
+        help="Font size to use for TXT to PDF conversion. Default: 10.",
+        default=10,
+    )
     # PDF2EDITABLE specific ( reusing --lang and --force-ocr from PDF2MD for consistency if applicable)
     # --lang is already defined for PDF2MD, can be reused.
     # --force-ocr is already defined for PDF2MD, can be reused.
@@ -631,6 +674,11 @@ def main() -> int:
     # Add reference_docx to converter_options
     if args.reference_docx:
         converter_options["reference_docx"] = args.reference_docx
+    # Add TXT2PDF options
+    if args.font_name:
+        converter_options["font_name"] = args.font_name
+    if args.font_size:
+        converter_options["font_size"] = args.font_size
 
     # String choice options: these will be None if not provided, or the chosen string.
     if args.output_type:

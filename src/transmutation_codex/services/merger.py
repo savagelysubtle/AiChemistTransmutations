@@ -7,11 +7,10 @@ from pathlib import Path
 import PyPDF2
 from PyPDF2.errors import PdfReadError
 
-from aichemist_transmutation_codex.config import LogManager
+from transmutation_codex.core import LogManager
 
-# Initialize logger for this module
-# The LogManager is a custom utility in this project to get configured loggers.
-logger = LogManager().get_converter_logger("pdf_merger")
+log_manager = LogManager()
+logger = log_manager.get_converter_logger("pdf_merger")
 
 
 def merge_multiple_pdfs_to_single_pdf(

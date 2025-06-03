@@ -29,6 +29,17 @@ interface ConversionOptionsProps {
     outputType: string;
     pdfRenderer: string;
   }>>;
+
+  /** Options for TXT to PDF conversion. */
+  txtToPdfOptions?: {
+    fontName: string;
+    fontSize: number;
+  };
+  /** Callback function when TXT to PDF options change. */
+  onTxtToPdfOptionsChange?: React.Dispatch<React.SetStateAction<{
+    fontName: string;
+    fontSize: number;
+  }>>;
 }
 
 // Component for displaying dynamic conversion options.
@@ -40,6 +51,8 @@ const ConversionOptions: React.FC<ConversionOptionsProps> = ({
   onOcrLangChange,
   pdfToEditableOptions,
   onPdfToEditableOptionsChange,
+  txtToPdfOptions,
+  onTxtToPdfOptionsChange,
 }) => {
   if (conversionType === 'pdf2md') {
     // No specific options for pdf2md currently shown in UI, can add if needed
@@ -173,6 +186,54 @@ const ConversionOptions: React.FC<ConversionOptionsProps> = ({
           </select>
         </div>
 
+      </section>
+    );
+  }
+
+  if (conversionType === 'txt2pdf') {
+    const handleOptionChange = <K extends keyof NonNullable<ConversionOptionsProps['txtToPdfOptions']>>(
+      optionKey: K,
+      value: NonNullable<ConversionOptionsProps['txtToPdfOptions']>[K]
+    ) => {
+      if (onTxtToPdfOptionsChange && txtToPdfOptions) {
+        onTxtToPdfOptionsChange({
+          ...txtToPdfOptions,
+          [optionKey]: value,
+        });
+      }
+    };
+
+    return (
+      <section className="p-6 border border-dark-border rounded-lg shadow-lg bg-dark-surface space-y-4">
+        <h2 className="text-2xl font-semibold mb-3 text-dark-textPrimary">TXT to PDF Options</h2>
+        <div className="space-y-2">
+          <label htmlFor="txtFontName" className="block text-sm font-medium text-dark-textSecondary">
+            Font Name
+          </label>
+          <input
+            type="text"
+            id="txtFontName"
+            name="txtFontName"
+            value={txtToPdfOptions?.fontName || 'Helvetica'}
+            onChange={(e) => handleOptionChange('fontName', e.target.value)}
+            placeholder="e.g., Helvetica, Times-Roman"
+            className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+          />
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="txtFontSize" className="block text-sm font-medium text-dark-textSecondary">
+            Font Size
+          </label>
+          <input
+            type="number"
+            id="txtFontSize"
+            name="txtFontSize"
+            value={txtToPdfOptions?.fontSize || 10}
+            onChange={(e) => handleOptionChange('fontSize', parseInt(e.target.value, 10) || 10)}
+            min="1"
+            className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+          />
+        </div>
       </section>
     );
   }

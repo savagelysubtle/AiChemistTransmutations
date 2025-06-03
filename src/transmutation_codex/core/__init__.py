@@ -4,7 +4,7 @@ This package provides centralized classes for handling application configuration
 (from files and environment variables) and for setting up and accessing loggers.
 """
 
-from .config_manager import ConfigManager
-from .log_manager import LogManager
+from .logger import LogManager
+from .settings import ConfigManager
 
 __all__ = ["ConfigManager", "LogManager"]

@@ -7,22 +7,15 @@ This module provides functionality to convert HTML files to PDF.
 import sys
 from pathlib import Path
 from typing import Any
+import pdfkit
 
-from aichemist_transmutation_codex.config import ConfigManager, LogManager
+from transmutation_codex.core import ConfigManager, LogManager
 
 # Setup logger
 log_manager = LogManager()
 logger = log_manager.get_converter_logger("html2pdf")
 
-try:
-    import pdfkit  # type: ignore
 
-    PDFKIT_AVAILABLE = True
-except ImportError:
-    logger.warning(
-        "pdfkit not found or wkhtmltopdf missing. Install pdfkit and wkhtmltopdf."
-    )
-    PDFKIT_AVAILABLE = False
 
 
 def _ensure_path(input_val: str | Path) -> Path:
@@ -59,10 +52,6 @@ def convert_html_to_pdf(
         ImportError: If pdfkit or wkhtmltopdf is not installed/found.
         RuntimeError: For other conversion errors.
     """
-    if not PDFKIT_AVAILABLE:
-        raise ImportError(
-            "pdfkit library not found or wkhtmltopdf is not installed/configured."
-        )
 
     input_path = _ensure_path(input_path).resolve()
     if not input_path.exists():

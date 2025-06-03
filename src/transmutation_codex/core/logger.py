@@ -3,9 +3,21 @@ import logging
 import logging.config
 import sys
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+# Store the original LogRecord factory
+_original_log_record_factory = logging.getLogRecordFactory()
+
+# This will hold the session_id once LogManager is initialized
+_CURRENT_SESSION_ID = "uninitialized_session"
+
+def _session_id_log_record_factory(*args: Any, **kwargs: Any) -> logging.LogRecord:
+    """Custom LogRecord factory that adds the LogManager's session_id."""
+    record = _original_log_record_factory(*args, **kwargs)
+    record.session_id = _CURRENT_SESSION_ID  # Add session_id to every record
+    return record
 
 
 class SessionIdFilter(logging.Filter):
@@ -80,6 +92,29 @@ class JsonFormatter(logging.Formatter):
 
         return f"LOG_MESSAGE:{json.dumps(log_entry)}"
 
+    def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
+        """Return the creation time of the specified LogRecord as formatted text.
+
+        This method should be called from format() by a formatter which
+        wants to make use of a formatted time. If datefmt (a string) is
+        specified, it is used with datetime.strftime() to format the time;
+        otherwise, the ISO8601 format is used.
+        Ensures handling of microseconds and UTC (Z) if specified in datefmt.
+        """
+        dt = datetime.fromtimestamp(record.created, tz=timezone.utc)
+        if datefmt:
+            # Ensure 'Z' is handled if present for UTC representation
+            # Basic str.replace, consider more robust if complex datefmts used
+            if '%fZ' in datefmt:
+                return dt.strftime(datefmt.replace('%fZ', '.%f')) + 'Z'
+            if 'Z' in datefmt and not datefmt.endswith('Z'): # Z not as a directive
+                 return dt.strftime(datefmt)
+            if datefmt.endswith('Z'): # Z as a literal at the end for UTC
+                return dt.strftime(datefmt[:-1]) + 'Z'
+            return dt.strftime(datefmt)
+        else:
+            return dt.isoformat(timespec='milliseconds')
+
 
 class LogManager:
     """Manages logging configuration and provides logging utilities.
@@ -105,6 +140,7 @@ class LogManager:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             # _initialized flag is instance-specific, set in __init__
+            cls._instance._initialized = False # Ensure instance starts as not initialized
         return cls._instance
 
     def __init__(self, logs_dir: Path | None = None) -> None:
@@ -118,17 +154,23 @@ class LogManager:
                 stored. If None, defaults to "logs" in the current working
                 directory (`Path.cwd() / "logs"`).
         """
-        if self._initialized:
+        if self._initialized: # Check instance attribute
             return
 
-        self.logs_dir = logs_dir if logs_dir is not None else Path.cwd() / "logs"
+        global _CURRENT_SESSION_ID # Allow modification of the module-level variable
         self.session_id = self.generate_session_id()
+        _CURRENT_SESSION_ID = self.session_id # Set it for the factory
 
+        # Set the custom LogRecord factory *before* any logging is configured by this manager.
+        # This ensures all LogRecord instances created henceforth will have session_id.
+        logging.setLogRecordFactory(_session_id_log_record_factory)
+
+        self.logs_dir = logs_dir if logs_dir is not None else Path.cwd() / "logs"
         self._create_log_directories()
         self._configure_programmatic_logging()
 
         self.root_logger = logging.getLogger()  # Get the root logger
-        LogManager._initialized = True  # Use class attribute for singleton init state
+        self._initialized = True  # Set instance attribute
 
     def _create_log_directories(self) -> None:
         """Creates the necessary directory structure for log files.
@@ -150,15 +192,26 @@ class LogManager:
         1. A StreamHandler outputting JSON to stdout for the Electron bridge.
         2. A FileHandler for general application logging to a session-specific file.
         """
-        root_logger = logging.getLogger()  # Configure the root logger
-        root_logger.setLevel(logging.DEBUG)  # Set root logger level
+        # Get the root logger instance.
+        root_logger = logging.getLogger()
 
-        # Prevent multiple handlers if re-initializing (though singleton should prevent)
+        # Ensure we have a clean slate by removing any existing handlers from the root logger.
+        # This prevents conflicts or duplicate messages if logging was configured elsewhere.
         if root_logger.hasHandlers():
             for handler in root_logger.handlers[:]:
                 root_logger.removeHandler(handler)
+                handler.close() # Close the handler before removing
 
-        # Add session ID filter to the root logger
+        # Set the desired level for the root logger.
+        # All messages at this level or higher will be processed by the root logger
+        # and then potentially by its handlers, subject to their own levels.
+        root_logger.setLevel(logging.DEBUG)
+
+        # Add session ID filter to the root logger itself.
+        # This ensures any child logger will also have its records pass through this filter
+        # if the records propagate to the root.
+        # With the LogRecord factory, this filter might be redundant for adding session_id,
+        # but kept if it serves other filtering purposes or as a safeguard.
         session_filter = SessionIdFilter(self.session_id)
         root_logger.addFilter(session_filter)
 
@@ -169,6 +222,7 @@ class LogManager:
         stdout_handler = logging.StreamHandler(sys.stdout)
         stdout_handler.setFormatter(json_formatter)
         stdout_handler.setLevel(logging.INFO)  # Example: INFO level for GUI
+        stdout_handler.addFilter(session_filter)  # Add filter to handler
         root_logger.addHandler(stdout_handler)
 
         # 2. Standard Formatter and FileHandler for persistent logs
@@ -180,9 +234,11 @@ class LogManager:
         file_handler = logging.FileHandler(log_file_path, encoding="utf-8")
         file_handler.setFormatter(file_formatter)
         file_handler.setLevel(logging.DEBUG)  # Example: DEBUG level for file logs
+        file_handler.addFilter(session_filter)  # Add filter to handler
         root_logger.addHandler(file_handler)
 
-        logging.info(
+        # Use the root_logger's info method, which should now be properly configured.
+        root_logger.info(
             f"Logging configured programmatically. Session ID: {self.session_id}. "
             f"File log: {log_file_path}"
         )
