@@ -33,7 +33,7 @@ exclude = [
 ]
 include = [
     "pyproject.toml",  # Keep pyproject.toml in include if ruff should check it
-    "src/**/*.py",
+    "backend/**/*.py",
     "tests/**/*.py",
     "scripts/**/*.py",
     "ruff.toml",       # Add ruff.toml to be linted by ruff itself

@@ -12,14 +12,36 @@ import ocrmypdf
 
 # Import specific exceptions directly
 from ocrmypdf.exceptions import InputFileError, MissingDependencyError
+from transmutation_codex.core import LogManager
 
-from aichemist_transmutation_codex.config import (
-    LogManager,  # Assuming LogManager is accessible
-)
+# Setup logger using the LogManager singleton
+log_manager = LogManager()
+logger = log_manager.get_converter_logger("pdf2editable")
 
-# It's good practice to get a logger specific to this module.
-# The name 'pdf_to_editable_pdf_converter' clearly identifies the source of logs.
-logger = LogManager().get_logger("pdf_to_editable_pdf_converter")
+try:
+    import fitz  # PyMuPDF
+except ImportError:
+    logger.error("PyMuPDF is required. Install with: uv add pymupdf")
+    fitz = None
+
+try:
+    from pdfminer.converter import PDFPageAggregator
+    from pdfminer.high_level import extract_text
+    from pdfminer.layout import LAParams, LTChar, LTFigure, LTTextBox, LTTextLine
+    from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
+    from pdfminer.pdfpage import PDFPage
+except ImportError:
+    logger.error("pdfminer.six not found. Install with: uv add pdfminer.six")
+    extract_text = None
+    LAParams = None
+    PDFResourceManager = None
+    PDFPageInterpreter = None
+    PDFPageAggregator = None
+    PDFPage = None
+    LTTextBox = None
+    LTTextLine = None
+    LTChar = None
+    LTFigure = None
 
 
 def convert_pdf_to_editable(

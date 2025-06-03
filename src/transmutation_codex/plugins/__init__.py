@@ -8,9 +8,9 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, NoReturn, Optional, Union, cast
 
-from .markdown_to_html import convert_md_to_html, md_to_html
-from .markdown_to_pdf import convert_md_to_pdf
-from .pdf_to_markdown import (
+# from .markdown.to_html import convert_md_to_html, md_to_html # Commented out due to ModuleNotFoundError
+from .markdown.to_pdf import convert_md_to_pdf
+from .pdf.to_markdown import (
     convert_pdf_to_md,
     convert_pdf_to_md_with_enhanced_ocr,
     convert_pdf_to_md_with_ocr,
@@ -19,7 +19,7 @@ from .pdf_to_markdown import (
 
 # Import for Markdown to DOCX
 try:
-    from .markdown_to_docx import markdown_to_docx as _imported_markdown_to_docx
+    from .markdown.to_docx import markdown_to_docx as _imported_markdown_to_docx
 
     markdown_to_docx = cast(Callable[..., Path], _imported_markdown_to_docx)
 except ImportError:
@@ -53,7 +53,7 @@ except ImportError:
 
 # Import for DOCX to PDF
 try:
-    from .doc_to_pdf import convert_docx_to_pdf as _imported_convert_docx_to_pdf
+    from .docx.to_pdf import convert_docx_to_pdf as _imported_convert_docx_to_pdf
 
     convert_docx_to_pdf = cast(Callable[..., Path], _imported_convert_docx_to_pdf)
 except ImportError:
@@ -88,12 +88,21 @@ except ImportError:
 
 # Import new converters if available
 try:
-    from .html_to_pdf import convert_html_to_pdf as _imported_convert_html_to_pdf
-    from .html_to_pdf import html_to_pdf as _imported_html_to_pdf
+    from .html.to_pdf import convert_html_to_pdf as _imported_convert_html_to_pdf
+    from .html.to_pdf import html_to_pdf as _imported_html_to_pdf
 
     convert_html_to_pdf = cast(Callable[..., Path], _imported_convert_html_to_pdf)
     html_to_pdf = cast(Callable[..., Path], _imported_html_to_pdf)
 except ImportError:
+    # Define _imported_convert_html_to_pdf and _imported_html_to_pdf as placeholders if import fails
+    def _placeholder_html_converter(
+        input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
+    ) -> Path:
+        raise ImportError(
+            "HTML to PDF converter is not available. Install WeasyPrint or pdfkit."
+        )
+    _imported_convert_html_to_pdf = _placeholder_html_converter
+    _imported_html_to_pdf = _placeholder_html_converter
 
     def convert_html_to_pdf(
         input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
@@ -101,7 +110,7 @@ except ImportError:
         """Placeholder for HTML to PDF conversion when dependencies are missing.
 
         This function is a stand-in for the actual `convert_html_to_pdf` that
-        would be imported from `.html_to_pdf`. It is defined when the necessary
+        would be imported from `.html.to_pdf`. It is defined when the necessary
         libraries (e.g., WeasyPrint or pdfkit) cannot be imported, indicating
         they are not installed.
 
@@ -117,9 +126,8 @@ except ImportError:
             ImportError: Always raised to indicate that the required converter
                 dependencies are not available.
         """
-        raise ImportError(
-            "HTML to PDF converter is not available. Install WeasyPrint or pdfkit."
-        )
+        # This will now call the placeholder defined above if the original import failed
+        return _imported_convert_html_to_pdf(input_path, output_path, **kwargs)
 
     def html_to_pdf(
         input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
@@ -141,16 +149,26 @@ except ImportError:
         Raises:
             ImportError: Propagated from the placeholder function.
         """
-        return convert_html_to_pdf(input_path, output_path, **kwargs)
+        # This will now call the placeholder defined above if the original import failed
+        return _imported_html_to_pdf(input_path, output_path, **kwargs)
 
 
 try:
-    from .pdf_to_html import convert_pdf_to_html as _imported_convert_pdf_to_html
-    from .pdf_to_html import pdf_to_html as _imported_pdf_to_html
+    from .pdf.to_html import convert_pdf_to_html as _imported_convert_pdf_to_html
+    from .pdf.to_html import pdf_to_html as _imported_pdf_to_html
 
     convert_pdf_to_html = cast(Callable[..., Path], _imported_convert_pdf_to_html)
     pdf_to_html = cast(Callable[..., Path], _imported_pdf_to_html)
 except ImportError:
+    # Define _imported_convert_pdf_to_html and _imported_pdf_to_html as placeholders
+    def _placeholder_pdf_to_html_converter(
+        input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
+    ) -> Path:
+        raise ImportError(
+            "PDF to HTML converter is not available. Install PyMuPDF or pdfminer.six."
+        )
+    _imported_convert_pdf_to_html = _placeholder_pdf_to_html_converter
+    _imported_pdf_to_html = _placeholder_pdf_to_html_converter
 
     def convert_pdf_to_html(
         input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
@@ -173,9 +191,8 @@ except ImportError:
             ImportError: Always raised to signal that the necessary PDF to HTML
                 converter dependencies are unavailable.
         """
-        raise ImportError(
-            "PDF to HTML converter is not available. Install PyMuPDF or pdfminer.six."
-        )
+        # Calls the placeholder
+        return _imported_convert_pdf_to_html(input_path, output_path, **kwargs)
 
     def pdf_to_html(
         input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
@@ -196,16 +213,26 @@ except ImportError:
         Raises:
             ImportError: Propagated from the placeholder function.
         """
-        return convert_pdf_to_html(input_path, output_path, **kwargs)
+        # Calls the placeholder
+        return _imported_pdf_to_html(input_path, output_path, **kwargs)
 
 
 try:
-    from .doc_to_markdown import convert_docx_to_md as _imported_convert_docx_to_md
-    from .doc_to_markdown import docx_to_md as _imported_docx_to_md
+    from .docx.to_markdown import convert_docx_to_md as _imported_convert_docx_to_md
+    from .docx.to_markdown import docx_to_md as _imported_docx_to_md
 
     convert_docx_to_md = cast(Callable[..., Path], _imported_convert_docx_to_md)
     docx_to_md = cast(Callable[..., Path], _imported_docx_to_md)
 except ImportError:
+    # Define _imported_convert_docx_to_md and _imported_docx_to_md as placeholders
+    def _placeholder_docx_to_md_converter(
+        input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
+    ) -> Path:
+        raise ImportError(
+            "DOCX to Markdown converter is not available. Install python-docx or mammoth."
+        )
+    _imported_convert_docx_to_md = _placeholder_docx_to_md_converter
+    _imported_docx_to_md = _placeholder_docx_to_md_converter
 
     def convert_docx_to_md(
         input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
@@ -227,9 +254,8 @@ except ImportError:
             ImportError: Always raised to indicate that the required DOCX to Markdown
                 converter dependencies are not installed.
         """
-        raise ImportError(
-            "DOCX to Markdown converter is not available. Install python-docx or mammoth."
-        )
+        # Calls the placeholder
+        return _imported_convert_docx_to_md(input_path, output_path, **kwargs)
 
     def docx_to_md(
         input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
@@ -251,12 +277,13 @@ except ImportError:
         Raises:
             ImportError: Propagated from the placeholder function.
         """
-        return convert_docx_to_md(input_path, output_path, **kwargs)
+        # Calls the placeholder
+        return _imported_docx_to_md(input_path, output_path, **kwargs)
 
 
 # PDF to Editable PDF converter
 try:
-    from .pdf_to_editable_pdf import (
+    from .pdf.to_editable_pdf import (
         convert_pdf_to_editable as _imported_convert_pdf_to_editable,
     )
 
@@ -295,15 +322,13 @@ except ImportError:
         )
 
 
-# Import for PDF Merging
+# Import for PDF Merging from services, aliased for consistent access via plugins module
 try:
-    from .pdf_merger import (
+    from ..services.merger import (
         merge_multiple_pdfs_to_single_pdf as _imported_merge_pdfs,
     )
-
     merge_multiple_pdfs_to_single_pdf = cast(Callable[..., Path], _imported_merge_pdfs)
 except ImportError:
-
     def merge_multiple_pdfs_to_single_pdf(
         input_paths: list[str | Path],  # Note: list of paths
         output_path: str | Path,
@@ -323,8 +348,22 @@ except ImportError:
             ImportError: Always raised to indicate missing PyPDF2.
         """
         raise ImportError(
-            "PDF Merging functionality (PyPDF2) is not available. "
-            "Please ensure 'PyPDF2' is installed."
+            "PDF Merging functionality (PyPDF2 or underlying merger service) is not available. "
+            "Please ensure dependencies are installed and paths are correct."
+        )
+
+
+# Import for TXT to PDF
+try:
+    from .txt.to_pdf import convert_txt_to_pdf
+except ImportError:
+    def convert_txt_to_pdf(
+        input_path: str | Path,
+        output_path: str | Path | None = None,
+        **kwargs: Any
+    ) -> Path:
+        raise ImportError(
+            "TXT to PDF converter is not available. Ensure ReportLab is installed."
         )
 
 
@@ -332,7 +371,6 @@ __all__ = [
     "convert_docx_to_md",
     "convert_docx_to_pdf",
     "convert_html_to_pdf",
-    "convert_md_to_html",
     "convert_md_to_pdf",
     "convert_pdf_to_editable",
     "convert_pdf_to_html",
@@ -343,7 +381,7 @@ __all__ = [
     "docx_to_md",
     "html_to_pdf",
     "markdown_to_docx",
-    "md_to_html",
     "merge_multiple_pdfs_to_single_pdf",
     "pdf_to_html",
+    "convert_txt_to_pdf",
 ]

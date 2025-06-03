@@ -89,9 +89,9 @@ interface RunConversionArgs {
 ipcMain.handle('run-conversion', async (_event: IpcMainInvokeEvent, { conversionType, inputFiles, outputDir, options }: RunConversionArgs) => {
   return new Promise((resolve, reject) => {
     // IMPORTANT: Adjust this path if your script is located elsewhere or if your build process changes structure.
-    // This path assumes electron_bridge.py is in <project_root>/src/aichemist_transmutation_codex/electron_bridge.py
+    // This path assumes electron_bridge.py is in <project_root>/src/transmutation_codex/adapters/bridges/electron_bridge.py
     // and main.ts (after compilation) is in <project_root>/gui/dist-electron/main/main.js
-    const scriptPath = path.resolve(app.getAppPath(), '../src/aichemist_transmutation_codex/electron_bridge.py');
+    const scriptPath = path.resolve(app.getAppPath(), '../src/transmutation_codex/adapters/bridges/electron_bridge.py');
 
     // Determine Python executable: prioritize venv if it exists, otherwise use system python
     // This is a basic approach; more robust venv detection might be needed for different OS/setups.

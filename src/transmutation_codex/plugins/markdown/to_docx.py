@@ -5,22 +5,12 @@ import subprocess
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+import pypandoc
 
-# Try to import pypandoc, which is a Python wrapper for Pandoc.
-# Pandoc is a powerful command-line tool for document conversion.
-try:
-    import pypandoc
-except ImportError as e:
-    # If pypandoc is not installed, we'll raise an informative error later
-    # when the conversion function is actually called.
-    # This allows the module to be imported even if pypandoc is missing,
-    # and the error will only occur if a conversion is attempted.
-    pypandoc = None  # Set to None to check its availability later
-    _pypandoc_import_error = e
+from transmutation_codex.core.logger import LogManager
 
-
-# Configure logging
-logger = logging.getLogger(__name__)
+log_manager = LogManager()
+logger = log_manager.get_converter_logger("markdown2docx")
 
 
 def get_pandoc_path() -> str:

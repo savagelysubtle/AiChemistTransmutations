@@ -8,8 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from markdown_pdf import MarkdownPdf, Section
-
-from aichemist_transmutation_codex.config import ConfigManager, LogManager
+from transmutation_codex.core import ConfigManager, LogManager
 
 # Setup logger
 log_manager = LogManager()

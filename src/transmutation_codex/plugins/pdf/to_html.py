@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from aichemist_transmutation_codex.config import ConfigManager, LogManager
+from transmutation_codex.core import ConfigManager, LogManager
 
 # Setup logger
 log_manager = LogManager()
@@ -20,19 +20,18 @@ try:
 
     PYMUPDF_AVAILABLE = True
 except ImportError:
-    logger.debug("PyMuPDF not found. Install with 'pip install pymupdf'")
+    logger.error("PyMuPDF not found. Install with: uv add pymupdf")
     PYMUPDF_AVAILABLE = False
 
 # Check for pdfminer.six availability
 try:
-    # Only import what's actually used
     from pdfminer.high_level import extract_text_to_fp  # type: ignore
     from pdfminer.layout import LAParams  # type: ignore
 
     PDFMINER_AVAILABLE = True
 except ImportError:
+    logger.error("pdfminer.six not found. Install with: uv add pdfminer.six")
     PDFMINER_AVAILABLE = False
-    logger.debug("pdfminer.six not found. Install with 'pip install pdfminer.six'")
 
 
 def convert_pdf_to_html(

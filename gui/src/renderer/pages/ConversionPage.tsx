@@ -58,6 +58,12 @@ const ConversionPage: React.FC = () => {
   const [mergeOrderedFiles, setMergeOrderedFiles] = useState<string[]>([]);
   const [mergeOutputFileName, setMergeOutputFileName] = useState<string>('merged_document.pdf');
 
+  // New state for TXT to PDF options
+  const [txtToPdfOptions, setTxtToPdfOptions] = useState({
+    fontName: 'Helvetica',
+    fontSize: 10,
+  });
+
   const electronAPI = getElectronAPI();
 
   // Effect to synchronize mergeOrderedFiles with selectedFiles when conversionType is merge_to_pdf
@@ -121,9 +127,12 @@ const ConversionPage: React.FC = () => {
         dialogOptions.filters = [{ name: 'PDF Documents', extensions: ['pdf'] }];
       }
       // For other conversion types, you might want to set specific filters too, e.g.:
-      // else if (conversionType === 'md2pdf') {
-      //   dialogOptions.filters = [{ name: 'Markdown Files', extensions: ['md', 'markdown'] }];
-      // }
+      else if (conversionType === 'md2pdf') {
+        dialogOptions.filters = [{ name: 'Markdown Files', extensions: ['md', 'markdown'] }];
+      }
+      else if (conversionType === 'txt2pdf') { // Added filter for txt2pdf
+        dialogOptions.filters = [{ name: 'Text Files', extensions: ['txt'] }];
+      }
 
       const files = await electronAPI.openFileDialog(dialogOptions);
       if (files.length > 0) {
@@ -295,6 +304,9 @@ const ConversionPage: React.FC = () => {
           options.deskew = pdfToEditableOptions.deskew;
           options.outputType = pdfToEditableOptions.outputType;
           options.pdfRenderer = pdfToEditableOptions.pdfRenderer;
+        } else if (conversionType === 'txt2pdf') { // Added options for txt2pdf
+          options.fontName = txtToPdfOptions.fontName;
+          options.fontSize = txtToPdfOptions.fontSize;
         }
         // Add other conversion-specific options here as needed
 
@@ -386,6 +398,8 @@ const ConversionPage: React.FC = () => {
           onOcrLangChange={setOcrLang}
           pdfToEditableOptions={pdfToEditableOptions}
           onPdfToEditableOptionsChange={setPdfToEditableOptions}
+          txtToPdfOptions={txtToPdfOptions}
+          onTxtToPdfOptionsChange={setTxtToPdfOptions}
         />
 
         <section className="p-6 border border-dark-border rounded-lg shadow-lg bg-dark-surface">

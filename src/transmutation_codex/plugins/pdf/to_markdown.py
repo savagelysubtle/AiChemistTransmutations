@@ -8,17 +8,18 @@ import json
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+import logging # Import python's logging directly for module-level messages
 
-from aichemist_transmutation_codex.config import ConfigManager, LogManager
+from transmutation_codex.core import ConfigManager, LogManager
 
-# Setup logger using the LogManager singleton
-log_manager = LogManager()
-logger = log_manager.get_converter_logger("pdf2md")
+# Setup a basic logger for module-level messages (e.g., missing dependencies)
+# These logs might not have session_id if emitted before LogManager is fully initialized by the app entry point.
+module_logger = logging.getLogger(f"aichemist_codex.converters.pdf2md.module_init")
 
 try:
     import fitz  # PyMuPDF
 except ImportError:
-    logger.error("PyMuPDF is required but not installed. pip install pymupdf")
+    module_logger.error("PyMuPDF is required. Install with: uv add pymupdf")
     fitz = None
 
 # Try importing PyMuPDF4LLM
@@ -28,61 +29,42 @@ try:
     PYMUPDF4LLM_AVAILABLE = True
 except ImportError:
     PYMUPDF4LLM_AVAILABLE = False
-    logger.debug("PyMuPDF4LLM not available.")
-
-    def parse_pdf_to_markdown(pdf_path: str, **kwargs: Any) -> str:
-        """Placeholder function for PyMuPDF4LLM when it's not available.
-
-        This function is defined if the `pymupdf4llm` library cannot be imported.
-        Calling it will always result in an ImportError.
-
-        Args:
-            pdf_path (str): The path to the PDF file.
-            **kwargs (Any): Additional keyword arguments (ignored by this placeholder).
-
-        Returns:
-            str: This function does not return normally.
-
-        Raises:
-            ImportError: Always raised to indicate `pymupdf4llm` is not installed.
-        """
-        logger.error(
-            "PyMuPDF4LLM is required for this conversion engine. Install it with: pip install pymupdf4llm"
-        )
-        raise ImportError("PyMuPDF4LLM is not available.")
-
+    module_logger.error("PyMuPDF4LLM not found. Install with: uv add pymupdf4llm")
 
 # Try importing OCR dependencies
 try:
     import pytesseract
     from PIL import Image, ImageFilter
-    from PIL.ImageEnhance import ImageEnhance
+    # from PIL.ImageEnhance import ImageEnhance # This was causing ImportError, handle it locally or ensure Pillow is complete
 
     # Get Tesseract path from config or use default
-    config = ConfigManager()
-    tesseract_cmd = config.get_value(
-        "ocr", "tesseract_cmd", r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-    )
+    # ConfigManager should not be instantiated at module level if it depends on LogManager or causes premature init.
+    # For now, let's assume TESSERACT_CMD might be hardcoded or handled differently if ConfigManager init is problematic here.
+    # tesseract_cmd = ConfigManager().get_value(
+    #     "ocr", "tesseract_cmd", r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    # )
+    tesseract_cmd_path_str = r"C:\Program Files\Tesseract-OCR\tesseract.exe" # Example, ideally from config at runtime
 
     # Set Tesseract path for Windows
-    if Path(tesseract_cmd).exists():
-        pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+    if Path(tesseract_cmd_path_str).exists():
+        pytesseract.pytesseract.tesseract_cmd = tesseract_cmd_path_str
         TESSERACT_AVAILABLE = True
     else:
-        logger.warning(f"Tesseract executable not found at: {tesseract_cmd}")
+        module_logger.error(f"Tesseract executable not found at: {tesseract_cmd_path_str}")
         TESSERACT_AVAILABLE = False
 except ImportError:
-    logger.warning("Pytesseract or PIL not installed. OCR functionality disabled.")
+    module_logger.error(
+        "Pytesseract or core PIL components not installed. Install with: uv add pytesseract pillow"
+    )
     TESSERACT_AVAILABLE = False
+    # Define ImageEnhance as None or a dummy if it's used elsewhere and might be missing
+    ImageEnhance = None
 
 # For type checking only
 if TYPE_CHECKING:
     import cv2  # type: ignore
     import numpy as np  # type: ignore
-    from PIL import (
-        ImageEnhance,  # type: ignore
-        ImageFilter,  # type: ignore
-    )
+    from PIL import Image, ImageEnhance, ImageFilter  # type: ignore
 
 # Try importing OpenCV
 try:
@@ -91,7 +73,7 @@ try:
 
     OPENCV_AVAILABLE = True
 except ImportError:
-    logger.debug("OpenCV not available. Advanced image processing will be limited.")
+    module_logger.error("OpenCV not found. Install with: uv add opencv-python numpy")
     OPENCV_AVAILABLE = False
 
 
@@ -114,9 +96,10 @@ class PDFToMarkdownConverter:
         Loads "pdf2md" specific configurations and sets up a logger.
         """
         # Get configuration for pdf2md
-        config = ConfigManager()
+        config = ConfigManager() # Assuming ConfigManager doesn't initialize LogManager itself
         self.settings = config.get_converter_config("pdf2md")
-        self.logger = log_manager.get_converter_logger("pdf2md")
+        # Obtain logger from the central LogManager instance at runtime
+        self.logger = LogManager().get_converter_logger("pdf2md")
 
     def convert(
         self,
@@ -154,6 +137,8 @@ class PDFToMarkdownConverter:
 
 def _enhance_image_for_ocr(image: Image.Image) -> Image.Image:
     """Apply image enhancements to improve OCR accuracy."""
+    # Obtain logger at runtime if needed, or pass it, or use a module-level one carefully.
+    logger = LogManager().get_converter_logger("pdf2md_utils") # Example of runtime logger retrieval
     logger.debug("Enhancing image for OCR...")
     # Step 1: Convert to grayscale
     if image.mode != "L":
@@ -161,9 +146,14 @@ def _enhance_image_for_ocr(image: Image.Image) -> Image.Image:
         logger.debug("Converted image to grayscale.")
 
     # Step 2: Increase contrast
-    enhancer = ImageEnhance.Contrast(image)
-    image = enhancer.enhance(2.0)
-    logger.debug("Increased image contrast.")
+    # Ensure ImageEnhance is available before using it
+    try:
+        from PIL.ImageEnhance import ImageEnhance as IE
+        enhancer = IE.Contrast(image)
+        image = enhancer.enhance(2.0)
+        logger.debug("Increased image contrast.")
+    except ImportError:
+        logger.warning("PIL.ImageEnhance not available, skipping contrast enhancement.")
 
     # Step 3: Apply sharpening
     image = image.filter(ImageFilter.SHARPEN)
@@ -195,9 +185,11 @@ def _enhance_image_for_ocr(image: Image.Image) -> Image.Image:
 def _deskew_image(image: Image.Image) -> Image.Image:
     """Correct skewed text in images using OpenCV."""
     if not OPENCV_AVAILABLE:
-        logger.debug("OpenCV not available, skipping deskew.")
+        # Use module_logger or a runtime-obtained logger
+        LogManager().get_converter_logger("pdf2md_utils").debug("OpenCV not available, skipping deskew.")
         return image
 
+    logger = LogManager().get_converter_logger("pdf2md_utils") # Runtime logger
     logger.debug("Deskewing image...")
     try:
         img_array = np.array(image)
@@ -230,6 +222,7 @@ def _deskew_image(image: Image.Image) -> Image.Image:
 
 def _extract_text_from_page(page: Any) -> str:
     """Attempt multiple extraction methods on a page and return the text."""
+    logger = LogManager().get_converter_logger("pdf2md_utils") # Runtime logger
     methods = ["text", "html", "json", "dict"]
     for method in methods:
         try:

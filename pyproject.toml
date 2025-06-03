@@ -1,7 +1,7 @@
 [project]
 description     = "A versatile document conversion and file management toolkit, part of the AiChemist suite."
 license         = { text = "MIT" }
-name            = "aichemist_transmutation_codex"
+name            = "transmutation_codex"
 readme          = "README.md"
 requires-python = ">=3.13.0"
 version         = "0.1.0"
@@ -15,16 +15,17 @@ dependencies = [
     "pypandoc",
     "markdown",
     "ocrmypdf",
-    "PyMuPDF",       # for fitz
+    "PyMuPDF", # for fitz
     "pdfminer.six",
     "pytesseract",
-    "Pillow",        # for PIL
+    "Pillow", # for PIL
     "opencv-python", # for cv2
     "numpy",
     "docx2pdf",
     "pdfkit",
     "markdown-pdf",
-    "pymupdf4llm",   # Added this based on imports
+    "pymupdf4llm", # Added this based on imports
+    "reportlab>=4.4.1",
 ]
 
     [project.optional-dependencies]
@@ -48,8 +49,8 @@ dependencies = [
     docs-build = "transmutation_codex.scripts.build_docs:main"
 
 [tool.setuptools.packages.find]
-include = [ "transmutation_codex/*" ]
-where   = [ "backend" ]
+include = [ "transmutation_codex" ]
+where   = [ "src" ]
 
 [build-system]
 build-backend = "uv_build"
@@ -89,7 +90,6 @@ tmp_path_retention_policy = "failed"
 
 [tool.uv]
 cache-dir = "./.uv_cache"
-dev-dependencies = [ "aichemist_transmutation_codex[dev]" ]
 extra-index-url = [ "https://PySimpleGUI.net/install" ]
 index-url = "https://pypi.org/simple/"
 link-mode = "copy"
