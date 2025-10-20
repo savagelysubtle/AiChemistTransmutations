@@ -1,4 +1,9 @@
 import React from 'react';
+import { FolderOpen, Folder } from 'lucide-react';
+import Button from './Button';
+import Card from './Card';
+import Icon from './Icon';
+import Badge from './Badge';
 
 /**
  * Props for the DirectoryInput component.
@@ -22,19 +27,38 @@ const DirectoryInput: React.FC<DirectoryInputProps> = ({
   buttonText = "Select Output Directory (Optional)" // Default button text
 }) => {
   return (
-    <div className="space-y-2">
-      <button
+    <div className="space-y-4">
+      <Button
         onClick={onSelectOutputDirectory}
-        className="w-full bg-dark-primary hover:bg-dark-hoverPrimary text-white font-semibold py-2.5 px-4 rounded-lg shadow-md transition duration-150 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-dark-primary focus:ring-opacity-50"
+        variant="secondary"
+        size="lg"
+        className="w-full"
       >
+        <Icon size="sm" className="mr-2">
+          <FolderOpen />
+        </Icon>
         {buttonText}
-      </button>
+      </Button>
+
       {outputDir && (
-        <div className="mt-2 p-3 border border-dark-border rounded-md bg-dark-surface text-sm shadow">
-          <p className="font-medium text-dark-textPrimary">
-            Output Directory: <span className="text-dark-textSecondary font-normal ml-1">{outputDir}</span>
-          </p>
-        </div>
+        <Card variant="elevated" className="animate-slide-up">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-dark-primary/10 rounded-lg text-dark-primary">
+              <Icon size="sm">
+                <Folder />
+              </Icon>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-medium text-dark-textPrimary text-sm">Output Directory</h3>
+                <Badge variant="success" size="sm">Selected</Badge>
+              </div>
+              <p className="text-xs text-dark-textSecondary truncate" title={outputDir}>
+                {outputDir}
+              </p>
+            </div>
+          </div>
+        </Card>
       )}
     </div>
   );

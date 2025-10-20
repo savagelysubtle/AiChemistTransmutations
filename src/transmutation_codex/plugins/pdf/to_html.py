@@ -10,6 +10,13 @@ from pathlib import Path
 from typing import Any
 
 from transmutation_codex.core import ConfigManager, LogManager
+from transmutation_codex.core.events import ConversionEvent, EventTypes, publish
+from transmutation_codex.core.progress import (
+    complete_operation,
+    start_operation,
+    update_progress,
+)
+from transmutation_codex.core.registry import converter
 
 # Setup logger
 log_manager = LogManager()
@@ -34,6 +41,12 @@ except ImportError:
     PDFMINER_AVAILABLE = False
 
 
+@converter(
+    source_format="pdf",
+    target_format="html",
+    description="Convert PDF to HTML with PyMuPDF or pdfminer.six",
+    priority=50,
+)
 def convert_pdf_to_html(
     input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
 ) -> Path:
@@ -67,32 +80,62 @@ def convert_pdf_to_html(
             valid engine can be selected.
         RuntimeError: For other errors encountered during the conversion process.
     """
-    input_path = Path(input_path).resolve()
-    if not input_path.exists():
-        logger.error(f"Input PDF file not found: {input_path}")
-        raise FileNotFoundError(f"Input file not found: {input_path}")
-    if input_path.suffix.lower() != ".pdf":
-        logger.error(f"Invalid input file type: {input_path.suffix}")
-        raise ValueError(f"Input file must be a PDF: {input_path}")
-
-    output_path = (
-        Path(output_path).resolve() if output_path else input_path.with_suffix(".html")
-    )
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Get config
-    config = ConfigManager()
-    settings = config.get_converter_config("pdf2html")
-    engine = kwargs.get(
-        "engine", settings.get("engine", "pymupdf" if PYMUPDF_AVAILABLE else "pdfminer")
+    # Start progress tracking
+    operation = start_operation(
+        "pdf2html",
+        message=f"Converting {Path(input_path).name} to HTML",
+        total_steps=100,
     )
 
-    logger.info(f"Converting {input_path} to HTML using engine: {engine}")
+    # Publish conversion started event
+    publish(
+        ConversionEvent(
+            event_type=EventTypes.CONVERSION_STARTED,
+            source="pdf2html",
+            data={
+                "operation_id": operation,
+                "input_file": str(input_path),
+                "conversion_type": "pdf2html",
+            },
+        )
+    )
 
     try:
+        input_path = Path(input_path).resolve()
+        update_progress(operation, 10, "Validating input file")
+
+        if not input_path.exists():
+            logger.error(f"Input PDF file not found: {input_path}")
+            raise FileNotFoundError(f"Input file not found: {input_path}")
+        if input_path.suffix.lower() != ".pdf":
+            logger.error(f"Invalid input file type: {input_path.suffix}")
+            raise ValueError(f"Input file must be a PDF: {input_path}")
+
+        output_path = (
+            Path(output_path).resolve()
+            if output_path
+            else input_path.with_suffix(".html")
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        update_progress(operation, 20, "Loading configuration")
+
+        # Get config
+        config = ConfigManager()
+        settings = config.get_environment_config()
+        engine = kwargs.get(
+            "engine",
+            settings.get("engine", "pymupdf" if PYMUPDF_AVAILABLE else "pdfminer"),
+        )
+
+        logger.info(f"Converting {input_path} to HTML using engine: {engine}")
+        update_progress(operation, 30, f"Starting conversion with {engine}")
+
         if engine == "pymupdf" and PYMUPDF_AVAILABLE:
             logger.debug("Using PyMuPDF engine.")
             pdf_document = fitz.open(str(input_path))
+            update_progress(operation, 40, "Opening PDF document")
+
             html_content = '<html><head><meta charset="utf-8"><style>body { font-family: sans-serif; margin: 2em; } .page { border: 1px solid #ccc; padding: 1em; margin-bottom: 1em; background-color: #f9f9f9;} img { max-width: 100%; height: auto; }</style></head><body>'
 
             if pdf_document.is_encrypted:
@@ -103,8 +146,16 @@ def convert_pdf_to_html(
                     logger.error(f"Failed to authenticate encrypted PDF: {auth_e}")
                     html_content += "<p><strong>Error: Could not authenticate encrypted PDF.</strong></p>"
 
-            for page_num in range(len(pdf_document)):
+            total_pages = len(pdf_document)
+            for page_num in range(total_pages):
                 page = pdf_document.load_page(page_num)
+                progress_percent = 40 + int((page_num / total_pages) * 50)
+                update_progress(
+                    operation,
+                    progress_percent,
+                    f"Processing page {page_num + 1}/{total_pages}",
+                )
+
                 html_content += f"<div class='page' id='page-{page_num + 1}'>"
                 html_content += f"<h2>Page {page_num + 1}</h2>"
                 # Correct method is get_text()
@@ -121,31 +172,28 @@ def convert_pdf_to_html(
                 html_content += "</div><hr>"
             html_content += "</body></html>"
 
+            update_progress(operation, 90, "Writing HTML file")
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(html_content)
             pdf_document.close()
 
         elif engine == "pdfminer" and PDFMINER_AVAILABLE:
             logger.debug("Using pdfminer.six engine.")
+            update_progress(operation, 50, "Extracting HTML with pdfminer.six")
             with open(input_path, "rb") as infile:
                 with io.BytesIO() as outfile:  # Use BytesIO as buffer
-                    try:
-                        extract_text_to_fp(
-                            infile,
-                            outfile,  # Write to buffer
-                            output_type="html",
-                            laparams=LAParams(),
-                            codec="utf-8",  # Specify codec
-                        )
-                        html_bytes = outfile.getvalue()
-                        # Write the extracted bytes to the final file
-                        with open(output_path, "wb") as final_outfile:
-                            final_outfile.write(html_bytes)
-                    except Exception as pdfminer_err:
-                        logger.error(f"pdfminer.six conversion failed: {pdfminer_err}")
-                        raise RuntimeError(
-                            f"pdfminer.six conversion failed: {pdfminer_err}"
-                        ) from pdfminer_err
+                    extract_text_to_fp(
+                        infile,
+                        outfile,  # Write to buffer
+                        output_type="html",
+                        laparams=LAParams(),
+                        codec="utf-8",  # Specify codec
+                    )
+                    html_bytes = outfile.getvalue()
+                    update_progress(operation, 90, "Writing HTML file")
+                    # Write the extracted bytes to the final file
+                    with open(output_path, "wb") as final_outfile:
+                        final_outfile.write(html_bytes)
         else:
             logger.error(
                 f"Selected engine '{engine}' is not available or not supported."
@@ -159,10 +207,42 @@ def convert_pdf_to_html(
                     f"PDF->HTML engine '{engine}' not available. Available: {'PyMuPDF' if PYMUPDF_AVAILABLE else ''}{', ' if PYMUPDF_AVAILABLE and PDFMINER_AVAILABLE else ''}{'pdfminer.six' if PDFMINER_AVAILABLE else ''}"
                 )
 
+        update_progress(operation, 100, "Conversion complete")
         logger.info(f"PDF converted to HTML: {output_path}")
+
+        # Publish completion event
+        publish(
+            ConversionEvent(
+                event_type=EventTypes.CONVERSION_COMPLETED,
+                source="pdf2html",
+                data={
+                    "operation_id": operation,
+                    "output_file": str(output_path),
+                    "conversion_type": "pdf2html",
+                },
+            )
+        )
+
+        complete_operation(operation, success=True)
         return output_path
+
     except Exception as e:
         logger.exception(f"Error during PDF to HTML conversion: {e}")
+        complete_operation(operation, success=False)
+
+        # Publish failure event
+        publish(
+            ConversionEvent(
+                event_type=EventTypes.CONVERSION_FAILED,
+                source="pdf2html",
+                data={
+                    "operation_id": operation,
+                    "error": str(e),
+                    "conversion_type": "pdf2html",
+                },
+            )
+        )
+
         raise RuntimeError(f"Error converting PDF to HTML: {e}") from e
 
 

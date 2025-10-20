@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python test_plugin_registry.py)",
+      "Bash(uv run python test_plugin_registry.py)",
+      "Bash(uv add psutil)",
+      "Bash(uv run python test_modular_bridge.py)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

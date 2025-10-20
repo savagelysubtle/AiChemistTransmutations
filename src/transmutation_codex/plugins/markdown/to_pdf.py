@@ -7,12 +7,30 @@ import re
 from pathlib import Path
 from typing import Any
 
-from markdown_pdf import MarkdownPdf, Section
-from transmutation_codex.core import ConfigManager, LogManager
+try:
+    from markdown_pdf import MarkdownPdf, Section
+    MARKDOWN_PDF_AVAILABLE = True
+except ImportError:
+    MARKDOWN_PDF_AVAILABLE = False
+    MarkdownPdf = None
+    Section = None
+
+from transmutation_codex.core import (
+    ConfigManager,
+    ConversionEvent,
+    EventTypes,
+    complete_operation,
+    get_log_manager,
+    publish,
+    raise_conversion_error,
+    raise_validation_error,
+    start_operation,
+    update_progress,
+)
+from transmutation_codex.core.decorators import converter
 
 # Setup logger
-log_manager = LogManager()
-logger = log_manager.get_converter_logger("md2pdf")
+logger = get_log_manager().get_converter_logger("md2pdf")
 
 # HTML styling for tables to be injected
 TABLE_STYLE = """
@@ -41,6 +59,16 @@ tr:nth-child(even) {
 """
 
 
+@converter(
+    source_format="md",
+    target_format="pdf",
+    description="Convert Markdown to PDF with table styling and page breaks",
+    input_formats=["md", "markdown"],
+    max_file_size_mb=50,
+    required_dependencies=["markdown_pdf"],
+    priority=10,
+    version="1.0.0",
+)
 def convert_md_to_pdf(
     input_path: str | Path,
     output_path: str | Path | None = None,
@@ -73,75 +101,131 @@ def convert_md_to_pdf(
         RuntimeError: For any errors encountered during file operations or
             PDF generation by the `markdown_pdf` library.
     """
-    input_path = Path(input_path).resolve()
-    if not input_path.exists():
-        logger.error(f"Input file not found: {input_path}")
-        raise FileNotFoundError(f"Input file not found: {input_path}")
-
-    output_path = (
-        Path(output_path).resolve() if output_path else input_path.with_suffix(".pdf")
+    # Start operation tracking
+    operation = start_operation(
+        "md2pdf", message=f"Converting {Path(input_path).name} to PDF", total_steps=100
     )
-    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Get config
-    config = ConfigManager()
-    settings = config.get_converter_config("md2pdf")
-
-    # Get options from kwargs or config
-    page_break_marker = kwargs.get(
-        "page_break_marker", settings.get("page_break_marker", "<!-- pagebreak -->")
-    )
-    # respect_html_breaks is handled by the library by default
-
-    logger.info(f"Converting {input_path} to PDF using marker: '{page_break_marker}'")
-
-    with open(input_path, encoding="utf-8") as md_file:
-        markdown_content = md_file.read()
-
-    # Extract title
-    title_match = re.search(r"^#\s+(.+)$", markdown_content, re.MULTILINE)
-    title = title_match.group(1) if title_match else input_path.name
-    logger.debug(f"Using title: {title}")
-
-    # Preprocess markdown for page breaks
-    break_token = "<!-- pagebreak -->"
-    if page_break_marker and page_break_marker != break_token:
-        markdown_content = markdown_content.replace(page_break_marker, break_token)
-        logger.info(
-            f"Replaced custom marker '{page_break_marker}' with '{break_token}'"
+    # Publish conversion started event
+    publish(
+        ConversionEvent(
+            event_type=EventTypes.CONVERSION_STARTED,
+            source="md2pdf",
+            data={
+                "operation_id": operation,
+                "input_file": str(input_path),
+                "conversion_type": "md2pdf",
+            },
         )
-
-    markdown_content = markdown_content.replace("\\pagebreak", break_token)
-    markdown_content = markdown_content.replace("\\newpage", break_token)
-
-    # Inject table style if not present
-    has_style_tag = "<style" in markdown_content
-    if not has_style_tag:
-        markdown_content = TABLE_STYLE + markdown_content
-        logger.debug("Injected default table styles.")
+    )
 
     try:
+        if not MARKDOWN_PDF_AVAILABLE:
+            logger.error("markdown_pdf is required for Markdown to PDF conversion.")
+            raise_validation_error(
+                "markdown_pdf is required. Install it with: pip install markdown-pdf"
+            )
+
+        input_path = Path(input_path).resolve()
+        if not input_path.exists():
+            logger.error(f"Input file not found: {input_path}")
+            raise FileNotFoundError(f"Input file not found: {input_path}")
+
+        output_path = (
+            Path(output_path).resolve()
+            if output_path
+            else input_path.with_suffix(".pdf")
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Update progress: file validation complete
+        update_progress(operation, 10, "File validated")
+
+        # Get config
+        config = ConfigManager()
+        settings = config.get_environment_config()
+
+        # Get options from kwargs or config
+        page_break_marker = kwargs.get(
+            "page_break_marker", settings.get("page_break_marker", "<!-- pagebreak -->")
+        )
+        # respect_html_breaks is handled by the library by default
+
+        logger.info(
+            f"Converting {input_path} to PDF using marker: '{page_break_marker}'"
+        )
+
+        # Update progress: reading file
+        update_progress(operation, 20, "Reading markdown file")
+
+        with open(input_path, encoding="utf-8") as md_file:
+            markdown_content = md_file.read()
+
+        # Extract title
+        title_match = re.search(r"^#\s+(.+)$", markdown_content, re.MULTILINE)
+        title = title_match.group(1) if title_match else input_path.name
+        logger.debug(f"Using title: {title}")
+
+        # Update progress: preprocessing
+        update_progress(operation, 30, "Preprocessing markdown")
+
+        # Preprocess markdown for page breaks
+        break_token = "<!-- pagebreak -->"
+        if page_break_marker and page_break_marker != break_token:
+            markdown_content = markdown_content.replace(page_break_marker, break_token)
+            logger.info(
+                f"Replaced custom marker '{page_break_marker}' with '{break_token}'"
+            )
+
+        markdown_content = markdown_content.replace("\\pagebreak", break_token)
+        markdown_content = markdown_content.replace("\\newpage", break_token)
+
+        # Inject table style if not present
+        has_style_tag = "<style" in markdown_content
+        if not has_style_tag:
+            markdown_content = TABLE_STYLE + markdown_content
+            logger.debug("Injected default table styles.")
+
+        # Update progress: generating PDF
+        update_progress(operation, 50, "Generating PDF")
+
         pdf = MarkdownPdf()
         pdf.meta["title"] = title
-        pdf.meta["author"] = config.get_value(
-            "application", "name", "MDtoPDF Converter"
-        )
+        pdf.meta["author"] = settings.get("application_name", "MDtoPDF Converter")
 
         if break_token in markdown_content:
             sections = markdown_content.split(break_token)
             logger.info(f"Document split into {len(sections)} sections by page breaks.")
+            update_progress(operation, 60, f"Processing {len(sections)} sections")
             for i, section_content in enumerate(sections):
                 if section_content.strip():
                     if i > 0 and not has_style_tag and "<style" not in section_content:
                         section_content = TABLE_STYLE + section_content
                     pdf.add_section(Section(section_content, toc=True))
+                    # Update progress for each section
+                    progress = 60 + int((i + 1) / len(sections) * 30)
+                    update_progress(
+                        operation, progress, f"Section {i + 1}/{len(sections)}"
+                    )
         else:
             logger.info("No page breaks found.")
             pdf.add_section(Section(markdown_content, toc=True))
+            update_progress(operation, 90, "Single section processed")
 
+        # Update progress: saving
+        update_progress(operation, 95, "Saving PDF")
         pdf.save(str(output_path))
+
+        # Complete operation
+        complete_operation(operation, success=True)
+
         logger.info(f"Markdown converted to PDF: {output_path}")
         return output_path
+
     except Exception as e:
         logger.exception(f"Error converting Markdown to PDF: {e}")
-        raise RuntimeError(f"Error converting Markdown to PDF: {e}") from e
+        raise_conversion_error(
+            f"Markdown to PDF conversion failed: {e}",
+            input_path=str(input_path),
+            output_path=str(output_path),
+        )

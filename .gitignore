@@ -6,6 +6,8 @@ __pycache__/
 .Python
 config/user_config.yaml
 logs/*
+!logs/.gitkeep
+*.log
 
 # Distribution / packaging
 build/
