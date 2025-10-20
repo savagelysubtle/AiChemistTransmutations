@@ -7,15 +7,16 @@ This module provides functionality to convert HTML files to PDF.
 import sys
 from pathlib import Path
 from typing import Any
+
 import pdfkit
 
-from transmutation_codex.core import ConfigManager, LogManager
+from transmutation_codex.core import LogManager
+from transmutation_codex.core.decorators import converter
+from transmutation_codex.core.settings import ConfigManager
 
 # Setup logger
 log_manager = LogManager()
 logger = log_manager.get_converter_logger("html2pdf")
-
-
 
 
 def _ensure_path(input_val: str | Path) -> Path:
@@ -33,6 +34,13 @@ def _ensure_path(input_val: str | Path) -> Path:
     return Path(input_val)
 
 
+@converter(
+    source_format="html",
+    target_format="pdf",
+    description="Convert HTML to PDF using wkhtmltopdf via pdfkit",
+    input_formats=["html", "htm"],
+    max_file_size_mb=100,
+)
 def convert_html_to_pdf(
     input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
 ) -> Path:
@@ -52,7 +60,6 @@ def convert_html_to_pdf(
         ImportError: If pdfkit or wkhtmltopdf is not installed/found.
         RuntimeError: For other conversion errors.
     """
-
     input_path = _ensure_path(input_path).resolve()
     if not input_path.exists():
         logger.error(f"Input HTML file not found: {input_path}")

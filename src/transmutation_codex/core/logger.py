@@ -3,7 +3,7 @@ import logging
 import logging.config
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +12,7 @@ _original_log_record_factory = logging.getLogRecordFactory()
 
 # This will hold the session_id once LogManager is initialized
 _CURRENT_SESSION_ID = "uninitialized_session"
+
 
 def _session_id_log_record_factory(*args: Any, **kwargs: Any) -> logging.LogRecord:
     """Custom LogRecord factory that adds the LogManager's session_id."""
@@ -101,19 +102,19 @@ class JsonFormatter(logging.Formatter):
         otherwise, the ISO8601 format is used.
         Ensures handling of microseconds and UTC (Z) if specified in datefmt.
         """
-        dt = datetime.fromtimestamp(record.created, tz=timezone.utc)
+        dt = datetime.fromtimestamp(record.created, tz=UTC)
         if datefmt:
             # Ensure 'Z' is handled if present for UTC representation
             # Basic str.replace, consider more robust if complex datefmts used
-            if '%fZ' in datefmt:
-                return dt.strftime(datefmt.replace('%fZ', '.%f')) + 'Z'
-            if 'Z' in datefmt and not datefmt.endswith('Z'): # Z not as a directive
-                 return dt.strftime(datefmt)
-            if datefmt.endswith('Z'): # Z as a literal at the end for UTC
-                return dt.strftime(datefmt[:-1]) + 'Z'
+            if "%fZ" in datefmt:
+                return dt.strftime(datefmt.replace("%fZ", ".%f")) + "Z"
+            if "Z" in datefmt and not datefmt.endswith("Z"):  # Z not as a directive
+                return dt.strftime(datefmt)
+            if datefmt.endswith("Z"):  # Z as a literal at the end for UTC
+                return dt.strftime(datefmt[:-1]) + "Z"
             return dt.strftime(datefmt)
         else:
-            return dt.isoformat(timespec='milliseconds')
+            return dt.isoformat(timespec="milliseconds")
 
 
 class LogManager:
@@ -140,7 +141,9 @@ class LogManager:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             # _initialized flag is instance-specific, set in __init__
-            cls._instance._initialized = False # Ensure instance starts as not initialized
+            cls._instance._initialized = (
+                False  # Ensure instance starts as not initialized
+            )
         return cls._instance
 
     def __init__(self, logs_dir: Path | None = None) -> None:
@@ -151,26 +154,53 @@ class LogManager:
 
         Args:
             logs_dir (Optional[Path]): The base directory where log files will be
-                stored. If None, defaults to "logs" in the current working
-                directory (`Path.cwd() / "logs"`).
+                stored. If None, defaults to "logs" in the PROJECT ROOT
+                (where pyproject.toml is located), not the current working directory.
         """
-        if self._initialized: # Check instance attribute
+        if self._initialized:  # Check instance attribute
             return
 
-        global _CURRENT_SESSION_ID # Allow modification of the module-level variable
+        global _CURRENT_SESSION_ID  # Allow modification of the module-level variable
         self.session_id = self.generate_session_id()
-        _CURRENT_SESSION_ID = self.session_id # Set it for the factory
+        _CURRENT_SESSION_ID = self.session_id  # Set it for the factory
 
         # Set the custom LogRecord factory *before* any logging is configured by this manager.
         # This ensures all LogRecord instances created henceforth will have session_id.
         logging.setLogRecordFactory(_session_id_log_record_factory)
 
-        self.logs_dir = logs_dir if logs_dir is not None else Path.cwd() / "logs"
+        # FIX: Use project root instead of cwd() to avoid nested logs/logs/ issue
+        if logs_dir is None:
+            project_root = self._find_project_root()
+            self.logs_dir = project_root / "logs"
+        else:
+            self.logs_dir = logs_dir
+
         self._create_log_directories()
         self._configure_programmatic_logging()
 
         self.root_logger = logging.getLogger()  # Get the root logger
         self._initialized = True  # Set instance attribute
+
+    @staticmethod
+    def _find_project_root() -> Path:
+        """Find the project root directory by looking for pyproject.toml.
+
+        Searches up the directory tree from the current file location until
+        it finds a directory containing pyproject.toml.
+
+        Returns:
+            Path: The project root directory.
+        """
+        current = Path(__file__).resolve()
+
+        # Search up the directory tree for pyproject.toml
+        for parent in [current] + list(current.parents):
+            if (parent / "pyproject.toml").exists():
+                return parent
+
+        # Fallback: 4 levels up from this file
+        # logger.py -> core/ -> transmutation_codex/ -> src/ -> project_root/
+        return current.parent.parent.parent.parent
 
     def _create_log_directories(self) -> None:
         """Creates the necessary directory structure for log files.
@@ -200,7 +230,7 @@ class LogManager:
         if root_logger.hasHandlers():
             for handler in root_logger.handlers[:]:
                 root_logger.removeHandler(handler)
-                handler.close() # Close the handler before removing
+                handler.close()  # Close the handler before removing
 
         # Set the desired level for the root logger.
         # All messages at this level or higher will be processed by the root logger

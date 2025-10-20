@@ -1,6 +1,11 @@
 import React from 'react';
-// import CustomScrollbar from './CustomScrollbar';
 import { Scrollbars } from 'react-custom-scrollbars-2';
+import { X, FileText, FileImage, FileCode, FileType, FileDown, FileUp, Merge, Edit3, Globe, Type } from 'lucide-react';
+import Button from './Button';
+import Badge from './Badge';
+import Icon from './Icon';
+import Card from './Card';
+import { cn } from '../utils/cn';
 
 /**
  * Props for the FileInput component.
@@ -55,57 +60,122 @@ const FileInput: React.FC<FileInputProps> = ({
     }
   };
 
+  const getFileIcon = (fileName: string) => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'pdf':
+        return <FileText />;
+      case 'md':
+      case 'markdown':
+        return <FileCode />;
+      case 'mdx':
+        return <FileCode />;
+      case 'docx':
+        return <FileType />;
+      case 'html':
+      case 'htm':
+        return <Globe />;
+      case 'txt':
+        return <Type />;
+      default:
+        return <FileText />;
+    }
+  };
+
+  const getFileTypeBadge = (fileName: string) => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'pdf':
+        return <Badge variant="error" size="sm">PDF</Badge>;
+      case 'md':
+      case 'markdown':
+        return <Badge variant="info" size="sm">MD</Badge>;
+      case 'mdx':
+        return <Badge variant="info" size="sm">MDX</Badge>;
+      case 'docx':
+        return <Badge variant="warning" size="sm">DOCX</Badge>;
+      case 'html':
+      case 'htm':
+        return <Badge variant="success" size="sm">HTML</Badge>;
+      case 'txt':
+        return <Badge variant="default" size="sm">TXT</Badge>;
+      default:
+        return <Badge variant="default" size="sm">{ext?.toUpperCase()}</Badge>;
+    }
+  };
+
   return (
-    <div className="space-y-3">
-      <button
+    <div className="space-y-4">
+      <Button
         onClick={onSelectFilesClick}
-        className="w-full bg-dark-primary hover:bg-dark-hoverPrimary text-white font-semibold py-2.5 px-4 rounded-lg shadow-md transition duration-150 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-dark-primary focus:ring-opacity-50"
+        variant="primary"
+        size="lg"
+        className="w-full"
       >
         {buttonText}
-      </button>
+      </Button>
+
       {instructions && (
-        <p className="text-xs text-center text-dark-textSecondary mt-1">
+        <p className="text-sm text-center text-dark-textSecondary px-4">
           {instructions}
         </p>
       )}
 
       {selectedFiles.length > 0 && (
-        <div className="mt-3 p-3 border border-dark-border rounded-md bg-dark-surface text-sm shadow">
-          <div className="flex justify-between items-center mb-2">
-            <p className="font-medium text-dark-textPrimary">Selected Files ({selectedFiles.length}):</p>
-            <button
+        <Card variant="elevated" className="animate-slide-up">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2">
+              <h3 className="font-medium text-dark-textPrimary">Selected Files</h3>
+              <Badge variant="info" size="sm">{selectedFiles.length}</Badge>
+            </div>
+            <Button
               onClick={onClearSelection}
-              className="text-xs bg-dark-surface hover:bg-opacity-75 text-dark-secondaryAccent border border-dark-secondaryAccent font-semibold py-1 px-2 rounded shadow-sm transition duration-150 ease-in-out focus:outline-none focus:ring-1 focus:ring-dark-secondaryAccent"
+              variant="outline"
+              size="sm"
             >
-              Clear Selection
-            </button>
+              Clear All
+            </Button>
           </div>
+
           <Scrollbars
             autoHeight
-            autoHeightMax={128} // max-h-32 (8rem = 128px)
-            className="rounded" // Applies to the outer div of Scrollbars
-            // The ul below already has p-1, which is the content padding.
+            autoHeightMax={200}
+            className="rounded-lg"
           >
-            <ul className="space-y-1 p-1">
+            <div className="space-y-2 p-2">
               {selectedFiles.map((file, index) => (
-                <li key={index} className="flex items-center justify-between p-1.5 bg-dark-background border border-dark-border rounded hover:bg-opacity-50 hover:bg-dark-border text-dark-textSecondary">
-                  <label htmlFor={`file-checkbox-${index}`} className="flex items-center space-x-2 cursor-pointer flex-grow min-w-0">
-                    <input
-                      type="checkbox"
-                      id={`file-checkbox-${index}`}
-                      checked={true}
-                      onChange={(e) => handleFileCheckboxChange(file, e.target.checked)}
-                      className="form-checkbox h-4 w-4 text-dark-primary bg-dark-surface border-dark-border rounded focus:ring-dark-primary focus:ring-offset-dark-background"
-                    />
-                    <span className="truncate text-dark-textPrimary" title={file}>
-                      {file.split(/[\\/]/).pop() || file}
-                    </span>
-                  </label>
-                </li>
+                <div
+                  key={index}
+                  className="flex items-center gap-3 p-3 bg-dark-background border border-dark-border rounded-lg hover:bg-dark-surfaceElevated transition-colors duration-200 group"
+                >
+                  <div className="p-2 bg-dark-surfaceElevated rounded-lg text-dark-textSecondary group-hover:text-dark-primary transition-colors duration-200">
+                    <Icon size="sm">{getFileIcon(file)}</Icon>
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-dark-textPrimary text-sm truncate" title={file}>
+                        {file.split(/[\\/]/).pop() || file}
+                      </span>
+                      {getFileTypeBadge(file)}
+                    </div>
+                    <p className="text-xs text-dark-textSecondary truncate" title={file}>
+                      {file}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => handleFileCheckboxChange(file, false)}
+                    className="p-1.5 text-dark-textSecondary hover:text-dark-error hover:bg-dark-errorBg rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dark-error focus:ring-offset-2"
+                    title="Remove file"
+                  >
+                    <Icon size="sm"><X /></Icon>
+                  </button>
+                </div>
               ))}
-            </ul>
+            </div>
           </Scrollbars>
-        </div>
+        </Card>
       )}
     </div>
   );

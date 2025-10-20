@@ -26,6 +26,9 @@ dependencies = [
     "markdown-pdf",
     "pymupdf4llm", # Added this based on imports
     "reportlab>=4.4.1",
+    "fpdf>=1.7.2",
+    "fpdf2>=2.8.3",
+    "psutil>=7.1.0",
 ]
 
     [project.optional-dependencies]
@@ -54,7 +57,12 @@ where   = [ "src" ]
 
 [build-system]
 build-backend = "uv_build"
-requires      = [ "uv-build>=0.7.8,<0.8.0" ]
+requires      = [ "uv-build>=0.7.19,<0.8.0" ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+]
 
 
 [tool.pytest.ini_options]

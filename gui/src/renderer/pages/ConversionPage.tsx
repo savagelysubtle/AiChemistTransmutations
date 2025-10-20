@@ -7,6 +7,8 @@ import DirectoryInput from '../components/DirectoryInput';
 import ConversionOptions from '../components/ConversionOptions';
 import ConversionLog from '../components/ConversionLog';
 import MergeOptions from '../components/MergeOptions';
+import Card from '../components/Card';
+import Button from '../components/Button';
 
 // Updated PlaceholderElectronAPI
 interface PlaceholderElectronAPI {
@@ -329,9 +331,46 @@ const ConversionPage: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-4 space-y-4 flex flex-col min-h-screen">
-      <Header />
-      <main className="flex-grow space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-light-background via-light-surface to-light-background dark:from-dark-background dark:via-dark-surface dark:to-dark-background">
+      <div className="container mx-auto px-6 py-8 max-w-6xl">
+        <Header />
+
+        <main className="space-y-8 mt-8">
+          {/* Progress Stepper */}
+          <div className="flex items-center justify-center mb-8">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-gradient-to-r from-light-gradientStart to-light-gradientEnd dark:from-dark-gradientStart dark:to-dark-gradientEnd rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+                  1
+                </div>
+                <div className="w-16 h-1 bg-gradient-to-r from-light-gradientStart to-light-gradientEnd dark:from-dark-gradientStart dark:to-dark-gradientEnd mx-2 rounded-full"></div>
+              </div>
+              <div className="flex items-center">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-lg transition-all duration-300 ${
+                  selectedFiles.length > 0
+                    ? 'bg-gradient-to-r from-light-gradientStart to-light-gradientEnd dark:from-dark-gradientStart dark:to-dark-gradientEnd text-white'
+                    : 'bg-light-surfaceElevated dark:bg-dark-surfaceElevated text-light-textMuted dark:text-dark-textMuted border-2 border-light-border dark:border-dark-border'
+                }`}>
+                  2
+                </div>
+                <div className={`w-16 h-1 mx-2 rounded-full transition-all duration-300 ${
+                  selectedFiles.length > 0
+                    ? 'bg-gradient-to-r from-light-gradientStart to-light-gradientEnd dark:from-dark-gradientStart dark:to-dark-gradientEnd'
+                    : 'bg-light-border dark:bg-dark-border'
+                }`}></div>
+              </div>
+              <div className="flex items-center">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-lg transition-all duration-300 ${
+                  selectedFiles.length > 0 && conversionType !== 'merge_to_pdf' ||
+                  (conversionType === 'merge_to_pdf' && selectedFiles.length >= 2 && outputDir)
+                    ? 'bg-gradient-to-r from-light-gradientStart to-light-gradientEnd dark:from-dark-gradientStart dark:to-dark-gradientEnd text-white'
+                    : 'bg-light-surfaceElevated dark:bg-dark-surfaceElevated text-light-textMuted dark:text-dark-textMuted border-2 border-light-border dark:border-dark-border'
+                }`}>
+                  3
+                </div>
+              </div>
+            </div>
+          </div>
         <ConversionTypeSelect
           conversionType={conversionType}
           onConversionTypeChange={(newType) => {
@@ -349,8 +388,14 @@ const ConversionPage: React.FC = () => {
           }}
         />
 
-        <section className="p-6 border border-dark-border rounded-lg shadow-lg bg-dark-surface space-y-4">
-          <h2 className="text-2xl font-semibold mb-3 text-dark-textPrimary">2. Select Files & Output</h2>
+        <Card variant="elevated" className="animate-fade-in">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-8 h-8 bg-gradient-to-r from-light-gradientStart to-light-gradientEnd dark:from-dark-gradientStart dark:to-dark-gradientEnd rounded-lg flex items-center justify-center text-white font-bold">
+              2
+            </div>
+            <h2 className="text-2xl font-semibold text-light-textPrimary dark:text-dark-textPrimary">Select Files & Output</h2>
+          </div>
+          <div className="space-y-4">
           <FileInput
             selectedFiles={selectedFiles}
             onSelectFilesClick={handleSelectFilesClick}
@@ -378,7 +423,8 @@ const ConversionPage: React.FC = () => {
                 : "Select Output Directory (Optional)"
             }
           />
-        </section>
+          </div>
+        </Card>
 
         {/* Conditionally render MergeOptions only for 'merge_to_pdf' and if files are selected */}
         {conversionType === 'merge_to_pdf' && selectedFiles.length > 0 && (
@@ -402,20 +448,29 @@ const ConversionPage: React.FC = () => {
           onTxtToPdfOptionsChange={setTxtToPdfOptions}
         />
 
-        <section className="p-6 border border-dark-border rounded-lg shadow-lg bg-dark-surface">
-          <h2 className="text-2xl font-semibold mb-3 text-dark-textPrimary">3. Start Conversion</h2>
-          <button
+        <Card variant="elevated" className="animate-fade-in">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-8 h-8 bg-gradient-to-r from-light-gradientStart to-light-gradientEnd dark:from-dark-gradientStart dark:to-dark-gradientEnd rounded-lg flex items-center justify-center text-white font-bold">
+              3
+            </div>
+            <h2 className="text-2xl font-semibold text-light-textPrimary dark:text-dark-textPrimary">Start Conversion</h2>
+          </div>
+          <Button
             onClick={handleRunConversion}
+            variant="primary"
+            size="lg"
+            className="w-full"
             disabled={selectedFiles.length === 0 || !electronAPI || (conversionType === 'merge_to_pdf' && (mergeOrderedFiles.length < 2 || !outputDir || !mergeOutputFileName))}
-            className="w-full bg-dark-primary hover:bg-dark-hoverPrimary text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-150 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-dark-primary focus:ring-opacity-50"
           >
             Run Conversion
-          </button>
-        </section>
+          </Button>
+        </Card>
 
-        <ConversionLog logs={conversionLog} onClearLog={handleClearLog} />
-      </main>
-      <Footer />
+          <ConversionLog logs={conversionLog} onClearLog={handleClearLog} />
+        </main>
+
+        <Footer />
+      </div>
     </div>
   );
 };

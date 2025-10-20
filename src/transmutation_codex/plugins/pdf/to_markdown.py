@@ -5,16 +5,27 @@ preserving document structure and formatting where possible.
 """
 
 import json
+import logging  # Import python's logging directly for module-level messages
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-import logging # Import python's logging directly for module-level messages
 
-from transmutation_codex.core import ConfigManager, LogManager
+from transmutation_codex.core import (
+    ConfigManager,
+    ConversionEvent,
+    EventTypes,
+    complete_operation,
+    get_log_manager,
+    publish,
+    raise_validation_error,
+    start_operation,
+    update_progress,
+)
+from transmutation_codex.core.decorators import converter
 
 # Setup a basic logger for module-level messages (e.g., missing dependencies)
 # These logs might not have session_id if emitted before LogManager is fully initialized by the app entry point.
-module_logger = logging.getLogger(f"aichemist_codex.converters.pdf2md.module_init")
+module_logger = logging.getLogger("aichemist_codex.converters.pdf2md.module_init")
 
 try:
     import fitz  # PyMuPDF
@@ -43,14 +54,16 @@ try:
     # tesseract_cmd = ConfigManager().get_value(
     #     "ocr", "tesseract_cmd", r"C:\Program Files\Tesseract-OCR\tesseract.exe"
     # )
-    tesseract_cmd_path_str = r"C:\Program Files\Tesseract-OCR\tesseract.exe" # Example, ideally from config at runtime
+    tesseract_cmd_path_str = r"C:\Program Files\Tesseract-OCR\tesseract.exe"  # Example, ideally from config at runtime
 
     # Set Tesseract path for Windows
     if Path(tesseract_cmd_path_str).exists():
-        pytesseract.pytesseract.tesseract_cmd = tesseract_cmd_path_str
+        pytesseract.tesseract_cmd = tesseract_cmd_path_str
         TESSERACT_AVAILABLE = True
     else:
-        module_logger.error(f"Tesseract executable not found at: {tesseract_cmd_path_str}")
+        module_logger.error(
+            f"Tesseract executable not found at: {tesseract_cmd_path_str}"
+        )
         TESSERACT_AVAILABLE = False
 except ImportError:
     module_logger.error(
@@ -64,7 +77,7 @@ except ImportError:
 if TYPE_CHECKING:
     import cv2  # type: ignore
     import numpy as np  # type: ignore
-    from PIL import Image, ImageEnhance, ImageFilter  # type: ignore
+    from PIL import Image, ImageFilter  # type: ignore
 
 # Try importing OpenCV
 try:
@@ -96,10 +109,12 @@ class PDFToMarkdownConverter:
         Loads "pdf2md" specific configurations and sets up a logger.
         """
         # Get configuration for pdf2md
-        config = ConfigManager() # Assuming ConfigManager doesn't initialize LogManager itself
-        self.settings = config.get_converter_config("pdf2md")
+        config = (
+            ConfigManager()
+        )  # Assuming ConfigManager doesn't initialize LogManager itself
+        self.settings = config.get_environment_config()  # Load environment config
         # Obtain logger from the central LogManager instance at runtime
-        self.logger = LogManager().get_converter_logger("pdf2md")
+        self.logger = get_log_manager().get_converter_logger("pdf2md")
 
     def convert(
         self,
@@ -138,7 +153,9 @@ class PDFToMarkdownConverter:
 def _enhance_image_for_ocr(image: Image.Image) -> Image.Image:
     """Apply image enhancements to improve OCR accuracy."""
     # Obtain logger at runtime if needed, or pass it, or use a module-level one carefully.
-    logger = LogManager().get_converter_logger("pdf2md_utils") # Example of runtime logger retrieval
+    logger = get_log_manager().get_converter_logger(
+        "pdf2md_utils"
+    )  # Example of runtime logger retrieval
     logger.debug("Enhancing image for OCR...")
     # Step 1: Convert to grayscale
     if image.mode != "L":
@@ -148,8 +165,9 @@ def _enhance_image_for_ocr(image: Image.Image) -> Image.Image:
     # Step 2: Increase contrast
     # Ensure ImageEnhance is available before using it
     try:
-        from PIL.ImageEnhance import ImageEnhance as IE
-        enhancer = IE.Contrast(image)
+        from PIL import ImageEnhance
+
+        enhancer = ImageEnhance.Contrast(image)
         image = enhancer.enhance(2.0)
         logger.debug("Increased image contrast.")
     except ImportError:
@@ -186,10 +204,12 @@ def _deskew_image(image: Image.Image) -> Image.Image:
     """Correct skewed text in images using OpenCV."""
     if not OPENCV_AVAILABLE:
         # Use module_logger or a runtime-obtained logger
-        LogManager().get_converter_logger("pdf2md_utils").debug("OpenCV not available, skipping deskew.")
+        get_log_manager().get_converter_logger("pdf2md_utils").debug(
+            "OpenCV not available, skipping deskew."
+        )
         return image
 
-    logger = LogManager().get_converter_logger("pdf2md_utils") # Runtime logger
+    logger = get_log_manager().get_converter_logger("pdf2md_utils")  # Runtime logger
     logger.debug("Deskewing image...")
     try:
         img_array = np.array(image)
@@ -222,7 +242,7 @@ def _deskew_image(image: Image.Image) -> Image.Image:
 
 def _extract_text_from_page(page: Any) -> str:
     """Attempt multiple extraction methods on a page and return the text."""
-    logger = LogManager().get_converter_logger("pdf2md_utils") # Runtime logger
+    logger = get_log_manager().get_converter_logger("pdf2md_utils")  # Runtime logger
     methods = ["text", "html", "json", "dict"]
     for method in methods:
         try:
@@ -264,6 +284,15 @@ def _process_paragraphs(text: str) -> list[str]:
     return paragraphs
 
 
+@converter(
+    source_format="pdf",
+    target_format="md",
+    description="Convert PDF to Markdown with basic text extraction and optional OCR",
+    input_formats=["pdf"],
+    max_file_size_mb=500,
+    priority=10,  # Highest priority (basic conversion, always works)
+    version="1.0.0",
+)
 def convert_pdf_to_md(
     input_path: str | Path,
     output_path: str | Path | None = None,
@@ -271,32 +300,62 @@ def convert_pdf_to_md(
     **kwargs: Any,  # Catch other potential args
 ) -> Path:
     """Convert a PDF file to Markdown (Basic - text extraction only)."""
-    if fitz is None:
-        logger.error("PyMuPDF is required for PDF conversion.")
-        raise ImportError("PyMuPDF is required. Install it with: pip install pymupdf")
-
-    input_path = Path(input_path).resolve()
-    if not input_path.exists():
-        logger.error(f"Input file not found: {input_path}")
-        raise FileNotFoundError(f"Input file not found: {input_path}")
-    if input_path.suffix.lower() != ".pdf":
-        logger.error(f"Invalid input file type: {input_path.suffix}")
-        raise ValueError(f"Input file must be a PDF: {input_path}")
-
-    output_path = (
-        Path(output_path).resolve() if output_path else input_path.with_suffix(".md")
+    # Start operation tracking
+    logger = get_log_manager().get_converter_logger("pdf2md")
+    operation = start_operation(
+        "pdf2md",
+        message=f"Converting {Path(input_path).name} to Markdown",
+        total_steps=100,
     )
-    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    logger.info(f"Converting {input_path} to Markdown (Basic)")
+    # Publish conversion started event
+    publish(
+        ConversionEvent(
+            event_type=EventTypes.CONVERSION_STARTED,
+            source="pdf2md",
+            data={
+                "operation_id": operation,
+                "input_file": str(input_path),
+                "conversion_type": "pdf2md",
+            },
+        )
+    )
+
     try:
+        if fitz is None:
+            logger.error("PyMuPDF is required for PDF conversion.")
+            raise_validation_error(
+                "PyMuPDF is required. Install it with: pip install pymupdf"
+            )
+
+        input_path = Path(input_path).resolve()
+        if not input_path.exists():
+            logger.error(f"Input file not found: {input_path}")
+            raise FileNotFoundError(f"Input file not found: {input_path}")
+        if input_path.suffix.lower() != ".pdf":
+            logger.error(f"Invalid input file type: {input_path.suffix}")
+            raise ValueError(f"Input file must be a PDF: {input_path}")
+
+        update_progress(operation, 10, "File validated")
+
+        output_path = (
+            Path(output_path).resolve()
+            if output_path
+            else input_path.with_suffix(".md")
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        logger.info(f"Converting {input_path} to Markdown (Basic)")
+
+        update_progress(operation, 20, "Opening PDF document")
+
         pdf_document = fitz.open(str(input_path))
         md_lines = [f"# {input_path.stem}\n\n"]
         empty_pages = 0
         ocr_used = False  # Track if OCR was used for summary
 
         config = ConfigManager()
-        settings = config.get_converter_config("pdf2md")
+        settings = config.get_environment_config()
         # Use auto_ocr from args if passed, otherwise from config
         _auto_ocr = kwargs.get("auto_ocr", settings.get("ocr_enabled", True))
         ocr_available = _auto_ocr and TESSERACT_AVAILABLE
@@ -318,11 +377,18 @@ def convert_pdf_to_md(
                 logger.error(f"Failed to authenticate encrypted PDF: {auth_e}")
                 md_lines.append("*Error: Failed to authenticate encrypted PDF.*\n\n")
 
-        for page_num in range(pdf_document.page_count):
+        total_pages = pdf_document.page_count
+        update_progress(operation, 30, f"Processing {total_pages} pages")
+
+        for page_num in range(total_pages):
             logger.debug(f"Processing page {page_num + 1}")
             page = pdf_document.load_page(page_num)
             text = _extract_text_from_page(page)
             md_lines.append(f"## Page {page_num + 1}\n\n")
+
+            # Update progress for each page
+            progress = 30 + int((page_num + 1) / total_pages * 60)
+            update_progress(operation, progress, f"Page {page_num + 1}/{total_pages}")
 
             if not text.strip() and ocr_available:
                 logger.info(f"No text found on page {page_num + 1}, attempting OCR")
@@ -373,11 +439,18 @@ def convert_pdf_to_md(
             md_lines.insert(1, ocr_note)
 
         pdf_document.close()
+
+        update_progress(operation, 95, "Saving Markdown file")
+
         with open(output_path, "w", encoding="utf-8") as md_file:
             md_file.write("".join(md_lines))
 
+        # Complete operation
+        complete_operation(operation, success=True)
+
         logger.info(f"PDF converted to Markdown: {output_path}")
         return output_path
+
     except Exception as e:
         logger.exception("Error during PDF to Markdown conversion")
         raise RuntimeError(f"Error converting PDF to Markdown: {e}") from e
@@ -392,56 +465,101 @@ def convert_pdf_to_md_with_ocr(
     """Convert a PDF file to Markdown using OCR for pages with no extractable text.
     (Essentially calls convert_pdf_to_md with auto_ocr=True implicitly)
     """
+    logger = get_log_manager().get_converter_logger("pdf2md_ocr")
     logger.info("Using standard OCR engine for PDF to Markdown.")
     # Ensures auto_ocr is treated as true for this function
     kwargs["auto_ocr"] = True
     return convert_pdf_to_md(input_path, output_path, **kwargs)
 
 
+@converter(
+    source_format="pdf",
+    target_format="md",
+    description="Convert PDF to Markdown with enhanced OCR (deskewing, preprocessing)",
+    input_formats=["pdf"],
+    max_file_size_mb=500,
+    priority=30,  # Lower priority (requires Tesseract)
+    version="1.0.0",
+)
 def convert_pdf_to_md_with_enhanced_ocr(
     input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
 ) -> Path:
     """Convert PDF to Markdown with advanced OCR techniques (deskewing, full preprocessing)."""
-    if fitz is None:
-        logger.error("PyMuPDF is required.")
-        raise ImportError("PyMuPDF is required.")
-    if not TESSERACT_AVAILABLE:
-        logger.error("Tesseract is required for enhanced OCR.")
-        raise ImportError("Tesseract is required.")
-    if not OPENCV_AVAILABLE:
-        logger.warning(
-            "OpenCV not found. Enhanced image preprocessing will be limited."
+    # Start operation tracking
+    logger = get_log_manager().get_converter_logger("pdf2md_enhanced_ocr")
+    operation = start_operation(
+        "pdf2md_enhanced_ocr",
+        message=f"Converting {Path(input_path).name} with enhanced OCR",
+        total_steps=100,
+    )
+
+    # Publish conversion started event
+    publish(
+        ConversionEvent(
+            event_type=EventTypes.CONVERSION_STARTED,
+            source="pdf2md_enhanced_ocr",
+            data={
+                "operation_id": operation,
+                "input_file": str(input_path),
+                "conversion_type": "pdf2md_enhanced_ocr",
+            },
+        )
+    )
+
+    try:
+        if fitz is None:
+            logger.error("PyMuPDF is required.")
+            raise_validation_error("PyMuPDF is required.")
+        if not TESSERACT_AVAILABLE:
+            logger.error("Tesseract is required for enhanced OCR.")
+            raise ImportError("Tesseract is required.")
+        if not OPENCV_AVAILABLE:
+            logger.warning(
+                "OpenCV not found. Enhanced image preprocessing will be limited."
+            )
+
+        input_path = Path(input_path).resolve()
+        if not input_path.exists():
+            logger.error(f"Input file not found: {input_path}")
+            raise FileNotFoundError(f"Input file not found: {input_path}")
+        if input_path.suffix.lower() != ".pdf":
+            logger.error(f"Invalid input file type: {input_path.suffix}")
+            raise ValueError(f"Input file must be a PDF: {input_path}")
+
+        update_progress(operation, 10, "File validated")
+
+        output_path = (
+            Path(output_path).resolve()
+            if output_path
+            else input_path.with_suffix(".md")
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        update_progress(operation, 20, "Opening PDF document")
+
+        config = ConfigManager()
+        settings = config.get_environment_config()
+        lang = kwargs.get("lang", settings.get("ocr_languages", "eng"))
+        dpi = kwargs.get("dpi", settings.get("ocr_dpi", 300))
+        force_ocr = kwargs.get("force_ocr", settings.get("force_ocr", False))
+        psm = kwargs.get("psm", settings.get("ocr_psm", 1))
+        oem = kwargs.get("oem", settings.get("ocr_oem", 3))
+
+        logger.info(
+            f"Converting {input_path} to Markdown with Enhanced OCR (lang={lang}, dpi={dpi})"
         )
 
-    input_path = Path(input_path).resolve()
-    if not input_path.exists():
-        logger.error(f"Input file not found: {input_path}")
-        raise FileNotFoundError(f"Input file not found: {input_path}")
-    if input_path.suffix.lower() != ".pdf":
-        logger.error(f"Invalid input file type: {input_path.suffix}")
-        raise ValueError(f"Input file must be a PDF: {input_path}")
+        update_progress(operation, 25, "Opening PDF with enhanced OCR settings")
 
-    output_path = (
-        Path(output_path).resolve() if output_path else input_path.with_suffix(".md")
-    )
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    config = ConfigManager()
-    settings = config.get_converter_config("pdf2md")
-    lang = kwargs.get("lang", settings.get("ocr_languages", "eng"))
-    dpi = kwargs.get("dpi", settings.get("ocr_dpi", 300))
-    force_ocr = kwargs.get("force_ocr", settings.get("force_ocr", False))
-    psm = kwargs.get("psm", settings.get("ocr_psm", 1))
-    oem = kwargs.get("oem", settings.get("ocr_oem", 3))
-
-    logger.info(
-        f"Converting {input_path} to Markdown with Enhanced OCR (lang={lang}, dpi={dpi})"
-    )
-    try:
         pdf_document = fitz.open(str(input_path))
         md_lines = [f"# {input_path.stem}\n\n"]
         empty_pages = 0
         ocr_used_pages = 0
+
+        total_pages = pdf_document.page_count
+        update_progress(
+            operation, 30, f"Processing {total_pages} pages with enhanced OCR"
+        )
 
         if pdf_document.is_encrypted:
             logger.warning("PDF is encrypted. Authentication may be required.")
@@ -456,6 +574,14 @@ def convert_pdf_to_md_with_enhanced_ocr(
             page = pdf_document.load_page(page_num)
             text = "" if force_ocr else _extract_text_from_page(page)
             md_lines.append(f"## Page {page_num + 1}\n\n")
+
+            # Update progress for each page
+            progress = 30 + int((page_num + 1) / total_pages * 60)
+            update_progress(
+                operation,
+                progress,
+                f"Enhanced OCR: Page {page_num + 1}/{total_pages}",
+            )
 
             if not text.strip() or force_ocr:
                 logger.info(f"Using enhanced OCR on page {page_num + 1}")
@@ -506,8 +632,14 @@ def convert_pdf_to_md_with_enhanced_ocr(
             md_lines.insert(1, ocr_note)
 
         pdf_document.close()
+
+        update_progress(operation, 95, "Saving Markdown file")
+
         with open(output_path, "w", encoding="utf-8") as md_file:
             md_file.write("".join(md_lines))
+
+        # Complete operation
+        complete_operation(operation, success=True)
 
         logger.info(f"PDF converted to Markdown with enhanced OCR: {output_path}")
         return output_path
@@ -516,33 +648,79 @@ def convert_pdf_to_md_with_enhanced_ocr(
         raise RuntimeError(f"Error converting PDF to Markdown: {e}") from e
 
 
+@converter(
+    source_format="pdf",
+    target_format="md",
+    description="Convert PDF to Markdown optimized for LLM consumption (PyMuPDF4LLM)",
+    input_formats=["pdf"],
+    max_file_size_mb=500,
+    priority=20,  # Medium priority (requires PyMuPDF4LLM)
+    version="1.0.0",
+)
 def convert_pdf_to_md_with_pymupdf4llm(
     input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
 ) -> Path:
     """Convert a PDF file to Markdown using PyMuPDF4LLM."""
-    if not PYMUPDF4LLM_AVAILABLE:
-        logger.error("PyMuPDF4LLM is required for this engine.")
-        raise ImportError("PyMuPDF4LLM is required.")
-
-    input_path = Path(input_path).resolve()
-    if not input_path.exists():
-        logger.error(f"Input file not found: {input_path}")
-        raise FileNotFoundError(f"Input file not found: {input_path}")
-    if input_path.suffix.lower() != ".pdf":
-        logger.error(f"Invalid input file type: {input_path.suffix}")
-        raise ValueError(f"Input file must be a PDF: {input_path}")
-
-    output_path = (
-        Path(output_path).resolve() if output_path else input_path.with_suffix(".md")
+    # Start operation tracking
+    logger = get_log_manager().get_converter_logger("pdf2md_pymupdf4llm")
+    operation = start_operation(
+        "pdf2md_pymupdf4llm",
+        message=f"Converting {Path(input_path).name} with PyMuPDF4LLM",
+        total_steps=100,
     )
-    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    logger.info(f"Converting {input_path} to Markdown using PyMuPDF4LLM")
+    # Publish conversion started event
+    publish(
+        ConversionEvent(
+            event_type=EventTypes.CONVERSION_STARTED,
+            source="pdf2md_pymupdf4llm",
+            data={
+                "operation_id": operation,
+                "input_file": str(input_path),
+                "conversion_type": "pdf2md_pymupdf4llm",
+            },
+        )
+    )
+
     try:
+        if not PYMUPDF4LLM_AVAILABLE:
+            logger.error("PyMuPDF4LLM is required for this engine.")
+            raise_validation_error("PyMuPDF4LLM is required.")
+
+        input_path = Path(input_path).resolve()
+        if not input_path.exists():
+            logger.error(f"Input file not found: {input_path}")
+            raise FileNotFoundError(f"Input file not found: {input_path}")
+        if input_path.suffix.lower() != ".pdf":
+            logger.error(f"Invalid input file type: {input_path.suffix}")
+            raise ValueError(f"Input file must be a PDF: {input_path}")
+
+        update_progress(operation, 10, "File validated")
+
+        output_path = (
+            Path(output_path).resolve()
+            if output_path
+            else input_path.with_suffix(".md")
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        logger.info(f"Converting {input_path} to Markdown using PyMuPDF4LLM")
+
+        update_progress(operation, 20, "Opening PDF for LLM-optimized conversion")
+
         # PyMuPDF4LLM might have its own options, pass kwargs if needed
+        update_progress(operation, 40, "Processing PDF with PyMuPDF4LLM")
         markdown_text = parse_pdf_to_markdown(str(input_path), **kwargs)
+
+        update_progress(operation, 80, "Optimizing markdown for LLM consumption")
+
+        update_progress(operation, 95, "Saving Markdown file")
         with open(output_path, "w", encoding="utf-8") as md_file:
             md_file.write(markdown_text)
+
+        # Complete operation
+        complete_operation(operation, success=True)
+
         logger.info(f"PDF converted to Markdown (PyMuPDF4LLM): {output_path}")
         return output_path
     except Exception as e:

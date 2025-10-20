@@ -13,12 +13,24 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
-from transmutation_codex.core import ConfigManager, LogManager
+from transmutation_codex.core import (
+    ConfigManager,
+    get_log_manager,
+    raise_conversion_error,
+)
+from transmutation_codex.core.decorators import converter
 
-# Logger will be obtained within the function from the centralized LogManager
-# logger = LogManager().get_converter_logger("txt2pdf") # Removed global logger init
 
-
+@converter(
+    source_format='txt',
+    target_format='pdf',
+    description="Convert plain text files to PDF with configurable font and styling",
+    input_formats=['txt'],
+    max_file_size_mb=10,
+    required_dependencies=['reportlab'],
+    priority=10,
+    version="1.0.0",
+)
 def convert_txt_to_pdf(
     input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
 ) -> Path:
@@ -40,7 +52,7 @@ def convert_txt_to_pdf(
         Exception: For errors encountered during PDF generation.
     """
     # Obtain logger at runtime from the centralized LogManager
-    logger = LogManager().get_converter_logger("txt2pdf")
+    logger = get_log_manager().get_converter_logger("txt2pdf")
 
     input_path = Path(input_path).resolve()
     if not input_path.exists():
@@ -57,7 +69,7 @@ def convert_txt_to_pdf(
 
     # Get config and options
     config = ConfigManager()
-    settings = config.get_converter_config("txt2pdf") # Create this section in config if needed
+    settings = config.get_environment_config()
     font_name = kwargs.get("font_name", settings.get("font_name", "Helvetica"))
     font_size = kwargs.get("font_size", settings.get("font_size", 10))
 
@@ -112,9 +124,11 @@ def convert_txt_to_pdf(
         logger.exception(
             f"An error occurred during TXT to PDF conversion for {input_path.name}: {e}"
         )
-        raise RuntimeError(
-            f"Failed to convert {input_path.name} to PDF: {e}"
-        ) from e
+        raise_conversion_error(
+            f"TXT to PDF conversion failed: {e}",
+            input_path=str(input_path),
+            output_path=str(output_path)
+        )
 
 if __name__ == "__main__":
     # Example usage for direct script execution (testing)

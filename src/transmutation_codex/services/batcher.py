@@ -5,18 +5,20 @@ files between different formats, with support for concurrent processing and prog
 """
 
 import concurrent.futures
-import importlib
 import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from transmutation_codex.core import ConfigManager, LogManager
+from transmutation_codex.core import (
+    ConfigManager,
+    get_log_manager,
+    get_registry,
+)
 
 # Setup logger
-log_manager = LogManager()
-logger = log_manager.get_batch_logger()
+logger = get_log_manager().get_batch_logger()
 
 # Type aliases
 ProgressCallback = Callable[[int, int, str, bool, float, str | None], None]
@@ -78,10 +80,45 @@ def _process_single_file_wrapper(
             converter_options.pop("output_path", None)
 
         # Call the converter function
-        result_path = converter_func(input_path, **converter_options)
-        success = True
-        logger.info(f"Successfully processed: {input_path.name} -> {result_path.name}")
-        return result_path, success, time.time() - start_time, None
+        try:
+            result_path = converter_func(input_path, **converter_options)
+            success = True
+            logger.info(
+                f"Successfully processed: {input_path.name} -> {result_path.name}"
+            )
+            return result_path, success, time.time() - start_time, None
+
+        except Exception as first_error:
+            # Special handling for PDF to Editable: retry with force-ocr if it fails
+            # Check if this is a PDF to Editable conversion
+            output_path_obj = converter_options.get("output_path")
+            is_editable_conversion = output_path_obj and (
+                str(output_path_obj).endswith(".editable")
+                or str(output_path_obj).endswith("editable_pdf")
+            )
+
+            if is_editable_conversion:
+                # Check if the error is about existing text
+                error_msg_check = str(first_error).lower()
+                if (
+                    "already has text" in error_msg_check
+                    or "priorocrfound" in error_msg_check
+                ):
+                    logger.info(
+                        f"PDF already has text, retrying with force-ocr enabled for {input_path.name}"
+                    )
+
+                    # Retry with force_ocr enabled
+                    retry_options = converter_options.copy()
+                    retry_options["force_ocr"] = True
+
+                    result_path = converter_func(input_path, **retry_options)
+                    success = True
+                    logger.info(f"Retry with force-ocr succeeded for {input_path.name}")
+                    return result_path, success, time.time() - start_time, None
+
+            # Re-raise if retry didn't apply or failed
+            raise
 
     except Exception as e:
         logger.exception(f"Error processing {input_path.name}")
@@ -160,42 +197,52 @@ def run_batch(
         output_dir_path.mkdir(parents=True, exist_ok=True)
         logger.debug(f"Ensured output directory exists: {output_dir_path}")
 
-    # Map conversion type
-    # Consider moving this map to config or a dedicated module
-    conversion_map = {
-        "pdf2md": ("converters.pdf_to_markdown", "PDFToMarkdownConverter", "convert"),
-        "md2pdf": ("converters.markdown_to_pdf", None, "convert_md_to_pdf"),
-        "html2pdf": ("converters.html_to_pdf", None, "convert_html_to_pdf"),
-        "md2html": ("converters.markdown_to_html", None, "convert_md_to_html"),
-        "pdf2html": ("converters.pdf_to_html", None, "convert_pdf_to_html"),
-        "docx2md": ("converters.docx_to_markdown", None, "convert_docx_to_md"),
-        "txt2pdf": ("plugins.txt.to_pdf", None, "convert_txt_to_pdf"),
-    }
-
-    if conversion_type not in conversion_map:
-        logger.error(f"Unsupported conversion type: {conversion_type}")
-        raise ValueError(f"Unsupported conversion type: {conversion_type}")
-
-    module_path, class_name, func_name = conversion_map[conversion_type]
-
-    # Import and get the callable (function or class method)
+    # Import plugins to trigger auto-registration
     try:
-        logger.debug(f"Importing module: . {module_path} from package transmutation_codex")
-        module = importlib.import_module(f".{module_path}", package="transmutation_codex")
-        if class_name:
-            ConverterClass = getattr(module, class_name)
-            # Instantiate the converter class (it might use config internally)
-            converter_instance = ConverterClass()
-            converter_callable = getattr(converter_instance, func_name)
-        else:
-            converter_callable = getattr(module, func_name)
-    except (ImportError, AttributeError) as e:
-        logger.exception(
-            f"Failed to import or find converter for {conversion_type}: {e}"
+        import transmutation_codex.plugins  # noqa: F401
+    except ImportError as e:
+        logger.error(f"Failed to import plugins: {e}")
+        raise
+
+    # Get the plugin registry
+    registry = get_registry()
+
+    # Parse conversion type (e.g., "pdf2md" -> "pdf", "md")
+    if "2" not in conversion_type:
+        logger.error(f"Invalid conversion type format: {conversion_type}")
+        raise ValueError(
+            f"Invalid conversion type format: {conversion_type}. Expected format: source2target"
         )
-        raise ImportError(
-            f"Failed to import converter for {conversion_type}: {e}"
-        ) from e
+
+    source_format, target_format = conversion_type.split("2", 1)
+
+    # Get converter from registry
+    try:
+        plugin_info = registry.get_converter(source_format, target_format)
+
+        if not plugin_info:
+            # Get available conversions for better error message
+            available = registry.get_available_conversions()
+            available_str = ", ".join(
+                f"{src}2{tgt}" for src, targets in available.items() for tgt in targets
+            )
+            logger.error(
+                f"No converter found for '{conversion_type}'. Available: {available_str}"
+            )
+            raise ValueError(
+                f"Unsupported conversion type: {conversion_type}. "
+                f"Available: {available_str or 'none'}"
+            )
+
+        logger.info(
+            f"Using converter for batch: {plugin_info.name} "
+            f"(priority: {plugin_info.priority}, version: {plugin_info.version})"
+        )
+        converter_callable = plugin_info.converter_function
+
+    except (ImportError, AttributeError, ValueError) as e:
+        logger.exception(f"Failed to get converter for {conversion_type}: {e}")
+        raise ImportError(f"Failed to load converter for {conversion_type}: {e}") from e
 
     total_files = len(input_paths)
     successful = 0

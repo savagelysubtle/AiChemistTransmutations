@@ -1,23 +1,57 @@
-import logging
+"""Markdown to DOCX conversion using Pandoc.
+
+This module provides functionality to convert Markdown files to Microsoft Word DOCX format.
+Uses pypandoc which wraps the Pandoc universal document converter.
+"""
+
 import os
 import platform
 import subprocess
-from collections.abc import Callable
+import time
 from pathlib import Path
 from typing import Any
+
 import pypandoc
 
-from transmutation_codex.core.logger import LogManager
+from transmutation_codex.core import (
+    complete_operation,
+    get_log_manager,
+    publish,
+    start_operation,
+    update_progress,
+)
+from transmutation_codex.core.events import ConversionEvent
+from transmutation_codex.core.registry import converter
 
-log_manager = LogManager()
-logger = log_manager.get_converter_logger("markdown2docx")
+# Setup logger
+log_manager = get_log_manager()
+logger = log_manager.get_converter_logger("md2docx")
 
 
 def get_pandoc_path() -> str:
     """Attempts to find the path to the pandoc executable.
-    Checks common installation locations and the system PATH.
-    Raises FileNotFoundError if pandoc is not found.
+
+    Checks bundled location (production), common installation locations, and the system PATH.
+
+    Returns:
+        Path to pandoc executable
+
+    Raises:
+        FileNotFoundError: If pandoc is not found.
     """
+    # Check for bundled Pandoc first (production deployment)
+    try:
+        import sys
+
+        if getattr(sys, "frozen", False):
+            # Running as compiled executable (PyInstaller)
+            bundled_path = Path(sys._MEIPASS) / "resources" / "pandoc" / "pandoc.exe"
+            if bundled_path.exists():
+                logger.info(f"Found bundled Pandoc at: {bundled_path}")
+                return str(bundled_path)
+    except Exception as e:
+        logger.debug(f"Could not check for bundled Pandoc: {e}")
+
     # Common locations for pandoc
     common_paths = []
     if platform.system() == "Windows":
@@ -84,124 +118,168 @@ def get_pandoc_path() -> str:
     )
 
 
-def markdown_to_docx(
+@converter(
+    source_format="md",
+    target_format="docx",
+    name="md_to_docx_convert_md_to_docx",
+    priority=50,
+    version="1.0.0",
+)
+def convert_md_to_docx(
     input_path: str | Path,
     output_path: str | Path | None = None,
     reference_docx: str | Path | None = None,
-    **kwargs: Any,
+    **options: Any,
 ) -> Path:
     """Converts a Markdown file to a DOCX document using pypandoc.
 
     Args:
         input_path: Path to the input Markdown file (as str or Path).
         output_path: Path to save the output DOCX file (as str or Path).
-                     If None, a default name might be generated or an error raised.
-                     (Current implementation requires it, this change is for signature compatibility)
-        reference_docx: Path to a reference DOCX file (as str or Path).
-        **kwargs: Additional keyword arguments. Expects 'progress_callback'.
+                     If None, uses input filename with .docx extension.
+        reference_docx: Path to a reference DOCX file for styling (as str or Path).
+        **options: Additional keyword arguments.
 
     Returns:
         Path object of the generated DOCX file.
 
     Raises:
-        FileNotFoundError: If the input Markdown file is not found or Pandoc is not found.
-        RuntimeError: If Pandoc conversion fails or output_path is None and not handled.
-        ValueError: If output_path is None (as current implementation requires it).
+        FileNotFoundError: If the input Markdown file or Pandoc is not found.
+        RuntimeError: If Pandoc conversion fails.
     """
-    progress_callback: Callable[[int, str], None] | None = kwargs.get(
-        "progress_callback"
+    # Convert to Path objects
+    input_path = Path(input_path)
+    if output_path:
+        output_path = Path(output_path)
+    else:
+        output_path = input_path.with_suffix(".docx")
+
+    # Start operation tracking
+    operation = start_operation(
+        "conversion",
+        100,
+        description=f"Converting {input_path.name} to DOCX",
     )
 
-    if output_path is None:
-        # Current implementation requires an output path.
-        # For a more robust solution, you might generate a default output path here
-        # or clearly document that it's required despite the optional signature.
-        err_msg = "output_path cannot be None for markdown_to_docx conversion."
-        logger.error(err_msg)
-        raise ValueError(err_msg)
-
-    input_markdown_path_str = str(input_path)
-    output_docx_path_str = str(output_path)
-
-    logger.info(
-        f"Starting Markdown to DOCX conversion: {input_markdown_path_str} -> {output_docx_path_str}"
-    )
-
-    if not os.path.exists(input_markdown_path_str):
-        logger.error(f"Input Markdown file not found: {input_markdown_path_str}")
-        raise FileNotFoundError(
-            f"Input Markdown file not found: {input_markdown_path_str}"
+    # Publish conversion started event
+    publish(
+        ConversionEvent(
+            event_type="conversion.started",
+            conversion_type="md2docx",
+            plugin_name="md_to_docx_convert_md_to_docx",
+            input_file=str(input_path),
+            output_file=str(output_path),
         )
+    )
 
-    # Ensure output directory exists
-    output_dir = os.path.dirname(output_docx_path_str)
-    if output_dir and not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-        logger.info(f"Created output directory: {output_dir}")
+    logger.info(f"Starting Markdown to DOCX conversion: {input_path}")
+    logger.info(f"Output will be saved to: {output_path}")
 
-    if progress_callback:
-        progress_callback(0, "Initializing Pandoc...")
+    start_time = time.time()
 
     try:
+        # Validate input file
+        if not input_path.exists():
+            raise FileNotFoundError(f"Input file not found: {input_path}")
+
+        update_progress(operation, 10, "Validating Pandoc installation...")
+
         # Set PANDOC_PATH environment variable for pypandoc
-        # This is crucial if pypandoc doesn't find it automatically, especially in packaged apps
         original_pandoc_env = os.environ.get("PANDOC_PATH")
         try:
             pandoc_executable_path = get_pandoc_path()
             os.environ["PANDOC_PATH"] = pandoc_executable_path
-            logger.info(f"Temporarily set PANDOC_PATH to: {pandoc_executable_path}")
+            logger.info(f"Using Pandoc at: {pandoc_executable_path}")
         except FileNotFoundError as e:
             logger.error(f"Pandoc not found: {e}. Cannot proceed with conversion.")
             raise
 
-        if progress_callback:
-            progress_callback(20, "Pandoc initialized. Starting conversion...")
+        update_progress(operation, 30, "Pandoc initialized. Starting conversion...")
 
-        # pypandoc.convert_file can sometimes have issues with complex paths or finding pandoc.
-        # Using pypandoc.ensure_pandoc_path can help, but explicitly setting ENV is more robust.
-        # The 'format' argument specifies the input format (Markdown in this case).
-        # The 'to' argument specifies the output format (DOCX).
-        # The 'outputfile' argument specifies where to save the converted document.
-        # 'extra_args' can be used to pass additional Pandoc command-line options.
+        # Ensure output directory exists
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        update_progress(operation, 50, "Converting Markdown to DOCX...")
+
+        # Build extra args
+        extra_args = ["--standalone"]
+        if reference_docx:
+            extra_args.append(f"--reference-doc={reference_docx}")
+
+        # Perform conversion
         pypandoc.convert_file(
-            input_markdown_path_str,
+            str(input_path),
             to="docx",
             format="markdown",
-            outputfile=output_docx_path_str,
-            extra_args=["--standalone"],
+            outputfile=str(output_path),
+            extra_args=extra_args,
         )
 
-        if progress_callback:
-            progress_callback(100, "Conversion successful.")
-        logger.info(
-            f"Successfully converted {input_markdown_path_str} to {output_docx_path_str}"
+        update_progress(operation, 90, "Finalizing DOCX file...")
+
+        duration = time.time() - start_time
+        logger.info(f"Successfully converted {input_path.name} to DOCX: {output_path}")
+        logger.info(f"Conversion completed in {duration:.2f}s")
+
+        # Complete operation
+        complete_operation(operation, success=True)
+
+        # Publish conversion completed event
+        publish(
+            ConversionEvent(
+                event_type="conversion.completed",
+                conversion_type="md2docx",
+                plugin_name="md_to_docx_convert_md_to_docx",
+                input_file=str(input_path),
+                output_file=str(output_path),
+            )
         )
-        return Path(output_docx_path_str)
+
+        return output_path
 
     except FileNotFoundError:
-        # No need to log again, already logged in get_pandoc_path
+        # Already logged in get_pandoc_path
         raise
-    except Exception as e:  # Catches pypandoc.PandocError or other runtime issues
+    except Exception as e:
+        duration = time.time() - start_time
         error_message = f"Pandoc conversion failed: {e}"
-        logger.error(error_message)
-        if progress_callback:
-            progress_callback(-1, f"Error: {error_message}")
-        # Attempt to get more detailed error output from Pandoc if pypandoc allows
-        # This might require direct subprocess call if pypandoc.PandocError doesn't have enough info
+        logger.exception(error_message)
+
+        # Publish conversion failed event
+        publish(
+            ConversionEvent(
+                event_type="conversion.failed",
+                conversion_type="md2docx",
+                plugin_name="md_to_docx_convert_md_to_docx",
+                input_file=str(input_path),
+                output_file=str(output_path) if output_path else None,
+            )
+        )
+
         raise RuntimeError(error_message) from e
+
     finally:
         # Restore original PANDOC_PATH if it was set
         if original_pandoc_env is None:
             if "PANDOC_PATH" in os.environ:
                 del os.environ["PANDOC_PATH"]
-                logger.info("Restored PANDOC_PATH: unset.")
+                logger.debug("Restored PANDOC_PATH: unset.")
         else:
             os.environ["PANDOC_PATH"] = original_pandoc_env
-            logger.info(f"Restored PANDOC_PATH to: {original_pandoc_env}")
+            logger.debug(f"Restored PANDOC_PATH to: {original_pandoc_env}")
+
+
+# Alias for backward compatibility
+markdown_to_docx = convert_md_to_docx
 
 
 if __name__ == "__main__":
     # Basic example for testing the converter directly
+    # This part of the code is now handled by the transmutation_codex.core.events
+    # and transmutation_codex.core.registry.converter decorators.
+    # The original test logic is kept for direct execution if needed,
+    # but it will not trigger the new event/progress tracking.
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",

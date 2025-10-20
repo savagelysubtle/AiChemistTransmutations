@@ -2,26 +2,63 @@
 
 This package contains different converter modules for converting
 between different formats such as Markdown, PDF, HTML, etc.
+
+Converters are automatically registered with the plugin registry on import.
 """
 
+import importlib
+import logging
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, NoReturn, Optional, Union, cast
 
-# from .markdown.to_html import convert_md_to_html, md_to_html # Commented out due to ModuleNotFoundError
-from .markdown.to_pdf import convert_md_to_pdf
-from .pdf.to_markdown import (
-    convert_pdf_to_md,
-    convert_pdf_to_md_with_enhanced_ocr,
-    convert_pdf_to_md_with_ocr,
-    convert_pdf_to_md_with_pymupdf4llm,
-)
+# Import base classes first
+from .base import BaseConverter, Converter, function_converter
+
+# Get logger for plugin loading
+_logger = logging.getLogger("aichemist_codex.plugins")
+
+# Registry will be populated as converters are imported
+from transmutation_codex.core import get_registry
+
+_plugin_registry = get_registry()
+
+# Import converters with error handling to ensure registration even if dependencies are missing
+try:
+    from .markdown.to_html import convert_md_to_html
+
+    _logger.debug("Markdown to HTML converter (md2html) loaded successfully")
+except ImportError as e:
+    _logger.warning(f"Markdown to HTML converter not available: {e}")
+    convert_md_to_html = None
+
+try:
+    from .markdown.to_pdf import convert_md_to_pdf
+except ImportError as e:
+    _logger.warning(f"Markdown to PDF converter not available: {e}")
+    convert_md_to_pdf = None
+
+try:
+    from .pdf.to_markdown import (
+        convert_pdf_to_md,
+        convert_pdf_to_md_with_enhanced_ocr,
+        convert_pdf_to_md_with_ocr,
+        convert_pdf_to_md_with_pymupdf4llm,
+    )
+except ImportError as e:
+    _logger.warning(f"PDF to Markdown converters not available: {e}")
+    convert_pdf_to_md = None
+    convert_pdf_to_md_with_enhanced_ocr = None
+    convert_pdf_to_md_with_ocr = None
+    convert_pdf_to_md_with_pymupdf4llm = None
 
 # Import for Markdown to DOCX
 try:
+    from .markdown.to_docx import convert_md_to_docx
     from .markdown.to_docx import markdown_to_docx as _imported_markdown_to_docx
 
     markdown_to_docx = cast(Callable[..., Path], _imported_markdown_to_docx)
+    _logger.debug("Markdown to DOCX converter (md2docx) loaded successfully")
 except ImportError:
 
     def markdown_to_docx(
@@ -101,6 +138,7 @@ except ImportError:
         raise ImportError(
             "HTML to PDF converter is not available. Install WeasyPrint or pdfkit."
         )
+
     _imported_convert_html_to_pdf = _placeholder_html_converter
     _imported_html_to_pdf = _placeholder_html_converter
 
@@ -167,6 +205,7 @@ except ImportError:
         raise ImportError(
             "PDF to HTML converter is not available. Install PyMuPDF or pdfminer.six."
         )
+
     _imported_convert_pdf_to_html = _placeholder_pdf_to_html_converter
     _imported_pdf_to_html = _placeholder_pdf_to_html_converter
 
@@ -231,6 +270,7 @@ except ImportError:
         raise ImportError(
             "DOCX to Markdown converter is not available. Install python-docx or mammoth."
         )
+
     _imported_convert_docx_to_md = _placeholder_docx_to_md_converter
     _imported_docx_to_md = _placeholder_docx_to_md_converter
 
@@ -327,8 +367,10 @@ try:
     from ..services.merger import (
         merge_multiple_pdfs_to_single_pdf as _imported_merge_pdfs,
     )
+
     merge_multiple_pdfs_to_single_pdf = cast(Callable[..., Path], _imported_merge_pdfs)
 except ImportError:
+
     def merge_multiple_pdfs_to_single_pdf(
         input_paths: list[str | Path],  # Note: list of paths
         output_path: str | Path,
@@ -357,17 +399,44 @@ except ImportError:
 try:
     from .txt.to_pdf import convert_txt_to_pdf
 except ImportError:
+
     def convert_txt_to_pdf(
-        input_path: str | Path,
-        output_path: str | Path | None = None,
-        **kwargs: Any
+        input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
     ) -> Path:
         raise ImportError(
             "TXT to PDF converter is not available. Ensure ReportLab is installed."
         )
 
 
+# Auto-discover and log registered converters
+def _log_registered_converters():
+    """Log all registered converters for debugging."""
+    try:
+        conversions = _plugin_registry.get_available_conversions()
+        _logger.info(f"Registered {len(conversions)} conversion types")
+        for source_format, target_formats in conversions.items():
+            for target_format in target_formats:
+                plugins = _plugin_registry.get_plugins_for_conversion(
+                    source_format, target_format
+                )
+                _logger.debug(
+                    f"  {source_format} -> {target_format}: {len(plugins)} plugin(s) available"
+                )
+    except Exception as e:
+        _logger.warning(f"Could not log registered converters: {e}")
+
+
+# Auto-registration happens when converter modules are imported above
+# Log what was registered
+_log_registered_converters()
+
+
 __all__ = [
+    # Base classes
+    "BaseConverter",
+    "Converter",
+    "function_converter",
+    # Converter functions (backward compatibility)
     "convert_docx_to_md",
     "convert_docx_to_pdf",
     "convert_html_to_pdf",

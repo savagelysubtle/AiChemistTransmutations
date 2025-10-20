@@ -1,10 +1,169 @@
-"""Configuration and logging management for the Aichemist Transmutation Codex.
+"""Core modules for the Transmutation Codex.
 
-This package provides centralized classes for handling application configuration
-(from files and environment variables) and for setting up and accessing loggers.
+This package contains the fundamental business logic and architecture
+components that define the application's behavior and are heavily
+depended upon by other modules.
 """
 
+# Core business logic modules
+from .config_manager import (
+    ConfigManager,
+    ConversionPreset,
+    UserPreferences,
+    configure_manager,
+    get_config_manager,
+    get_conversion_preset,
+    get_environment_config,
+    get_user_preferences,
+    update_user_preferences,
+)
+from .events import (
+    ConversionEvent,
+    ErrorEvent,
+    Event,
+    EventBus,
+    EventHandler,
+    EventPriority,
+    EventTypes,
+    ProgressEvent,
+    emit,
+    get_event_bus,
+    publish,
+    subscribe,
+    unsubscribe,
+)
+from .exceptions import (
+    BatchProcessingError,
+    ConfigurationError,
+    ConversionError,
+    DependencyError,
+    FileOperationError,
+    OCRError,
+    PluginError,
+    ProgressError,
+    SecurityError,
+    TransmutationError,
+    TransmutationMemoryError,
+    TransmutationTimeoutError,
+    ValidationError,
+    raise_conversion_error,
+    raise_dependency_error,
+    raise_ocr_error,
+    raise_security_error,
+    raise_validation_error,
+)
 from .logger import LogManager
-from .settings import ConfigManager
+from .presets import (
+    ConversionPreset as PresetConversionPreset,
+)
+from .presets import (
+    PresetManager,
+    get_preset_manager,
+)
+from .progress import (
+    OperationProgress,
+    OperationStatus,
+    ProgressStep,
+    ProgressTracker,
+    cancel_operation,
+    complete_operation,
+    get_operation,
+    get_progress_tracker,
+    start_operation,
+    update_progress,
+)
+from .registry import (
+    PluginInfo,
+    PluginRegistry,
+    converter,
+    get_registry,
+    register_converter,
+)
 
-__all__ = ["ConfigManager", "LogManager"]
+# Singleton instance for LogManager
+_log_manager_instance: LogManager | None = None
+
+
+def get_log_manager() -> LogManager:
+    """Get or create the singleton LogManager instance.
+
+    This ensures consistent initialization across the codebase and prevents
+    issues with logs_dir path resolution.
+
+    Returns:
+        LogManager: The singleton LogManager instance with proper configuration.
+
+    Examples:
+        >>> from transmutation_codex.core import get_log_manager
+        >>> logger = get_log_manager().get_converter_logger("md2pdf")
+        >>> logger.info("Converting markdown to PDF")
+    """
+    global _log_manager_instance
+    if _log_manager_instance is None:
+        _log_manager_instance = LogManager()  # Will use project root
+    return _log_manager_instance
+
+
+# Core module exports (alphabetically sorted)
+__all__ = [
+    "BatchProcessingError",
+    "ConfigManager",
+    "ConfigurationError",
+    "ConversionError",
+    "ConversionEvent",
+    "ConversionPreset",
+    "DependencyError",
+    "ErrorEvent",
+    "Event",
+    "EventBus",
+    "EventHandler",
+    "EventPriority",
+    "EventTypes",
+    "FileOperationError",
+    "LogManager",
+    "OCRError",
+    "OperationProgress",
+    "OperationStatus",
+    "PluginError",
+    "PluginInfo",
+    "PluginRegistry",
+    "PresetConversionPreset",
+    "PresetManager",
+    "ProgressError",
+    "ProgressEvent",
+    "ProgressStep",
+    "ProgressTracker",
+    "SecurityError",
+    "TransmutationError",
+    "TransmutationMemoryError",
+    "TransmutationTimeoutError",
+    "UserPreferences",
+    "ValidationError",
+    "cancel_operation",
+    "complete_operation",
+    "configure_manager",
+    "converter",
+    "emit",
+    "get_config_manager",
+    "get_conversion_preset",
+    "get_environment_config",
+    "get_event_bus",
+    "get_log_manager",
+    "get_operation",
+    "get_preset_manager",
+    "get_progress_tracker",
+    "get_registry",
+    "get_user_preferences",
+    "publish",
+    "raise_conversion_error",
+    "raise_dependency_error",
+    "raise_ocr_error",
+    "raise_security_error",
+    "raise_validation_error",
+    "register_converter",
+    "start_operation",
+    "subscribe",
+    "unsubscribe",
+    "update_progress",
+    "update_user_preferences",
+]
