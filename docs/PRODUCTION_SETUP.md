@@ -19,6 +19,7 @@ python scripts/generate_rsa_keys.py
 ```
 
 This will create:
+
 - `scripts/keys/private_key.pem` (KEEP SECRET!)
 - `scripts/keys/public_key.pem` (embed in app)
 
@@ -39,15 +40,17 @@ This will create:
    - Bitwarden
 
 3. **Encrypted Vault** (minimum requirement)
+
    ```bash
    # Encrypt with GPG
    gpg --symmetric --cipher-algo AES256 scripts/keys/private_key.pem
-   
+
    # Delete unencrypted file
    rm scripts/keys/private_key.pem
    ```
 
 4. **Environment Variable** (production server only)
+
    ```bash
    # Never commit to git!
    export AICHEMIST_PRIVATE_KEY="$(cat private_key.pem)"
@@ -102,6 +105,7 @@ python scripts/setup_supabase_schema.py --print-only
 ```
 
 Execute the following tables will be created:
+
 - `licenses` - License records with type, status, expiration
 - `activations` - Machine activation tracking
 - `usage_logs` - Usage analytics for paid features
@@ -147,8 +151,8 @@ CREATE POLICY "Allow usage logging" ON usage_logs
   TO anon
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM licenses 
-      WHERE licenses.id = usage_logs.license_id 
+      SELECT 1 FROM licenses
+      WHERE licenses.id = usage_logs.license_id
       AND licenses.status = 'active'
     )
   );
@@ -193,7 +197,8 @@ SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 # SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-**Important:** 
+**Important:**
+
 - The `ANON_KEY` is safe for client use (protected by RLS)
 - The `SERVICE_KEY` should ONLY be used server-side for admin operations
 - Add `.env` to `.gitignore` to prevent committing credentials
@@ -208,6 +213,7 @@ python scripts/generate_dev_license.py
 ```
 
 This creates a license with:
+
 - Email: `dev@aichemist.local`
 - Type: `enterprise`
 - Max activations: 999
@@ -223,16 +229,18 @@ This creates a license with:
 #### Option A: Gumroad (Recommended for Digital Products)
 
 **Pros:**
+
 - Designed for digital products
 - Handles EU VAT automatically
 - Simple integration
 - Built-in affiliate system
 
 **Setup:**
+
 1. Create account at [gumroad.com](https://gumroad.com)
 2. Create products for each license tier:
    - Basic License ($49/year)
-   - Professional License ($99/year) 
+   - Professional License ($99/year)
    - Enterprise License ($299/year or contact)
 
 3. Set up webhooks:
@@ -245,11 +253,13 @@ This creates a license with:
 #### Option B: Stripe
 
 **Pros:**
+
 - More flexible
 - Better for SaaS/subscriptions
 - Supports more payment methods
 
 **Setup:**
+
 1. Create account at [stripe.com](https://stripe.com)
 2. Create products and prices
 3. Set up webhook endpoint
@@ -287,21 +297,21 @@ WEBHOOK_SECRET = os.getenv("GUMROAD_WEBHOOK_SECRET")
 @app.route("/webhooks/gumroad", methods=["POST"])
 def gumroad_webhook():
     """Handle Gumroad sale webhook."""
-    
+
     # Verify webhook signature
     signature = request.headers.get("X-Gumroad-Signature")
     if not verify_gumroad_signature(request.data, signature):
         return jsonify({"error": "Invalid signature"}), 401
-    
+
     data = request.json
-    
+
     # Extract purchase details
     email = data.get("email")
     product_id = data.get("product_id")
-    
+
     # Determine license type based on product
     license_type = get_license_type(product_id)
-    
+
     # Generate license
     crypto = LicenseCrypto(PRIVATE_KEY.encode())
     license_data = {
@@ -310,16 +320,16 @@ def gumroad_webhook():
         "max_activations": get_max_activations(license_type),
         "expires_at": get_expiration_date(license_type),
     }
-    
+
     license_key = crypto.generate_license_key(license_data)
-    
+
     # Store in Supabase
     from supabase import create_client
     supabase = create_client(
         os.getenv("SUPABASE_URL"),
         os.getenv("SUPABASE_SERVICE_KEY")
     )
-    
+
     supabase.table("licenses").insert({
         "email": email,
         "license_key": license_key,
@@ -328,10 +338,10 @@ def gumroad_webhook():
         "max_activations": license_data["max_activations"],
         "expires_at": license_data.get("expires_at"),
     }).execute()
-    
+
     # Send license to customer via email
     send_license_email(email, license_key, license_type)
-    
+
     return jsonify({"success": True}), 200
 
 def verify_gumroad_signature(payload, signature):
@@ -363,10 +373,10 @@ def get_max_activations(license_type):
 def get_expiration_date(license_type):
     """Get expiration date for license type."""
     from datetime import datetime, timedelta
-    
+
     if license_type == "enterprise":
         return None  # Perpetual
-    
+
     # 1 year from now
     return (datetime.utcnow() + timedelta(days=365)).isoformat()
 
@@ -380,12 +390,14 @@ def send_license_email(email, license_key, license_type):
 ### 5.2 Deploy Webhook Handler
 
 Deploy to:
+
 - AWS Lambda + API Gateway
 - Google Cloud Functions
 - Vercel Serverless Functions
 - Your own server
 
 **Security checklist:**
+
 - ✅ Verify webhook signatures
 - ✅ Use HTTPS only
 - ✅ Rate limit webhook endpoint
@@ -421,6 +433,7 @@ npm run dev
 ```
 
 In the GUI:
+
 1. Click "Activate License"
 2. Enter generated license key
 3. Verify activation succeeds
@@ -517,6 +530,7 @@ xcrun altool --notarize-app --primary-bundle-id "com.aichemist.transmutations" -
 ### 8.2 Update Mechanism
 
 Implement auto-update using:
+
 - **Electron Builder Auto-Update** (built-in)
 - **electron-updater**
 
@@ -541,6 +555,7 @@ Example configuration in `package.json`:
 ### 9.1 Set Up Monitoring
 
 Monitor via Supabase Dashboard:
+
 - Active licenses count
 - Daily activation attempts
 - Usage by converter type
@@ -556,7 +571,7 @@ WHERE status = 'active'
 GROUP BY type;
 
 -- Conversion usage last 30 days
-SELECT 
+SELECT
   converter_name,
   COUNT(*) as conversions,
   SUM(input_file_size) / 1024 / 1024 as total_mb
@@ -566,7 +581,7 @@ GROUP BY converter_name
 ORDER BY conversions DESC;
 
 -- Trial to paid conversion rate
-SELECT 
+SELECT
   COUNT(*) FILTER (WHERE type = 'trial') as trials,
   COUNT(*) FILTER (WHERE type != 'trial') as paid,
   ROUND(100.0 * COUNT(*) FILTER (WHERE type != 'trial') / NULLIF(COUNT(*), 0), 2) as conversion_rate
@@ -576,6 +591,7 @@ FROM licenses;
 ### 9.3 Set Up Alerts
 
 Create alerts for:
+
 - Suspicious activation patterns (too many from same email)
 - Failed activation attempts spike
 - License validation errors
@@ -586,6 +602,7 @@ Create alerts for:
 ### 10.1 Update License Agreement
 
 Create `LICENSE_AGREEMENT.md` with:
+
 - Terms of use
 - Refund policy
 - Privacy policy
@@ -594,6 +611,7 @@ Create `LICENSE_AGREEMENT.md` with:
 ### 10.2 Display in Application
 
 Show license agreement:
+
 - During first launch
 - In Help > License Agreement menu
 - On website
@@ -601,6 +619,7 @@ Show license agreement:
 ### 10.3 GDPR Compliance
 
 Implement:
+
 - Data export (user can download their license data)
 - Data deletion (user can request account deletion)
 - Consent for analytics tracking
@@ -618,6 +637,7 @@ ALTER TABLE licenses ADD COLUMN data_retention_until TIMESTAMPTZ;
 ### License Activation Fails
 
 1. Check Supabase connection:
+
    ```python
    from transmutation_codex.core.licensing import get_license_manager
    manager = get_license_manager()
@@ -662,6 +682,7 @@ Before going live, verify:
 ## Support
 
 For questions or issues:
+
 - Check logs in `~/.aichemist/` (Linux/Mac) or `%APPDATA%/AiChemist/` (Windows)
 - Review Supabase logs in dashboard
 - Enable debug logging in `config/default_config.yaml`
@@ -694,4 +715,3 @@ For questions or issues:
 4. Deploy webhook handler → Test license generation
 5. Build production installers → Code sign
 6. Launch! 🚀
-

@@ -298,6 +298,54 @@ def parse_legacy_arguments(args: list[str] | None = None) -> BridgeArguments:
     parser.add_argument("--page-break-marker", help="Page break marker for MD2PDF")
     parser.add_argument("--output-file-name", help="Output filename for merged PDF")
 
+    # Premium converter options
+    # Excel/CSV options
+    parser.add_argument("--sheet-name", help="Excel sheet name to convert")
+    parser.add_argument(
+        "--include-charts",
+        action="store_true",
+        help="Include charts in Excel conversion",
+    )
+    parser.add_argument(
+        "--preserve-formatting", action="store_true", help="Preserve Excel formatting"
+    )
+
+    # PowerPoint options
+    parser.add_argument("--slide-range", help="Slide range (e.g., '1-5' or '1,3,5')")
+    parser.add_argument(
+        "--include-notes", action="store_true", help="Include speaker notes"
+    )
+    parser.add_argument("--image-quality", type=int, help="Image quality (1-100)")
+
+    # Image options
+    parser.add_argument(
+        "--image-format", help="Output image format (png, jpg, tiff, etc.)"
+    )
+    parser.add_argument("--image-quality", type=int, help="Image quality (1-100)")
+    parser.add_argument("--resize", help="Resize image (e.g., '800x600')")
+    parser.add_argument("--crop", help="Crop image (e.g., '100,100,400,300')")
+
+    # Advanced PDF options
+    parser.add_argument(
+        "--compression-level", type=int, help="PDF compression level (0-9)"
+    )
+    parser.add_argument("--user-password", help="PDF user password")
+    parser.add_argument("--owner-password", help="PDF owner password")
+    parser.add_argument("--watermark-text", help="Watermark text")
+    parser.add_argument("--watermark-image", help="Watermark image path")
+    parser.add_argument("--page-range", help="Page range (e.g., '1-5' or '1,3,5')")
+    parser.add_argument("--rotate", type=int, help="Rotate pages (90, 180, 270)")
+    parser.add_argument("--remove-pages", help="Pages to remove (e.g., '1,3,5')")
+
+    # EPUB options
+    parser.add_argument("--epub-title", help="EPUB title")
+    parser.add_argument("--epub-author", help="EPUB author")
+    parser.add_argument("--epub-language", help="EPUB language (e.g., 'en')")
+    parser.add_argument(
+        "--include-images", action="store_true", help="Include images in EPUB"
+    )
+    parser.add_argument("--toc-depth", type=int, help="Table of contents depth")
+
     # TXT to PDF specific options
     parser.add_argument(
         "--font-name", help="Font name for TXT to PDF (default: Helvetica)"

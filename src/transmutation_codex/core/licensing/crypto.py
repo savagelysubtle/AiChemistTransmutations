@@ -10,9 +10,9 @@ import hashlib
 import json
 from typing import Any
 
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
-from cryptography.exceptions import InvalidSignature
 
 
 class LicenseCrypto:
@@ -21,15 +21,15 @@ class LicenseCrypto:
     def __init__(self):
         """Initialize crypto handler with embedded public key."""
         # Public key (embedded in application)
-        # This is a placeholder - will be replaced with actual public key
+        # Generated via scripts/generate_rsa_keys.py
         self._public_key_pem = b"""-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0Z7cqVvxQxPFJ8Nw8m6H
-9K5R2J8TlXq7fGvZ3K9W2Xq8J9L5M3n7R8Q6Z7fJ9K5R2J8TlXq7fGvZ3K9W2Xq8
-J9L5M3n7R8Q6Z7fJ9K5R2J8TlXq7fGvZ3K9W2Xq8J9L5M3n7R8Q6Z7fJ9K5R2J8T
-lXq7fGvZ3K9W2Xq8J9L5M3n7R8Q6Z7fJ9K5R2J8TlXq7fGvZ3K9W2Xq8J9L5M3n7
-R8Q6Z7fJ9K5R2J8TlXq7fGvZ3K9W2Xq8J9L5M3n7R8Q6Z7fJ9K5R2J8TlXq7fGvZ
-3K9W2Xq8J9L5M3n7R8Q6Z7fJ9K5R2J8TlXq7fGvZ3K9W2Xq8J9L5M3n7R8Q6Z7fJ
-9K5R2J8TlXq7fGvZ3K9W2Xq8J9L5M3n7R8Q6QIDAQAB
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxF8GdEKu3EJubH+Guvuo
+h1YD0ITzMr20aZpQzvi8iLfjORhK8C6nWEozX/r1o0MnjhVEKWNKaHaSYo4ZlSwV
+IByxa8QEJ0hmI03xzKhrgFoxq/Lcpz+ED5SzsI59VUd/3MrkwjqaclkUndjFKcLS
++/Qpr6+yKl8AOFMD+X1Kn98kKjHpHaPL4EmjF8FIESKSSVSay14tN5USd9s72PRb
+Ij84jWA5nBf0DTosptCTL4+TLJUFqWh0O7uva2JMr+mHcviJQPdWv1XIUqph0kfd
+4w2LmyF+rftTGyaoIzxALbBbFwl5SkCAVoEm/DRMzDMwxhS7njZk0TKvSk9cpdIf
+tQIDAQAB
 -----END PUBLIC KEY-----"""
 
     def validate_license_key(self, license_key: str) -> dict[str, Any] | None:

@@ -68,6 +68,49 @@ const ConversionPage: React.FC = () => {
     fontSize: 10,
   });
 
+  // State for Excel/CSV options
+  const [excelOptions, setExcelOptions] = useState({
+    sheetName: '',
+    includeCharts: false,
+    preserveFormatting: false,
+  });
+
+  // State for PowerPoint options
+  const [pptxOptions, setPptxOptions] = useState({
+    slideRange: '',
+    includeNotes: false,
+    imageQuality: 90,
+  });
+
+  // State for image options
+  const [imageOptions, setImageOptions] = useState({
+    imageFormat: 'png',
+    imageQuality: 90,
+    resize: '',
+    crop: '',
+  });
+
+  // State for advanced PDF options
+  const [advancedPdfOptions, setAdvancedPdfOptions] = useState({
+    compressionLevel: 6,
+    userPassword: '',
+    ownerPassword: '',
+    watermarkText: '',
+    watermarkImage: '',
+    pageRange: '',
+    rotate: 0,
+    removePages: '',
+  });
+
+  // State for EPUB options
+  const [epubOptions, setEpubOptions] = useState({
+    epubTitle: '',
+    epubAuthor: '',
+    epubLanguage: 'en',
+    includeImages: false,
+    tocDepth: 3,
+  });
+
   // License dialog state
   const [showLicenseDialog, setShowLicenseDialog] = useState(false);
 
@@ -139,6 +182,44 @@ const ConversionPage: React.FC = () => {
       }
       else if (conversionType === 'txt2pdf') { // Added filter for txt2pdf
         dialogOptions.filters = [{ name: 'Text Files', extensions: ['txt'] }];
+      }
+      // Excel/CSV filters
+      else if (['xlsx2pdf', 'xlsx2html', 'xlsx2md', 'xlsx2csv'].includes(conversionType)) {
+        dialogOptions.filters = [{ name: 'Excel Files', extensions: ['xlsx', 'xls'] }];
+      }
+      else if (['csv2xlsx', 'csv2pdf'].includes(conversionType)) {
+        dialogOptions.filters = [{ name: 'CSV Files', extensions: ['csv'] }];
+      }
+      else if (conversionType === 'pdf2xlsx') {
+        dialogOptions.filters = [{ name: 'PDF Files', extensions: ['pdf'] }];
+      }
+      // PowerPoint filters
+      else if (['pptx2pdf', 'pptx2html', 'pptx2md', 'pptx2images'].includes(conversionType)) {
+        dialogOptions.filters = [{ name: 'PowerPoint Files', extensions: ['pptx', 'ppt'] }];
+      }
+      // Image filters
+      else if (['image2pdf', 'image2text', 'image2image'].includes(conversionType)) {
+        dialogOptions.filters = [{ name: 'Image Files', extensions: ['png', 'jpg', 'jpeg', 'tiff', 'bmp', 'webp'] }];
+      }
+      else if (conversionType === 'pdf2images') {
+        dialogOptions.filters = [{ name: 'PDF Files', extensions: ['pdf'] }];
+      }
+      // EPUB filters
+      else if (['epub2pdf', 'epub2html', 'epub2md'].includes(conversionType)) {
+        dialogOptions.filters = [{ name: 'EPUB Files', extensions: ['epub'] }];
+      }
+      else if (['md2epub', 'docx2epub', 'html2epub'].includes(conversionType)) {
+        if (conversionType === 'md2epub') {
+          dialogOptions.filters = [{ name: 'Markdown Files', extensions: ['md', 'markdown'] }];
+        } else if (conversionType === 'docx2epub') {
+          dialogOptions.filters = [{ name: 'Word Documents', extensions: ['docx', 'doc'] }];
+        } else if (conversionType === 'html2epub') {
+          dialogOptions.filters = [{ name: 'HTML Files', extensions: ['html', 'htm'] }];
+        }
+      }
+      // Advanced PDF operations filters
+      else if (['pdf2split', 'pdf2compress', 'pdf2encrypt', 'pdf2watermark', 'pdf2pages', 'pdf2ocr_layer'].includes(conversionType)) {
+        dialogOptions.filters = [{ name: 'PDF Files', extensions: ['pdf'] }];
       }
 
       const files = await electronAPI.openFileDialog(dialogOptions);
@@ -315,6 +396,44 @@ const ConversionPage: React.FC = () => {
           options.fontName = txtToPdfOptions.fontName;
           options.fontSize = txtToPdfOptions.fontSize;
         }
+        // Excel/CSV options
+        else if (['xlsx2pdf', 'xlsx2html', 'xlsx2md', 'csv2xlsx', 'csv2pdf', 'pdf2xlsx', 'xlsx2csv'].includes(conversionType)) {
+          if (excelOptions.sheetName) options.sheetName = excelOptions.sheetName;
+          options.includeCharts = excelOptions.includeCharts;
+          options.preserveFormatting = excelOptions.preserveFormatting;
+        }
+        // PowerPoint options
+        else if (['pptx2pdf', 'pptx2html', 'pptx2md', 'pptx2images'].includes(conversionType)) {
+          if (pptxOptions.slideRange) options.slideRange = pptxOptions.slideRange;
+          options.includeNotes = pptxOptions.includeNotes;
+          options.imageQuality = pptxOptions.imageQuality;
+        }
+        // Image options
+        else if (['image2pdf', 'image2text', 'image2image', 'pdf2images'].includes(conversionType)) {
+          if (imageOptions.imageFormat) options.imageFormat = imageOptions.imageFormat;
+          options.imageQuality = imageOptions.imageQuality;
+          if (imageOptions.resize) options.resize = imageOptions.resize;
+          if (imageOptions.crop) options.crop = imageOptions.crop;
+        }
+        // Advanced PDF options
+        else if (['pdf2split', 'pdf2compress', 'pdf2encrypt', 'pdf2watermark', 'pdf2pages', 'pdf2ocr_layer'].includes(conversionType)) {
+          options.compressionLevel = advancedPdfOptions.compressionLevel;
+          if (advancedPdfOptions.userPassword) options.userPassword = advancedPdfOptions.userPassword;
+          if (advancedPdfOptions.ownerPassword) options.ownerPassword = advancedPdfOptions.ownerPassword;
+          if (advancedPdfOptions.watermarkText) options.watermarkText = advancedPdfOptions.watermarkText;
+          if (advancedPdfOptions.watermarkImage) options.watermarkImage = advancedPdfOptions.watermarkImage;
+          if (advancedPdfOptions.pageRange) options.pageRange = advancedPdfOptions.pageRange;
+          if (advancedPdfOptions.rotate) options.rotate = advancedPdfOptions.rotate;
+          if (advancedPdfOptions.removePages) options.removePages = advancedPdfOptions.removePages;
+        }
+        // EPUB options
+        else if (['epub2pdf', 'epub2html', 'epub2md', 'md2epub', 'docx2epub', 'html2epub'].includes(conversionType)) {
+          if (epubOptions.epubTitle) options.epubTitle = epubOptions.epubTitle;
+          if (epubOptions.epubAuthor) options.epubAuthor = epubOptions.epubAuthor;
+          if (epubOptions.epubLanguage) options.epubLanguage = epubOptions.epubLanguage;
+          options.includeImages = epubOptions.includeImages;
+          options.tocDepth = epubOptions.tocDepth;
+        }
         // Add other conversion-specific options here as needed
 
         const result = await electronAPI.runConversion({
@@ -472,6 +591,16 @@ const ConversionPage: React.FC = () => {
           onPdfToEditableOptionsChange={setPdfToEditableOptions}
           txtToPdfOptions={txtToPdfOptions}
           onTxtToPdfOptionsChange={setTxtToPdfOptions}
+          excelOptions={excelOptions}
+          onExcelOptionsChange={setExcelOptions}
+          pptxOptions={pptxOptions}
+          onPptxOptionsChange={setPptxOptions}
+          imageOptions={imageOptions}
+          onImageOptionsChange={setImageOptions}
+          advancedPdfOptions={advancedPdfOptions}
+          onAdvancedPdfOptionsChange={setAdvancedPdfOptions}
+          epubOptions={epubOptions}
+          onEpubOptionsChange={setEpubOptions}
         />
 
         <Card variant="elevated" className="animate-fade-in">

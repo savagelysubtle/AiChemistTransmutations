@@ -198,6 +198,30 @@ except ImportError as e:
 except Exception as e:
     _logger.error(f"Advanced PDF operations failed: {e}", exc_info=True)
 
+# EPUB converters
+try:
+    from .epub.to_html import convert_epub_to_html
+    from .epub.to_markdown import convert_epub_to_markdown
+    from .epub.to_pdf import convert_epub_to_pdf
+
+    _logger.debug("EPUB converters loaded")
+except ImportError as e:
+    _logger.warning(f"EPUB converters not available: {e}")
+except Exception as e:
+    _logger.error(f"EPUB converters failed: {e}", exc_info=True)
+
+# EPUB creation converters
+try:
+    from .docx.to_epub import convert_docx_to_epub
+    from .html.to_epub import convert_html_to_epub
+    from .markdown.to_epub import convert_markdown_to_epub
+
+    _logger.debug("EPUB creation converters loaded")
+except ImportError as e:
+    _logger.warning(f"EPUB creation converters not available: {e}")
+except Exception as e:
+    _logger.error(f"EPUB creation converters failed: {e}", exc_info=True)
+
 _logger.info("Plugin package initialized - all converters registered")
 
 # Public API - exported converter functions
@@ -243,4 +267,12 @@ __all__ = [
     "convert_pdf_to_watermark",
     "convert_pdf_to_pages",
     "convert_pdf_to_ocr_layer",
+    # EPUB converters
+    "convert_epub_to_pdf",
+    "convert_epub_to_html",
+    "convert_epub_to_markdown",
+    # EPUB creation converters
+    "convert_markdown_to_epub",
+    "convert_docx_to_epub",
+    "convert_html_to_epub",
 ]

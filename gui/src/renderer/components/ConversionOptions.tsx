@@ -40,6 +40,87 @@ interface ConversionOptionsProps {
     fontName: string;
     fontSize: number;
   }>>;
+
+  /** Options for Excel/CSV conversions. */
+  excelOptions?: {
+    sheetName?: string;
+    includeCharts: boolean;
+    preserveFormatting: boolean;
+  };
+  /** Callback function when Excel options change. */
+  onExcelOptionsChange?: React.Dispatch<React.SetStateAction<{
+    sheetName?: string;
+    includeCharts: boolean;
+    preserveFormatting: boolean;
+  }>>;
+
+  /** Options for PowerPoint conversions. */
+  pptxOptions?: {
+    slideRange?: string;
+    includeNotes: boolean;
+    imageQuality: number;
+  };
+  /** Callback function when PowerPoint options change. */
+  onPptxOptionsChange?: React.Dispatch<React.SetStateAction<{
+    slideRange?: string;
+    includeNotes: boolean;
+    imageQuality: number;
+  }>>;
+
+  /** Options for image conversions. */
+  imageOptions?: {
+    imageFormat?: string;
+    imageQuality: number;
+    resize?: string;
+    crop?: string;
+  };
+  /** Callback function when image options change. */
+  onImageOptionsChange?: React.Dispatch<React.SetStateAction<{
+    imageFormat?: string;
+    imageQuality: number;
+    resize?: string;
+    crop?: string;
+  }>>;
+
+  /** Options for advanced PDF operations. */
+  advancedPdfOptions?: {
+    compressionLevel: number;
+    userPassword?: string;
+    ownerPassword?: string;
+    watermarkText?: string;
+    watermarkImage?: string;
+    pageRange?: string;
+    rotate?: number;
+    removePages?: string;
+  };
+  /** Callback function when advanced PDF options change. */
+  onAdvancedPdfOptionsChange?: React.Dispatch<React.SetStateAction<{
+    compressionLevel: number;
+    userPassword?: string;
+    ownerPassword?: string;
+    watermarkText?: string;
+    watermarkImage?: string;
+    pageRange?: string;
+    rotate?: number;
+    removePages?: string;
+  }>>;
+
+  /** Options for EPUB conversions. */
+  epubOptions?: {
+    epubTitle?: string;
+    epubAuthor?: string;
+    epubLanguage?: string;
+    includeImages: boolean;
+    tocDepth: number;
+  };
+  /** Callback function when EPUB options change. */
+  onEpubOptionsChange?: React.Dispatch<React.SetStateAction<{
+    epubTitle?: string;
+    epubAuthor?: string;
+    epubLanguage?: string;
+    includeImages: boolean;
+    tocDepth: number;
+  }>>;
 }
 
 // Component for displaying dynamic conversion options.
@@ -53,6 +134,16 @@ const ConversionOptions: React.FC<ConversionOptionsProps> = ({
   onPdfToEditableOptionsChange,
   txtToPdfOptions,
   onTxtToPdfOptionsChange,
+  excelOptions,
+  onExcelOptionsChange,
+  pptxOptions,
+  onPptxOptionsChange,
+  imageOptions,
+  onImageOptionsChange,
+  advancedPdfOptions,
+  onAdvancedPdfOptionsChange,
+  epubOptions,
+  onEpubOptionsChange,
 }) => {
   if (conversionType === 'pdf2md') {
     // No specific options for pdf2md currently shown in UI, can add if needed
@@ -231,6 +322,479 @@ const ConversionOptions: React.FC<ConversionOptionsProps> = ({
             value={txtToPdfOptions?.fontSize || 10}
             onChange={(e) => handleOptionChange('fontSize', parseInt(e.target.value, 10) || 10)}
             min="1"
+            className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+          />
+        </div>
+      </section>
+    );
+  }
+
+  // Excel/CSV conversion options
+  if (['xlsx2pdf', 'xlsx2html', 'xlsx2md', 'csv2xlsx', 'csv2pdf', 'pdf2xlsx', 'xlsx2csv'].includes(conversionType)) {
+    const handleExcelOptionChange = <K extends keyof NonNullable<ConversionOptionsProps['excelOptions']>>(
+      optionKey: K,
+      value: NonNullable<ConversionOptionsProps['excelOptions']>[K]
+    ) => {
+      if (onExcelOptionsChange && excelOptions) {
+        onExcelOptionsChange({
+          ...excelOptions,
+          [optionKey]: value,
+        });
+      }
+    };
+
+    return (
+      <section className="p-6 border border-dark-border rounded-lg shadow-lg bg-dark-surface space-y-4">
+        <h2 className="text-2xl font-semibold mb-3 text-dark-textPrimary">Excel/CSV Options</h2>
+
+        <div className="space-y-2">
+          <label htmlFor="sheetName" className="block text-sm font-medium text-dark-textSecondary">
+            Sheet Name (optional)
+          </label>
+          <input
+            type="text"
+            id="sheetName"
+            name="sheetName"
+            value={excelOptions?.sheetName || ''}
+            onChange={(e) => handleExcelOptionChange('sheetName', e.target.value)}
+            placeholder="Leave empty for all sheets"
+            className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+          />
+        </div>
+
+        <div className="flex items-center">
+          <input
+            id="includeCharts"
+            name="includeCharts"
+            type="checkbox"
+            checked={excelOptions?.includeCharts || false}
+            onChange={(e) => handleExcelOptionChange('includeCharts', e.target.checked)}
+            className="h-4 w-4 text-dark-primary bg-dark-surface border-dark-border rounded focus:ring-dark-primary focus:ring-offset-dark-background"
+          />
+          <label htmlFor="includeCharts" className="ml-2 block text-sm text-dark-textSecondary">
+            Include Charts
+          </label>
+        </div>
+
+        <div className="flex items-center">
+          <input
+            id="preserveFormatting"
+            name="preserveFormatting"
+            type="checkbox"
+            checked={excelOptions?.preserveFormatting || false}
+            onChange={(e) => handleExcelOptionChange('preserveFormatting', e.target.checked)}
+            className="h-4 w-4 text-dark-primary bg-dark-surface border-dark-border rounded focus:ring-dark-primary focus:ring-offset-dark-background"
+          />
+          <label htmlFor="preserveFormatting" className="ml-2 block text-sm text-dark-textSecondary">
+            Preserve Formatting
+          </label>
+        </div>
+      </section>
+    );
+  }
+
+  // PowerPoint conversion options
+  if (['pptx2pdf', 'pptx2html', 'pptx2md', 'pptx2images'].includes(conversionType)) {
+    const handlePptxOptionChange = <K extends keyof NonNullable<ConversionOptionsProps['pptxOptions']>>(
+      optionKey: K,
+      value: NonNullable<ConversionOptionsProps['pptxOptions']>[K]
+    ) => {
+      if (onPptxOptionsChange && pptxOptions) {
+        onPptxOptionsChange({
+          ...pptxOptions,
+          [optionKey]: value,
+        });
+      }
+    };
+
+    return (
+      <section className="p-6 border border-dark-border rounded-lg shadow-lg bg-dark-surface space-y-4">
+        <h2 className="text-2xl font-semibold mb-3 text-dark-textPrimary">PowerPoint Options</h2>
+
+        <div className="space-y-2">
+          <label htmlFor="slideRange" className="block text-sm font-medium text-dark-textSecondary">
+            Slide Range (optional)
+          </label>
+          <input
+            type="text"
+            id="slideRange"
+            name="slideRange"
+            value={pptxOptions?.slideRange || ''}
+            onChange={(e) => handlePptxOptionChange('slideRange', e.target.value)}
+            placeholder="e.g., 1-5 or 1,3,5"
+            className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+          />
+        </div>
+
+        <div className="flex items-center">
+          <input
+            id="includeNotes"
+            name="includeNotes"
+            type="checkbox"
+            checked={pptxOptions?.includeNotes || false}
+            onChange={(e) => handlePptxOptionChange('includeNotes', e.target.checked)}
+            className="h-4 w-4 text-dark-primary bg-dark-surface border-dark-border rounded focus:ring-dark-primary focus:ring-offset-dark-background"
+          />
+          <label htmlFor="includeNotes" className="ml-2 block text-sm text-dark-textSecondary">
+            Include Speaker Notes
+          </label>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="pptxImageQuality" className="block text-sm font-medium text-dark-textSecondary">
+            Image Quality (1-100)
+          </label>
+          <input
+            type="number"
+            id="pptxImageQuality"
+            name="pptxImageQuality"
+            value={pptxOptions?.imageQuality || 90}
+            onChange={(e) => handlePptxOptionChange('imageQuality', parseInt(e.target.value, 10) || 90)}
+            min="1"
+            max="100"
+            className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+          />
+        </div>
+      </section>
+    );
+  }
+
+  // Image conversion options
+  if (['image2pdf', 'image2text', 'image2image', 'pdf2images'].includes(conversionType)) {
+    const handleImageOptionChange = <K extends keyof NonNullable<ConversionOptionsProps['imageOptions']>>(
+      optionKey: K,
+      value: NonNullable<ConversionOptionsProps['imageOptions']>[K]
+    ) => {
+      if (onImageOptionsChange && imageOptions) {
+        onImageOptionsChange({
+          ...imageOptions,
+          [optionKey]: value,
+        });
+      }
+    };
+
+    return (
+      <section className="p-6 border border-dark-border rounded-lg shadow-lg bg-dark-surface space-y-4">
+        <h2 className="text-2xl font-semibold mb-3 text-dark-textPrimary">Image Options</h2>
+
+        <div className="space-y-2">
+          <label htmlFor="imageFormat" className="block text-sm font-medium text-dark-textSecondary">
+            Output Format
+          </label>
+          <select
+            id="imageFormat"
+            name="imageFormat"
+            value={imageOptions?.imageFormat || 'png'}
+            onChange={(e) => handleImageOptionChange('imageFormat', e.target.value)}
+            className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none appearance-none"
+          >
+            <option value="png" className="bg-dark-surface text-dark-textPrimary">PNG</option>
+            <option value="jpg" className="bg-dark-surface text-dark-textPrimary">JPEG</option>
+            <option value="tiff" className="bg-dark-surface text-dark-textPrimary">TIFF</option>
+            <option value="bmp" className="bg-dark-surface text-dark-textPrimary">BMP</option>
+            <option value="webp" className="bg-dark-surface text-dark-textPrimary">WebP</option>
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="imageQuality" className="block text-sm font-medium text-dark-textSecondary">
+            Image Quality (1-100)
+          </label>
+          <input
+            type="number"
+            id="imageQuality"
+            name="imageQuality"
+            value={imageOptions?.imageQuality || 90}
+            onChange={(e) => handleImageOptionChange('imageQuality', parseInt(e.target.value, 10) || 90)}
+            min="1"
+            max="100"
+            className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="resize" className="block text-sm font-medium text-dark-textSecondary">
+            Resize (optional)
+          </label>
+          <input
+            type="text"
+            id="resize"
+            name="resize"
+            value={imageOptions?.resize || ''}
+            onChange={(e) => handleImageOptionChange('resize', e.target.value)}
+            placeholder="e.g., 800x600"
+            className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="crop" className="block text-sm font-medium text-dark-textSecondary">
+            Crop (optional)
+          </label>
+          <input
+            type="text"
+            id="crop"
+            name="crop"
+            value={imageOptions?.crop || ''}
+            onChange={(e) => handleImageOptionChange('crop', e.target.value)}
+            placeholder="e.g., 100,100,400,300"
+            className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+          />
+        </div>
+      </section>
+    );
+  }
+
+  // Advanced PDF operations options
+  if (['pdf2split', 'pdf2compress', 'pdf2encrypt', 'pdf2watermark', 'pdf2pages', 'pdf2ocr_layer'].includes(conversionType)) {
+    const handleAdvancedPdfOptionChange = <K extends keyof NonNullable<ConversionOptionsProps['advancedPdfOptions']>>(
+      optionKey: K,
+      value: NonNullable<ConversionOptionsProps['advancedPdfOptions']>[K]
+    ) => {
+      if (onAdvancedPdfOptionsChange && advancedPdfOptions) {
+        onAdvancedPdfOptionsChange({
+          ...advancedPdfOptions,
+          [optionKey]: value,
+        });
+      }
+    };
+
+    return (
+      <section className="p-6 border border-dark-border rounded-lg shadow-lg bg-dark-surface space-y-4">
+        <h2 className="text-2xl font-semibold mb-3 text-dark-textPrimary">Advanced PDF Options</h2>
+
+        {conversionType === 'pdf2compress' && (
+          <div className="space-y-2">
+            <label htmlFor="compressionLevel" className="block text-sm font-medium text-dark-textSecondary">
+              Compression Level (0-9)
+            </label>
+            <input
+              type="number"
+              id="compressionLevel"
+              name="compressionLevel"
+              value={advancedPdfOptions?.compressionLevel || 6}
+              onChange={(e) => handleAdvancedPdfOptionChange('compressionLevel', parseInt(e.target.value, 10) || 6)}
+              min="0"
+              max="9"
+              className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+            />
+          </div>
+        )}
+
+        {conversionType === 'pdf2encrypt' && (
+          <>
+            <div className="space-y-2">
+              <label htmlFor="userPassword" className="block text-sm font-medium text-dark-textSecondary">
+                User Password (optional)
+              </label>
+              <input
+                type="password"
+                id="userPassword"
+                name="userPassword"
+                value={advancedPdfOptions?.userPassword || ''}
+                onChange={(e) => handleAdvancedPdfOptionChange('userPassword', e.target.value)}
+                placeholder="Password for opening PDF"
+                className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="ownerPassword" className="block text-sm font-medium text-dark-textSecondary">
+                Owner Password (optional)
+              </label>
+              <input
+                type="password"
+                id="ownerPassword"
+                name="ownerPassword"
+                value={advancedPdfOptions?.ownerPassword || ''}
+                onChange={(e) => handleAdvancedPdfOptionChange('ownerPassword', e.target.value)}
+                placeholder="Password for editing PDF"
+                className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+              />
+            </div>
+          </>
+        )}
+
+        {conversionType === 'pdf2watermark' && (
+          <>
+            <div className="space-y-2">
+              <label htmlFor="watermarkText" className="block text-sm font-medium text-dark-textSecondary">
+                Watermark Text (optional)
+              </label>
+              <input
+                type="text"
+                id="watermarkText"
+                name="watermarkText"
+                value={advancedPdfOptions?.watermarkText || ''}
+                onChange={(e) => handleAdvancedPdfOptionChange('watermarkText', e.target.value)}
+                placeholder="Text to watermark"
+                className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="watermarkImage" className="block text-sm font-medium text-dark-textSecondary">
+                Watermark Image (optional)
+              </label>
+              <input
+                type="text"
+                id="watermarkImage"
+                name="watermarkImage"
+                value={advancedPdfOptions?.watermarkImage || ''}
+                onChange={(e) => handleAdvancedPdfOptionChange('watermarkImage', e.target.value)}
+                placeholder="Path to watermark image"
+                className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+              />
+            </div>
+          </>
+        )}
+
+        {(conversionType === 'pdf2pages' || conversionType === 'pdf2split') && (
+          <div className="space-y-2">
+            <label htmlFor="pageRange" className="block text-sm font-medium text-dark-textSecondary">
+              Page Range (optional)
+            </label>
+            <input
+              type="text"
+              id="pageRange"
+              name="pageRange"
+              value={advancedPdfOptions?.pageRange || ''}
+              onChange={(e) => handleAdvancedPdfOptionChange('pageRange', e.target.value)}
+              placeholder="e.g., 1-5 or 1,3,5"
+              className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+            />
+          </div>
+        )}
+
+        {conversionType === 'pdf2pages' && (
+          <>
+            <div className="space-y-2">
+              <label htmlFor="rotate" className="block text-sm font-medium text-dark-textSecondary">
+                Rotate Pages (degrees)
+              </label>
+              <select
+                id="rotate"
+                name="rotate"
+                value={advancedPdfOptions?.rotate || 0}
+                onChange={(e) => handleAdvancedPdfOptionChange('rotate', parseInt(e.target.value, 10) || 0)}
+                className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none appearance-none"
+              >
+                <option value="0" className="bg-dark-surface text-dark-textPrimary">No rotation</option>
+                <option value="90" className="bg-dark-surface text-dark-textPrimary">90° clockwise</option>
+                <option value="180" className="bg-dark-surface text-dark-textPrimary">180°</option>
+                <option value="270" className="bg-dark-surface text-dark-textPrimary">90° counter-clockwise</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="removePages" className="block text-sm font-medium text-dark-textSecondary">
+                Remove Pages (optional)
+              </label>
+              <input
+                type="text"
+                id="removePages"
+                name="removePages"
+                value={advancedPdfOptions?.removePages || ''}
+                onChange={(e) => handleAdvancedPdfOptionChange('removePages', e.target.value)}
+                placeholder="e.g., 1,3,5"
+                className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+              />
+            </div>
+          </>
+        )}
+      </section>
+    );
+  }
+
+  // EPUB conversion options
+  if (['epub2pdf', 'epub2html', 'epub2md', 'md2epub', 'docx2epub', 'html2epub'].includes(conversionType)) {
+    const handleEpubOptionChange = <K extends keyof NonNullable<ConversionOptionsProps['epubOptions']>>(
+      optionKey: K,
+      value: NonNullable<ConversionOptionsProps['epubOptions']>[K]
+    ) => {
+      if (onEpubOptionsChange && epubOptions) {
+        onEpubOptionsChange({
+          ...epubOptions,
+          [optionKey]: value,
+        });
+      }
+    };
+
+    return (
+      <section className="p-6 border border-dark-border rounded-lg shadow-lg bg-dark-surface space-y-4">
+        <h2 className="text-2xl font-semibold mb-3 text-dark-textPrimary">EPUB Options</h2>
+
+        <div className="space-y-2">
+          <label htmlFor="epubTitle" className="block text-sm font-medium text-dark-textSecondary">
+            Title (optional)
+          </label>
+          <input
+            type="text"
+            id="epubTitle"
+            name="epubTitle"
+            value={epubOptions?.epubTitle || ''}
+            onChange={(e) => handleEpubOptionChange('epubTitle', e.target.value)}
+            placeholder="Book title"
+            className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="epubAuthor" className="block text-sm font-medium text-dark-textSecondary">
+            Author (optional)
+          </label>
+          <input
+            type="text"
+            id="epubAuthor"
+            name="epubAuthor"
+            value={epubOptions?.epubAuthor || ''}
+            onChange={(e) => handleEpubOptionChange('epubAuthor', e.target.value)}
+            placeholder="Author name"
+            className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="epubLanguage" className="block text-sm font-medium text-dark-textSecondary">
+            Language (optional)
+          </label>
+          <input
+            type="text"
+            id="epubLanguage"
+            name="epubLanguage"
+            value={epubOptions?.epubLanguage || 'en'}
+            onChange={(e) => handleEpubOptionChange('epubLanguage', e.target.value)}
+            placeholder="e.g., en, fr, de"
+            className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+          />
+        </div>
+
+        <div className="flex items-center">
+          <input
+            id="includeImages"
+            name="includeImages"
+            type="checkbox"
+            checked={epubOptions?.includeImages || false}
+            onChange={(e) => handleEpubOptionChange('includeImages', e.target.checked)}
+            className="h-4 w-4 text-dark-primary bg-dark-surface border-dark-border rounded focus:ring-dark-primary focus:ring-offset-dark-background"
+          />
+          <label htmlFor="includeImages" className="ml-2 block text-sm text-dark-textSecondary">
+            Include Images
+          </label>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="tocDepth" className="block text-sm font-medium text-dark-textSecondary">
+            Table of Contents Depth
+          </label>
+          <input
+            type="number"
+            id="tocDepth"
+            name="tocDepth"
+            value={epubOptions?.tocDepth || 3}
+            onChange={(e) => handleEpubOptionChange('tocDepth', parseInt(e.target.value, 10) || 3)}
+            min="1"
+            max="6"
             className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
           />
         </div>
