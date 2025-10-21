@@ -95,10 +95,18 @@ gui/.cache/
 .DS_Store
 Thumbs.db
 
-# Licensing - SECURITY CRITICAL
+# Licensing - SECURITY CRITICAL - NEVER COMMIT THESE!
 scripts/keys/          # RSA private/public keys
+*.pem                  # Any PEM key files
+*.key                  # Any key files
+private_key*           # Any private key files
+public_key*            # Any public key files
 licenses.json          # Generated license keys
 trial.db               # Trial tracking database
+DEV_LICENSE.txt        # Development license key
+.licenses/             # License storage directory
+.keys/                 # Any keys directory
 .env
 .env.local
 .env.development
+.env.production
