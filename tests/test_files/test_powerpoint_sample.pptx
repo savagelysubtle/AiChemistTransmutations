@@ -1,0 +1,38 @@
+# PowerPoint Test Presentation
+# This would be a binary PowerPoint file, but for testing purposes, this is a placeholder
+
+# Slide 1: Title Slide
+# Title: "Premium Document Converter"
+# Subtitle: "Professional Document Transformation Suite"
+# Background: Gradient blue to white
+
+# Slide 2: Features Overview
+# Title: "Key Features"
+# Content:
+# - Excel/CSV Conversion
+# - PowerPoint Processing
+# - Image Conversion
+# - Advanced PDF Operations
+# - EPUB Support
+# - Batch Processing
+
+# Slide 3: Supported Formats
+# Title: "Supported Formats"
+# Content:
+# Input: PDF, DOCX, HTML, MD, TXT, XLSX, CSV, PPTX, Images, EPUB
+# Output: PDF, DOCX, HTML, MD, TXT, XLSX, CSV, PPTX, Images, EPUB
+
+# Slide 4: Architecture
+# Title: "System Architecture"
+# Content:
+# - Python Backend with Plugin System
+# - Electron Frontend
+# - Modular Converter Design
+# - Real-time Progress Tracking
+
+# Slide 5: Contact Information
+# Title: "Get Started Today"
+# Content:
+# Visit: https://aichemistcodex.com
+# Email: support@aichemistcodex.com
+# Version: 1.0.0

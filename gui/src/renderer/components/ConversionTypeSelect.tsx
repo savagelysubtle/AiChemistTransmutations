@@ -11,7 +11,15 @@ import {
   Globe,
   Type,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Table,
+  Presentation,
+  BookOpen,
+  Scissors,
+  Lock,
+  Droplets,
+  RotateCcw,
+  Layers
 } from 'lucide-react';
 import Card from './Card';
 import Icon from './Icon';
@@ -66,6 +74,36 @@ const conversionCategories: ConversionCategory[] = [
         label: 'TXT to PDF',
         icon: <Type />,
         description: 'Convert text files to PDF'
+      },
+      {
+        value: 'xlsx2pdf',
+        label: 'Excel to PDF',
+        icon: <Table />,
+        description: 'Convert Excel spreadsheets to PDF'
+      },
+      {
+        value: 'csv2pdf',
+        label: 'CSV to PDF',
+        icon: <Table />,
+        description: 'Convert CSV files to PDF'
+      },
+      {
+        value: 'pptx2pdf',
+        label: 'PowerPoint to PDF',
+        icon: <Presentation />,
+        description: 'Convert PowerPoint presentations to PDF'
+      },
+      {
+        value: 'image2pdf',
+        label: 'Image to PDF',
+        icon: <FileImage />,
+        description: 'Convert images to PDF'
+      },
+      {
+        value: 'epub2pdf',
+        label: 'EPUB to PDF',
+        icon: <BookOpen />,
+        description: 'Convert EPUB books to PDF'
       }
     ]
   },
@@ -77,6 +115,12 @@ const conversionCategories: ConversionCategory[] = [
         label: 'Markdown to DOCX',
         icon: <FileType />,
         description: 'Convert Markdown to Word document'
+      },
+      {
+        value: 'epub2docx',
+        label: 'EPUB to DOCX',
+        icon: <BookOpen />,
+        description: 'Convert EPUB books to Word document'
       }
     ]
   },
@@ -100,6 +144,24 @@ const conversionCategories: ConversionCategory[] = [
         label: 'MDX to Markdown',
         icon: <FileCode />,
         description: 'Convert MDX to standard Markdown'
+      },
+      {
+        value: 'xlsx2md',
+        label: 'Excel to Markdown',
+        icon: <Table />,
+        description: 'Convert Excel spreadsheets to Markdown'
+      },
+      {
+        value: 'pptx2md',
+        label: 'PowerPoint to Markdown',
+        icon: <Presentation />,
+        description: 'Convert PowerPoint presentations to Markdown'
+      },
+      {
+        value: 'epub2md',
+        label: 'EPUB to Markdown',
+        icon: <BookOpen />,
+        description: 'Convert EPUB books to Markdown'
       }
     ]
   },
@@ -117,6 +179,140 @@ const conversionCategories: ConversionCategory[] = [
         label: 'PDF to HTML',
         icon: <Globe />,
         description: 'Convert PDF to web format'
+      },
+      {
+        value: 'xlsx2html',
+        label: 'Excel to HTML',
+        icon: <Table />,
+        description: 'Convert Excel spreadsheets to HTML'
+      },
+      {
+        value: 'pptx2html',
+        label: 'PowerPoint to HTML',
+        icon: <Presentation />,
+        description: 'Convert PowerPoint presentations to HTML'
+      },
+      {
+        value: 'epub2html',
+        label: 'EPUB to HTML',
+        icon: <BookOpen />,
+        description: 'Convert EPUB books to HTML'
+      }
+    ]
+  },
+  {
+    title: 'Excel & CSV',
+    options: [
+      {
+        value: 'csv2xlsx',
+        label: 'CSV to Excel',
+        icon: <Table />,
+        description: 'Convert CSV files to Excel format'
+      },
+      {
+        value: 'pdf2xlsx',
+        label: 'PDF to Excel',
+        icon: <Table />,
+        description: 'Extract tables from PDF to Excel'
+      },
+      {
+        value: 'xlsx2csv',
+        label: 'Excel to CSV',
+        icon: <Table />,
+        description: 'Convert Excel spreadsheets to CSV'
+      }
+    ]
+  },
+  {
+    title: 'Image Processing',
+    options: [
+      {
+        value: 'image2text',
+        label: 'Image to Text (OCR)',
+        icon: <FileText />,
+        description: 'Extract text from images using OCR'
+      },
+      {
+        value: 'image2image',
+        label: 'Image Format Conversion',
+        icon: <FileImage />,
+        description: 'Convert between image formats'
+      },
+      {
+        value: 'pdf2images',
+        label: 'PDF to Images',
+        icon: <FileImage />,
+        description: 'Convert PDF pages to images'
+      },
+      {
+        value: 'pptx2images',
+        label: 'PowerPoint to Images',
+        icon: <Presentation />,
+        description: 'Convert PowerPoint slides to images'
+      }
+    ]
+  },
+  {
+    title: 'Advanced PDF Operations',
+    options: [
+      {
+        value: 'pdf2split',
+        label: 'Split PDF',
+        icon: <Scissors />,
+        description: 'Split PDF into multiple files'
+      },
+      {
+        value: 'pdf2compress',
+        label: 'Compress PDF',
+        icon: <Droplets />,
+        description: 'Reduce PDF file size'
+      },
+      {
+        value: 'pdf2encrypt',
+        label: 'Encrypt PDF',
+        icon: <Lock />,
+        description: 'Add password protection to PDF'
+      },
+      {
+        value: 'pdf2watermark',
+        label: 'Watermark PDF',
+        icon: <Layers />,
+        description: 'Add watermarks to PDF'
+      },
+      {
+        value: 'pdf2pages',
+        label: 'PDF Page Operations',
+        icon: <RotateCcw />,
+        description: 'Extract, rotate, or remove pages'
+      },
+      {
+        value: 'pdf2ocr_layer',
+        label: 'Add OCR Layer',
+        icon: <Edit3 />,
+        description: 'Add invisible text layer to PDF'
+      }
+    ]
+  },
+  {
+    title: 'EPUB Creation',
+    options: [
+      {
+        value: 'md2epub',
+        label: 'Markdown to EPUB',
+        icon: <BookOpen />,
+        description: 'Create EPUB books from Markdown'
+      },
+      {
+        value: 'docx2epub',
+        label: 'DOCX to EPUB',
+        icon: <BookOpen />,
+        description: 'Create EPUB books from Word documents'
+      },
+      {
+        value: 'html2epub',
+        label: 'HTML to EPUB',
+        icon: <BookOpen />,
+        description: 'Create EPUB books from HTML'
       }
     ]
   },

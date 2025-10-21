@@ -1,0 +1,27 @@
+# This would be a binary Excel file, but for testing purposes, we'll create a CSV representation
+# that can be converted to Excel format using pandas
+
+# Excel Test Data Structure:
+# Sheet 1: Sales Data
+# | Product | Q1 Sales | Q2 Sales | Q3 Sales | Q4 Sales | Total |
+# |---------|----------|----------|----------|----------|-------|
+# | Widget A | 1000 | 1200 | 1100 | 1300 | 4600 |
+# | Widget B | 800 | 900 | 850 | 950 | 3500 |
+# | Widget C | 1500 | 1600 | 1550 | 1700 | 6350 |
+# | Widget D | 2000 | 2100 | 2050 | 2200 | 8350 |
+
+# Sheet 2: Employee Data
+# | Name | Department | Salary | Hire Date |
+# |------|------------|--------|-----------|
+# | John Doe | Engineering | 75000 | 2020-01-15 |
+# | Jane Smith | Marketing | 65000 | 2019-03-22 |
+# | Bob Johnson | Sales | 70000 | 2021-06-10 |
+# | Alice Brown | HR | 60000 | 2018-11-05 |
+
+# Sheet 3: Financial Summary
+# | Metric | Value | Percentage |
+# |--------|-------|------------|
+# | Revenue | 22800 | 100% |
+# | Expenses | 18240 | 80% |
+# | Profit | 4560 | 20% |
+# | Growth Rate | 15% | - |
