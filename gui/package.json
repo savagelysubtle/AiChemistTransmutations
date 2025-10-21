@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Graphical User Interface for MDtoPDF Converter",
   "author": "Your Name/Organization",
+  "license": "Apache-2.0",
   "private": true,
   "main": "dist-electron/main/main.js",
   "scripts": {
@@ -21,7 +22,7 @@
     "electron-squirrel-startup": "^1.0.1",
     "lucide-react": "^0.511.0",
     "mdx-to-md": "^0.5.2",
-    "react": "^19.1.0",
+    "react": "^18.3.1",
     "react-custom-scrollbars-2": "4.5.0",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^2.4.0",
@@ -29,7 +30,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.14.12",
-    "@types/react": "^19.1.6",
+    "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^7.17.0",
     "@typescript-eslint/parser": "^7.17.0",
@@ -51,8 +52,8 @@
     "wait-on": "^8.0.3"
   },
   "build": {
-    "appId": "com.example.mdtopdfconverter",
-    "productName": "MDtoPDF Converter",
+    "appId": "com.aichemist.transmutationcodex",
+    "productName": "AiChemist Transmutation Codex",
     "files": [
       "dist-electron/**/*",
       "dist/**/*"
@@ -62,7 +63,32 @@
       "output": "release/${version}"
     },
     "win": {
-      "target": "nsis"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "appx",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "appx": {
+      "applicationId": "AiChemist.TransmutationCodex",
+      "displayName": "AiChemist Transmutation Codex",
+      "publisherDisplayName": "Your Company Name",
+      "publisher": "CN=YourCompanyName",
+      "identityName": "AiChemist.TransmutationCodex",
+      "backgroundColor": "#0078D7",
+      "languages": [
+        "en-US"
+      ],
+      "addAutoLaunchExtension": false
     },
     "mac": {
       "target": "dmg"

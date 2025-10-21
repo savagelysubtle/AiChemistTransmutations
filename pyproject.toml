@@ -1,7 +1,7 @@
 [project]
 description     = "A versatile document conversion and file management toolkit, part of the AiChemist suite."
-license         = { text = "MIT" }
-name            = "aichemist_transmutation_codex"
+license         = { text = "Apache-2.0" }
+name            = "transmutation_codex"
 readme          = "README.md"
 requires-python = ">=3.13.0"
 version         = "0.1.0"
@@ -15,16 +15,36 @@ dependencies = [
     "pypandoc",
     "markdown",
     "ocrmypdf",
-    "PyMuPDF",       # for fitz
+    "PyMuPDF",              # for fitz
     "pdfminer.six",
     "pytesseract",
-    "Pillow",        # for PIL
-    "opencv-python", # for cv2
+    "Pillow",               # for PIL
+    "opencv-python",        # for cv2
     "numpy",
     "docx2pdf",
     "pdfkit",
     "markdown-pdf",
-    "pymupdf4llm",   # Added this based on imports
+    "pymupdf4llm",          # Added this based on imports
+    "reportlab>=4.4.1",
+    "fpdf>=1.7.2",
+    "fpdf2>=2.8.3",
+    "psutil>=7.1.0",
+    "cryptography>=42.0.0", # For RSA license validation
+    "supabase>=2.0.0",      # For cloud license validation (optional)
+    "python-dotenv>=1.0.0", # For environment variable management
+    # Premium converter dependencies
+    "openpyxl>=3.1.0",        # Excel support
+    "xlrd>=2.0.0",            # Legacy Excel support
+    "pandas>=2.0.0",          # Data processing
+    "tabula-py>=2.8.0",       # PDF table extraction
+    "python-pptx>=0.6.21",    # PowerPoint support
+    "unoserver>=1.7.0",       # LibreOffice conversions
+    "ebooklib>=0.18",         # EPUB support
+    "beautifulsoup4>=4.12.0", # HTML parsing
+    "docutils>=0.20.0",       # RST support
+    "pygments>=2.15.0",       # Code highlighting
+    "pikepdf>=8.0.0",         # Advanced PDF operations
+    "pdf2image>=1.17.0",      # PDF to images
 ]
 
     [project.optional-dependencies]
@@ -48,12 +68,17 @@ dependencies = [
     docs-build = "transmutation_codex.scripts.build_docs:main"
 
 [tool.setuptools.packages.find]
-include = [ "transmutation_codex/*" ]
-where   = [ "backend" ]
+include = [ "transmutation_codex" ]
+where   = [ "src" ]
 
 [build-system]
 build-backend = "uv_build"
-requires      = [ "uv-build>=0.7.8,<0.8.0" ]
+requires      = [ "uv-build>=0.7.19,<0.8.0" ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+]
 
 
 [tool.pytest.ini_options]
@@ -89,7 +114,6 @@ tmp_path_retention_policy = "failed"
 
 [tool.uv]
 cache-dir = "./.uv_cache"
-dev-dependencies = [ "aichemist_transmutation_codex[dev]" ]
 extra-index-url = [ "https://PySimpleGUI.net/install" ]
 index-url = "https://pypi.org/simple/"
 link-mode = "copy"
@@ -101,6 +125,8 @@ no-build-isolation-package = [
 ]
 package = true
 required-version = ">=0.7.8"
+# Only resolve dependencies for the current platform
+environments = [ "sys_platform == 'win32'" ]
 
 [tool.markdownlint]
 MD001   = false

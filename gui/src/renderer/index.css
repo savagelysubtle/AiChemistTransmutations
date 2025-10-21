@@ -4,17 +4,197 @@
 
 @layer base {
   body {
-    @apply bg-dark-background text-dark-textPrimary;
+    @apply bg-light-background dark:bg-dark-background text-light-textPrimary dark:text-dark-textPrimary;
     font-family: 'Inter', sans-serif;
-    /* Example: Antialiased fonts for better readability */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
-  /* You can add more base styles here, e.g., for headings if needed */
-  /*
-  h1, h2, h3, h4, h5, h6 {
-    @apply text-dark-text;
+  /* Smooth transitions for theme changes */
+  * {
+    transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
   }
-  */
+
+  /* Focus styles for accessibility */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-light-primary dark:ring-dark-primary ring-offset-2 ring-offset-light-background dark:ring-offset-dark-background;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-light-surface dark:bg-dark-surface;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-light-border dark:bg-dark-border rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-light-textMuted dark:bg-dark-textMuted;
+  }
+}
+
+@layer components {
+  /* Glassmorphism effect */
+  .glass {
+    @apply bg-white/10 backdrop-blur-md border border-white/20;
+  }
+
+  .glass-dark {
+    @apply bg-black/10 backdrop-blur-md border border-white/10;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-light-gradientStart to-light-gradientEnd dark:from-dark-gradientStart dark:to-dark-gradientEnd bg-clip-text text-transparent;
+  }
+
+  /* Custom button styles */
+  .btn-glow {
+    @apply shadow-lg shadow-light-primary/25 dark:shadow-dark-primary/25 hover:shadow-xl hover:shadow-light-primary/40 dark:hover:shadow-dark-primary/40;
+  }
+
+  /* Card hover effects */
+  .card-hover {
+    @apply transition-all duration-300 hover:scale-105 hover:shadow-xl;
+  }
+
+  /* Loading shimmer effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+
+  /* Pulse animation for active states */
+  .pulse-ring {
+    @apply animate-ping absolute inline-flex h-full w-full rounded-full bg-light-primary dark:bg-dark-primary opacity-75;
+  }
+
+  /* Smooth entrance animations */
+  .animate-entrance {
+    animation: entrance 0.6s ease-out;
+  }
+
+  .animate-entrance-delay-1 {
+    animation: entrance 0.6s ease-out 0.1s both;
+  }
+
+  .animate-entrance-delay-2 {
+    animation: entrance 0.6s ease-out 0.2s both;
+  }
+
+  .animate-entrance-delay-3 {
+    animation: entrance 0.6s ease-out 0.3s both;
+  }
+}
+
+@layer utilities {
+  /* Text selection styling */
+  ::selection {
+    @apply bg-light-primary/30 dark:bg-dark-primary/30 text-light-textPrimary dark:text-dark-textPrimary;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Custom spacing utilities */
+  .space-y-4 > * + * {
+    margin-top: 1rem;
+  }
+
+  .space-y-6 > * + * {
+    margin-top: 1.5rem;
+  }
+
+  .space-y-8 > * + * {
+    margin-top: 2rem;
+  }
+}
+
+/* Custom keyframes */
+@keyframes entrance {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(88, 166, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(88, 166, 255, 0.6), 0 0 30px rgba(88, 166, 255, 0.4);
+  }
+}
+
+/* Animation classes */
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* Responsive utilities */
+@media (max-width: 768px) {
+  .mobile-padding {
+    @apply px-4;
+  }
+
+  .mobile-text-sm {
+    @apply text-sm;
+  }
+}
+
+/* Dark mode specific styles */
+.dark {
+  color-scheme: dark;
+}
+
+/* Light mode specific styles */
+.light {
+  color-scheme: light;
 }

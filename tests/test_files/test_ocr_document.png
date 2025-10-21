@@ -1,0 +1,29 @@
+# This would be a binary PNG image file for OCR testing
+# For testing purposes, this is a placeholder description
+
+# Image Properties:
+# Format: PNG
+# Dimensions: 1200x800 pixels
+# Color Depth: 24-bit RGB
+# DPI: 300 (high resolution for OCR)
+# Content: Scanned document with text
+# File Size: ~2MB
+
+# Content Description:
+# - Scanned business letter
+# - Company letterhead
+# - Multiple paragraphs of text
+# - Different font sizes and styles
+# - Handwritten signature
+# - Date and address information
+# - Table with financial data
+# - Footer with contact information
+
+# OCR Testing Scenarios:
+# - Text recognition accuracy
+# - Font detection
+# - Layout preservation
+# - Table extraction
+# - Handwriting recognition
+# - Multi-language support
+# - Confidence scoring

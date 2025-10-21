@@ -2,7 +2,8 @@ import { app, BrowserWindow, ipcMain, dialog, IpcMainInvokeEvent } from 'electro
 import path from 'node:path';
 import fs from 'node:fs';
 import { spawn } from 'child_process';
-import { convertMdxToMd } from '../converters/mdxToMd'; // Path relative to dist-electron/main/main.js
+// Removed: import { convertMdxToMd } from '../converters/mdxToMd';
+// This import was causing React to load in the main process, which crashes Electron
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -89,9 +90,9 @@ interface RunConversionArgs {
 ipcMain.handle('run-conversion', async (_event: IpcMainInvokeEvent, { conversionType, inputFiles, outputDir, options }: RunConversionArgs) => {
   return new Promise((resolve, reject) => {
     // IMPORTANT: Adjust this path if your script is located elsewhere or if your build process changes structure.
-    // This path assumes electron_bridge.py is in <project_root>/src/aichemist_transmutation_codex/electron_bridge.py
+    // This path assumes electron_bridge.py is in <project_root>/src/transmutation_codex/adapters/bridges/electron_bridge.py
     // and main.ts (after compilation) is in <project_root>/gui/dist-electron/main/main.js
-    const scriptPath = path.resolve(app.getAppPath(), '../src/aichemist_transmutation_codex/electron_bridge.py');
+    const scriptPath = path.resolve(app.getAppPath(), '../src/transmutation_codex/adapters/bridges/electron_bridge.py');
 
     // Determine Python executable: prioritize venv if it exists, otherwise use system python
     // This is a basic approach; more robust venv detection might be needed for different OS/setups.
@@ -199,29 +200,22 @@ ipcMain.handle('run-conversion', async (_event: IpcMainInvokeEvent, { conversion
   });
 });
 
-// New IPC Handler for MDX to MD conversion
+// IPC Handler for MDX to MD conversion
+// Note: MDX conversion requires React, which cannot run in the Electron main process.
+// This needs to be either:
+// 1. Implemented in the renderer process, or
+// 2. Spawned as a separate Node process, or
+// 3. Implemented as a Python converter
 ipcMain.handle('convert-mdx-to-md', async (
   _event: IpcMainInvokeEvent,
-  { inputFile, outputFile }: { inputFile: string, outputFile?: string }
+  { inputFile, outputFile: _outputFile }: { inputFile: string, outputFile?: string }
 ) => {
-  if (!mainWindow) {
-    throw new Error('Main window not available');
-  }
-  if (!inputFile) {
-    throw new Error('Input file path is required for MDX to MD conversion.');
-  }
-
-  try {
-    console.log(`Received MDX to MD conversion request for: ${inputFile}`);
-    // The convertMdxToMd function is in gui/src/converter/mdxToMd.ts
-    // When Electron Vite builds, it might place it relative to the main.js output.
-    // Assuming it's correctly resolved by Node's module system from the compiled main.js
-    const resultPath = await convertMdxToMd(inputFile, outputFile);
-    return { success: true, outputPath: resultPath };
-  } catch (error) {
-    console.error('MDX to MD conversion failed in main process:', error);
-    return { success: false, error: (error as Error).message };
-  }
+  console.log(`MDX to MD conversion requested for: ${inputFile}`);
+  // For now, return an error indicating this needs to be implemented differently
+  return {
+    success: false,
+    error: 'MDX to MD conversion is not yet implemented. React cannot run in Electron main process. This converter needs to be reimplemented as a spawned process or moved to Python backend.'
+  };
 });
 
 // Handler for GUI log clear notification
@@ -230,4 +224,104 @@ ipcMain.on('log:gui-cleared', () => {
   // Here you could add more complex logic, like signaling Python to rotate logs,
   // or rotating Electron's own logs if you implement such a feature.
   // For now, just logging a separator to the Electron main log.
+});
+
+// --- License Management IPC Handlers ---
+
+// Helper function to run Python licensing commands
+async function runLicenseCommand(command: string, args: string[] = []): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const scriptPath = path.resolve(app.getAppPath(), '../src/transmutation_codex/adapters/bridges/license_bridge.py');
+
+    // Determine Python executable
+    const venvPythonPathWindows = path.resolve(app.getAppPath(), '../.venv/Scripts/python.exe');
+    const venvPythonPathUnix = path.resolve(app.getAppPath(), '../.venv/bin/python');
+
+    let pythonExecutable = 'python';
+    try {
+      const venvPath = process.platform === 'win32' ? venvPythonPathWindows : venvPythonPathUnix;
+      fs.accessSync(venvPath);
+      pythonExecutable = venvPath;
+    } catch (e) {
+      console.log('Using system Python for license command');
+    }
+
+    const fullArgs = [scriptPath, command, ...args];
+    console.log('Running license command:', command, args);
+
+    const pyProcess = spawn(pythonExecutable, fullArgs);
+    let stdout = '';
+    let stderr = '';
+
+    pyProcess.stdout.on('data', (data: Buffer) => {
+      stdout += data.toString();
+    });
+
+    pyProcess.stderr.on('data', (data: Buffer) => {
+      stderr += data.toString();
+    });
+
+    pyProcess.on('close', (code: number | null) => {
+      if (code === 0) {
+        try {
+          const result = JSON.parse(stdout);
+          resolve(result);
+        } catch (e) {
+          reject({ error: 'Failed to parse license command output', stdout, stderr });
+        }
+      } else {
+        reject({ error: `License command failed with code ${code}`, stderr });
+      }
+    });
+
+    pyProcess.on('error', (err: Error) => {
+      reject({ error: `Failed to run license command: ${err.message}` });
+    });
+  });
+}
+
+// Get current license status
+ipcMain.handle('license:get-status', async () => {
+  try {
+    return await runLicenseCommand('get-status');
+  } catch (error) {
+    console.error('Error getting license status:', error);
+    return {
+      license_type: 'trial',
+      error: (error as any).error || 'Unknown error'
+    };
+  }
+});
+
+// Activate a license key
+ipcMain.handle('license:activate', async (_event, licenseKey: string) => {
+  try {
+    return await runLicenseCommand('activate', [licenseKey]);
+  } catch (error) {
+    console.error('Error activating license:', error);
+    throw new Error((error as any).error || 'License activation failed');
+  }
+});
+
+// Deactivate current license
+ipcMain.handle('license:deactivate', async () => {
+  try {
+    return await runLicenseCommand('deactivate');
+  } catch (error) {
+    console.error('Error deactivating license:', error);
+    throw new Error((error as any).error || 'License deactivation failed');
+  }
+});
+
+// Get trial status
+ipcMain.handle('license:get-trial-status', async () => {
+  try {
+    return await runLicenseCommand('get-trial-status');
+  } catch (error) {
+    console.error('Error getting trial status:', error);
+    return {
+      status: 'error',
+      error: (error as any).error || 'Unknown error'
+    };
+  }
 });

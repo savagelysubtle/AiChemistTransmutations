@@ -1,0 +1,29 @@
+# This would be a binary JPEG image file with handwritten text
+# For testing purposes, this is a placeholder description
+
+# Image Properties:
+# Format: JPEG
+# Dimensions: 1000x700 pixels
+# Color Depth: 24-bit RGB
+# DPI: 200 (medium resolution)
+# Content: Handwritten notes
+# File Size: ~800KB
+
+# Content Description:
+# - Handwritten meeting notes
+# - Various handwriting styles
+# - Sketches and diagrams
+# - Arrows and annotations
+# - Different pen colors (blue, black, red)
+# - Margin notes and comments
+# - Crossed-out text
+# - Underlined important points
+
+# OCR Testing Scenarios:
+# - Handwriting recognition
+# - Multiple writing styles
+# - Diagram interpretation
+# - Annotation detection
+# - Color text recognition
+# - Layout analysis
+# - Confidence scoring for handwriting

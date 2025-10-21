@@ -7,9 +7,12 @@ with a focus on Markdown and PDF conversions, intended as a core component of th
 
 - Convert Markdown to PDF
 - Convert Markdown to HTML
+- Convert Markdown to DOCX (Microsoft Word format)
 - Convert PDF to Markdown (with OCR support for scanned documents)
 - Convert PDF to HTML
+- Convert PDF to Editable PDF (OCR searchable text layer)
 - Convert HTML to PDF
+- Convert TXT to PDF
 - Command-line interface
 - GUI interface
 - Electron bridge for integration with desktop applications
@@ -20,14 +23,35 @@ with a focus on Markdown and PDF conversions, intended as a core component of th
 pip install aichemist-transmutation-codex
 ```
 
-### Dependencies for OCR
+### Dependencies for OCR and DOCX
 
-To use the OCR feature for scanned PDFs, you need to install Tesseract OCR:
+**For OCR (scanned PDFs):** Install Tesseract OCR
 
-- **Windows**: Download and install from
-  https://github.com/UB-Mannheim/tesseract/wiki
-- **MacOS**: `brew install tesseract`
+- **Windows**: Run `.\scripts\install_tesseract.ps1` or download from
+  <https://github.com/UB-Mannheim/tesseract/wiki>
+- **macOS**: `brew install tesseract`
 - **Linux**: `sudo apt-get install tesseract-ocr`
+
+**For Editable PDF (OCR text layer):** Install Ghostscript
+
+- **Windows**: Run `.\scripts\install_ghostscript.ps1` or download from
+  <https://ghostscript.com/releases/gsdnld.html>
+- **macOS**: `brew install ghostscript`
+- **Linux**: `sudo apt-get install ghostscript`
+
+**For Markdown to DOCX:** Install Pandoc
+
+- **Windows**: Run `.\scripts\install_pandoc.ps1` or download from
+  <https://pandoc.org/installing.html>
+- **macOS**: `brew install pandoc`
+- **Linux**: `sudo apt-get install pandoc`
+
+**For Advanced PDF Generation (Optional):** Install MiKTeX
+
+- **Windows**: Run `.\scripts\install_miktex.ps1` or download from
+  <https://miktex.org/download>
+- **macOS**: `brew install --cask miktex-console`
+- **Linux**: `sudo apt-get install texlive-full`
 
 ## Usage
 
@@ -136,11 +160,12 @@ pip install pymupdf4llm
    ```
 
 3. Run tests:
+
    ```bash
    pytest
    ```
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for
+This project is licensed under the Apache License 2.0 - see the LICENSE file for
 details.

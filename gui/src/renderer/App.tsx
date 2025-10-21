@@ -1,4 +1,5 @@
 import React from 'react';
+import { ThemeProvider } from './contexts/ThemeContext';
 import ConversionPage from './pages/ConversionPage';
 
 /**
@@ -8,7 +9,9 @@ import ConversionPage from './pages/ConversionPage';
  */
 function App() {
   return (
-    <ConversionPage />
+    <ThemeProvider>
+      <ConversionPage />
+    </ThemeProvider>
   );
 }
 
