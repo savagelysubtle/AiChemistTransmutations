@@ -1,0 +1,55 @@
+# Production Configuration for AiChemist Transmutation Codex
+# This configuration is used when the application runs in production mode
+
+licensing:
+  # Production mode - disables dev license auto-activation
+  mode: 'production'
+  auto_activate_dev: false
+
+  # Trial settings
+  trial_days: 30
+  trial_conversion_limit: 50
+
+  # Free tier limits
+  free_tier_file_size_limit_mb: 5
+  free_tier_batch_size_limit: 10
+
+  # Feature access
+  require_license_for_premium: true
+  allow_offline_validation: true
+
+supabase:
+  # Enable cloud-based license validation
+  enabled: true
+
+  # Fallback to offline RSA validation if Supabase unavailable
+  fallback_to_offline: true
+
+  # Sync activations to cloud when connection restored
+  sync_on_reconnect: true
+
+telemetry:
+  # Anonymous usage statistics (helps improve the product)
+  enabled: true
+  anonymous: true
+
+  # Do not collect personally identifiable information
+  collect_pii: false
+
+logging:
+  level: 'INFO'
+  file_rotation: true
+  max_file_size_mb: 10
+  backup_count: 5
+
+performance:
+  # Production optimization settings
+  enable_caching: true
+  max_concurrent_conversions: 3
+  ocr_parallel_processing: true
+
+updates:
+  # Check for updates on startup
+  check_on_startup: true
+  auto_download: false
+  notify_user: true

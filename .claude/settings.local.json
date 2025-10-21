@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python test_plugin_registry.py)",
+      "Bash(uv run python test_plugin_registry.py)",
+      "Bash(uv add psutil)",
+      "Bash(uv run python test_modular_bridge.py)",
+      "Bash(dir \"d:\\Coding\\AiChemistCodex\\AiChemistTransmutations\\gui\\src\\renderer\" /s /b)",
+      "Bash(uv add cryptography)",
+      "Bash(python scripts/add_licensing_to_converters.py)",
+      "Bash(uv run python tests/test_licensing_system.py)",
+      "Bash(bun install)",
+      "Bash(bun run dev:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -7,6 +7,10 @@ import DirectoryInput from '../components/DirectoryInput';
 import ConversionOptions from '../components/ConversionOptions';
 import ConversionLog from '../components/ConversionLog';
 import MergeOptions from '../components/MergeOptions';
+import Card from '../components/Card';
+import Button from '../components/Button';
+import TrialStatus from '../components/TrialStatus';
+import LicenseDialog from '../components/LicenseDialog';
 
 // Updated PlaceholderElectronAPI
 interface PlaceholderElectronAPI {
@@ -57,6 +61,58 @@ const ConversionPage: React.FC = () => {
   // State for PDF Merge Options
   const [mergeOrderedFiles, setMergeOrderedFiles] = useState<string[]>([]);
   const [mergeOutputFileName, setMergeOutputFileName] = useState<string>('merged_document.pdf');
+
+  // New state for TXT to PDF options
+  const [txtToPdfOptions, setTxtToPdfOptions] = useState({
+    fontName: 'Helvetica',
+    fontSize: 10,
+  });
+
+  // State for Excel/CSV options
+  const [excelOptions, setExcelOptions] = useState({
+    sheetName: '',
+    includeCharts: false,
+    preserveFormatting: false,
+  });
+
+  // State for PowerPoint options
+  const [pptxOptions, setPptxOptions] = useState({
+    slideRange: '',
+    includeNotes: false,
+    imageQuality: 90,
+  });
+
+  // State for image options
+  const [imageOptions, setImageOptions] = useState({
+    imageFormat: 'png',
+    imageQuality: 90,
+    resize: '',
+    crop: '',
+  });
+
+  // State for advanced PDF options
+  const [advancedPdfOptions, setAdvancedPdfOptions] = useState({
+    compressionLevel: 6,
+    userPassword: '',
+    ownerPassword: '',
+    watermarkText: '',
+    watermarkImage: '',
+    pageRange: '',
+    rotate: 0,
+    removePages: '',
+  });
+
+  // State for EPUB options
+  const [epubOptions, setEpubOptions] = useState({
+    epubTitle: '',
+    epubAuthor: '',
+    epubLanguage: 'en',
+    includeImages: false,
+    tocDepth: 3,
+  });
+
+  // License dialog state
+  const [showLicenseDialog, setShowLicenseDialog] = useState(false);
 
   const electronAPI = getElectronAPI();
 
@@ -121,9 +177,50 @@ const ConversionPage: React.FC = () => {
         dialogOptions.filters = [{ name: 'PDF Documents', extensions: ['pdf'] }];
       }
       // For other conversion types, you might want to set specific filters too, e.g.:
-      // else if (conversionType === 'md2pdf') {
-      //   dialogOptions.filters = [{ name: 'Markdown Files', extensions: ['md', 'markdown'] }];
-      // }
+      else if (conversionType === 'md2pdf') {
+        dialogOptions.filters = [{ name: 'Markdown Files', extensions: ['md', 'markdown'] }];
+      }
+      else if (conversionType === 'txt2pdf') { // Added filter for txt2pdf
+        dialogOptions.filters = [{ name: 'Text Files', extensions: ['txt'] }];
+      }
+      // Excel/CSV filters
+      else if (['xlsx2pdf', 'xlsx2html', 'xlsx2md', 'xlsx2csv'].includes(conversionType)) {
+        dialogOptions.filters = [{ name: 'Excel Files', extensions: ['xlsx', 'xls'] }];
+      }
+      else if (['csv2xlsx', 'csv2pdf'].includes(conversionType)) {
+        dialogOptions.filters = [{ name: 'CSV Files', extensions: ['csv'] }];
+      }
+      else if (conversionType === 'pdf2xlsx') {
+        dialogOptions.filters = [{ name: 'PDF Files', extensions: ['pdf'] }];
+      }
+      // PowerPoint filters
+      else if (['pptx2pdf', 'pptx2html', 'pptx2md', 'pptx2images'].includes(conversionType)) {
+        dialogOptions.filters = [{ name: 'PowerPoint Files', extensions: ['pptx', 'ppt'] }];
+      }
+      // Image filters
+      else if (['image2pdf', 'image2text', 'image2image'].includes(conversionType)) {
+        dialogOptions.filters = [{ name: 'Image Files', extensions: ['png', 'jpg', 'jpeg', 'tiff', 'bmp', 'webp'] }];
+      }
+      else if (conversionType === 'pdf2images') {
+        dialogOptions.filters = [{ name: 'PDF Files', extensions: ['pdf'] }];
+      }
+      // EPUB filters
+      else if (['epub2pdf', 'epub2html', 'epub2md'].includes(conversionType)) {
+        dialogOptions.filters = [{ name: 'EPUB Files', extensions: ['epub'] }];
+      }
+      else if (['md2epub', 'docx2epub', 'html2epub'].includes(conversionType)) {
+        if (conversionType === 'md2epub') {
+          dialogOptions.filters = [{ name: 'Markdown Files', extensions: ['md', 'markdown'] }];
+        } else if (conversionType === 'docx2epub') {
+          dialogOptions.filters = [{ name: 'Word Documents', extensions: ['docx', 'doc'] }];
+        } else if (conversionType === 'html2epub') {
+          dialogOptions.filters = [{ name: 'HTML Files', extensions: ['html', 'htm'] }];
+        }
+      }
+      // Advanced PDF operations filters
+      else if (['pdf2split', 'pdf2compress', 'pdf2encrypt', 'pdf2watermark', 'pdf2pages', 'pdf2ocr_layer'].includes(conversionType)) {
+        dialogOptions.filters = [{ name: 'PDF Files', extensions: ['pdf'] }];
+      }
 
       const files = await electronAPI.openFileDialog(dialogOptions);
       if (files.length > 0) {
@@ -295,6 +392,47 @@ const ConversionPage: React.FC = () => {
           options.deskew = pdfToEditableOptions.deskew;
           options.outputType = pdfToEditableOptions.outputType;
           options.pdfRenderer = pdfToEditableOptions.pdfRenderer;
+        } else if (conversionType === 'txt2pdf') { // Added options for txt2pdf
+          options.fontName = txtToPdfOptions.fontName;
+          options.fontSize = txtToPdfOptions.fontSize;
+        }
+        // Excel/CSV options
+        else if (['xlsx2pdf', 'xlsx2html', 'xlsx2md', 'csv2xlsx', 'csv2pdf', 'pdf2xlsx', 'xlsx2csv'].includes(conversionType)) {
+          if (excelOptions.sheetName) options.sheetName = excelOptions.sheetName;
+          options.includeCharts = excelOptions.includeCharts;
+          options.preserveFormatting = excelOptions.preserveFormatting;
+        }
+        // PowerPoint options
+        else if (['pptx2pdf', 'pptx2html', 'pptx2md', 'pptx2images'].includes(conversionType)) {
+          if (pptxOptions.slideRange) options.slideRange = pptxOptions.slideRange;
+          options.includeNotes = pptxOptions.includeNotes;
+          options.imageQuality = pptxOptions.imageQuality;
+        }
+        // Image options
+        else if (['image2pdf', 'image2text', 'image2image', 'pdf2images'].includes(conversionType)) {
+          if (imageOptions.imageFormat) options.imageFormat = imageOptions.imageFormat;
+          options.imageQuality = imageOptions.imageQuality;
+          if (imageOptions.resize) options.resize = imageOptions.resize;
+          if (imageOptions.crop) options.crop = imageOptions.crop;
+        }
+        // Advanced PDF options
+        else if (['pdf2split', 'pdf2compress', 'pdf2encrypt', 'pdf2watermark', 'pdf2pages', 'pdf2ocr_layer'].includes(conversionType)) {
+          options.compressionLevel = advancedPdfOptions.compressionLevel;
+          if (advancedPdfOptions.userPassword) options.userPassword = advancedPdfOptions.userPassword;
+          if (advancedPdfOptions.ownerPassword) options.ownerPassword = advancedPdfOptions.ownerPassword;
+          if (advancedPdfOptions.watermarkText) options.watermarkText = advancedPdfOptions.watermarkText;
+          if (advancedPdfOptions.watermarkImage) options.watermarkImage = advancedPdfOptions.watermarkImage;
+          if (advancedPdfOptions.pageRange) options.pageRange = advancedPdfOptions.pageRange;
+          if (advancedPdfOptions.rotate) options.rotate = advancedPdfOptions.rotate;
+          if (advancedPdfOptions.removePages) options.removePages = advancedPdfOptions.removePages;
+        }
+        // EPUB options
+        else if (['epub2pdf', 'epub2html', 'epub2md', 'md2epub', 'docx2epub', 'html2epub'].includes(conversionType)) {
+          if (epubOptions.epubTitle) options.epubTitle = epubOptions.epubTitle;
+          if (epubOptions.epubAuthor) options.epubAuthor = epubOptions.epubAuthor;
+          if (epubOptions.epubLanguage) options.epubLanguage = epubOptions.epubLanguage;
+          options.includeImages = epubOptions.includeImages;
+          options.tocDepth = epubOptions.tocDepth;
         }
         // Add other conversion-specific options here as needed
 
@@ -317,9 +455,67 @@ const ConversionPage: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-4 space-y-4 flex flex-col min-h-screen">
-      <Header />
-      <main className="flex-grow space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-light-background via-light-surface to-light-background dark:from-dark-background dark:via-dark-surface dark:to-dark-background">
+      <div className="container mx-auto px-6 py-8 max-w-6xl">
+        <Header />
+
+        {/* Trial Status Bar */}
+        <div className="flex items-center justify-between mt-6 p-4 bg-light-surface dark:bg-dark-surface rounded-lg border border-light-border dark:border-dark-border">
+          <TrialStatus />
+          <button
+            onClick={() => setShowLicenseDialog(true)}
+            className="px-4 py-2 bg-gradient-to-r from-light-gradientStart to-light-gradientEnd dark:from-dark-gradientStart dark:to-dark-gradientEnd text-white font-medium rounded-lg hover:opacity-90 transition-opacity"
+          >
+            Activate License
+          </button>
+        </div>
+
+        {/* License Dialog */}
+        <LicenseDialog
+          isOpen={showLicenseDialog}
+          onClose={() => setShowLicenseDialog(false)}
+          onActivated={() => {
+            setConversionLog(prev => [...prev, '✅ License activated successfully! All features unlocked.']);
+          }}
+        />
+
+        <main className="space-y-8 mt-8">
+          {/* Progress Stepper */}
+          <div className="flex items-center justify-center mb-8">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-gradient-to-r from-light-gradientStart to-light-gradientEnd dark:from-dark-gradientStart dark:to-dark-gradientEnd rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+                  1
+                </div>
+                <div className="w-16 h-1 bg-gradient-to-r from-light-gradientStart to-light-gradientEnd dark:from-dark-gradientStart dark:to-dark-gradientEnd mx-2 rounded-full"></div>
+              </div>
+              <div className="flex items-center">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-lg transition-all duration-300 ${
+                  selectedFiles.length > 0
+                    ? 'bg-gradient-to-r from-light-gradientStart to-light-gradientEnd dark:from-dark-gradientStart dark:to-dark-gradientEnd text-white'
+                    : 'bg-light-surfaceElevated dark:bg-dark-surfaceElevated text-light-textMuted dark:text-dark-textMuted border-2 border-light-border dark:border-dark-border'
+                }`}>
+                  2
+                </div>
+                <div className={`w-16 h-1 mx-2 rounded-full transition-all duration-300 ${
+                  selectedFiles.length > 0
+                    ? 'bg-gradient-to-r from-light-gradientStart to-light-gradientEnd dark:from-dark-gradientStart dark:to-dark-gradientEnd'
+                    : 'bg-light-border dark:bg-dark-border'
+                }`}></div>
+              </div>
+              <div className="flex items-center">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-lg transition-all duration-300 ${
+                  selectedFiles.length > 0 && conversionType !== 'merge_to_pdf' ||
+                  (conversionType === 'merge_to_pdf' && selectedFiles.length >= 2 && outputDir)
+                    ? 'bg-gradient-to-r from-light-gradientStart to-light-gradientEnd dark:from-dark-gradientStart dark:to-dark-gradientEnd text-white'
+                    : 'bg-light-surfaceElevated dark:bg-dark-surfaceElevated text-light-textMuted dark:text-dark-textMuted border-2 border-light-border dark:border-dark-border'
+                }`}>
+                  3
+                </div>
+              </div>
+            </div>
+          </div>
+
         <ConversionTypeSelect
           conversionType={conversionType}
           onConversionTypeChange={(newType) => {
@@ -337,8 +533,14 @@ const ConversionPage: React.FC = () => {
           }}
         />
 
-        <section className="p-6 border border-dark-border rounded-lg shadow-lg bg-dark-surface space-y-4">
-          <h2 className="text-2xl font-semibold mb-3 text-dark-textPrimary">2. Select Files & Output</h2>
+        <Card variant="elevated" className="animate-fade-in">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-8 h-8 bg-gradient-to-r from-light-gradientStart to-light-gradientEnd dark:from-dark-gradientStart dark:to-dark-gradientEnd rounded-lg flex items-center justify-center text-white font-bold">
+              2
+            </div>
+            <h2 className="text-2xl font-semibold text-light-textPrimary dark:text-dark-textPrimary">Select Files & Output</h2>
+          </div>
+          <div className="space-y-4">
           <FileInput
             selectedFiles={selectedFiles}
             onSelectFilesClick={handleSelectFilesClick}
@@ -366,7 +568,8 @@ const ConversionPage: React.FC = () => {
                 : "Select Output Directory (Optional)"
             }
           />
-        </section>
+          </div>
+        </Card>
 
         {/* Conditionally render MergeOptions only for 'merge_to_pdf' and if files are selected */}
         {conversionType === 'merge_to_pdf' && selectedFiles.length > 0 && (
@@ -386,22 +589,43 @@ const ConversionPage: React.FC = () => {
           onOcrLangChange={setOcrLang}
           pdfToEditableOptions={pdfToEditableOptions}
           onPdfToEditableOptionsChange={setPdfToEditableOptions}
+          txtToPdfOptions={txtToPdfOptions}
+          onTxtToPdfOptionsChange={setTxtToPdfOptions}
+          excelOptions={excelOptions}
+          onExcelOptionsChange={setExcelOptions}
+          pptxOptions={pptxOptions}
+          onPptxOptionsChange={setPptxOptions}
+          imageOptions={imageOptions}
+          onImageOptionsChange={setImageOptions}
+          advancedPdfOptions={advancedPdfOptions}
+          onAdvancedPdfOptionsChange={setAdvancedPdfOptions}
+          epubOptions={epubOptions}
+          onEpubOptionsChange={setEpubOptions}
         />
 
-        <section className="p-6 border border-dark-border rounded-lg shadow-lg bg-dark-surface">
-          <h2 className="text-2xl font-semibold mb-3 text-dark-textPrimary">3. Start Conversion</h2>
-          <button
+        <Card variant="elevated" className="animate-fade-in">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-8 h-8 bg-gradient-to-r from-light-gradientStart to-light-gradientEnd dark:from-dark-gradientStart dark:to-dark-gradientEnd rounded-lg flex items-center justify-center text-white font-bold">
+              3
+            </div>
+            <h2 className="text-2xl font-semibold text-light-textPrimary dark:text-dark-textPrimary">Start Conversion</h2>
+          </div>
+          <Button
             onClick={handleRunConversion}
+            variant="primary"
+            size="lg"
+            className="w-full"
             disabled={selectedFiles.length === 0 || !electronAPI || (conversionType === 'merge_to_pdf' && (mergeOrderedFiles.length < 2 || !outputDir || !mergeOutputFileName))}
-            className="w-full bg-dark-primary hover:bg-dark-hoverPrimary text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-150 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-dark-primary focus:ring-opacity-50"
           >
             Run Conversion
-          </button>
-        </section>
+          </Button>
+        </Card>
 
-        <ConversionLog logs={conversionLog} onClearLog={handleClearLog} />
-      </main>
-      <Footer />
+          <ConversionLog logs={conversionLog} onClearLog={handleClearLog} />
+        </main>
+
+        <Footer />
+      </div>
     </div>
   );
 };
