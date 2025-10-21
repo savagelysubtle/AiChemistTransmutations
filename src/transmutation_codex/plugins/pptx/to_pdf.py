@@ -47,7 +47,7 @@ logger = get_log_manager().get_converter_logger("pptx2pdf")
     source_format="pptx",
     target_format="pdf",
     description="Convert PowerPoint presentation to PDF",
-    required_dependencies=["python-pptx", "reportlab"],
+    required_dependencies=["pptx", "reportlab"],
     priority=10,
     version="1.0.0",
 )
@@ -86,15 +86,15 @@ def convert_pptx_to_pdf(
         raise_conversion_error("reportlab is required for PDF generation")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Converting PowerPoint to PDF: {Path(input_path).name}"
+    operation_id = start_operation(
+        f"Converting PowerPoint to PDF: {Path(input_path).name}", total_steps=100
     )
 
     try:
         # Check licensing and file size
         check_feature_access("pptx2pdf")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("pptx2pdf")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("pptx2pdf", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -125,7 +125,7 @@ def convert_pptx_to_pdf(
         if orientation.lower() == "landscape":
             pagesize = (pagesize[1], pagesize[0])  # Swap width/height
 
-        update_progress(operation.id, 10, "Loading PowerPoint file...")
+        update_progress(operation_id, 10, "Loading PowerPoint file...")
 
         # Load PowerPoint file
         try:
@@ -133,7 +133,7 @@ def convert_pptx_to_pdf(
         except Exception as e:
             raise_conversion_error(f"Failed to load PowerPoint file: {e}")
 
-        update_progress(operation.id, 20, "Extracting content...")
+        update_progress(operation_id, 20, "Extracting content...")
 
         # Create PDF document
         doc = SimpleDocTemplate(
@@ -171,7 +171,7 @@ def convert_pptx_to_pdf(
         for slide_idx, slide in enumerate(presentation.slides):
             logger.info(f"Processing slide {slide_idx + 1}/{total_slides}")
             update_progress(
-                operation.id,
+                operation_id,
                 20 + (slide_idx / total_slides) * 60,
                 f"Processing slide {slide_idx + 1}",
             )
@@ -208,7 +208,7 @@ def convert_pptx_to_pdf(
             if slide_idx < total_slides - 1:
                 story.append(PageBreak())
 
-        update_progress(operation.id, 90, "Generating PDF...")
+        update_progress(operation_id, 90, "Generating PDF...")
 
         # Build PDF
         doc.build(story)
@@ -224,7 +224,7 @@ def convert_pptx_to_pdf(
         )
 
         complete_operation(
-            operation.id,
+            operation_id,
             {"output_path": str(output_path), "slides_count": total_slides},
         )
         logger.info(
@@ -243,4 +243,3 @@ def convert_pptx_to_pdf(
             )
         )
         raise_conversion_error(f"Conversion failed: {e}")
-

@@ -2,6 +2,8 @@
 
 import pytest
 
+from transmutation_codex.core.exceptions import ConversionError
+
 # Skip TXT tests - need real PDF generation, mocks don't create actual files
 pytestmark = pytest.mark.skip(
     reason="TXT converter tests need real PDF generation - mocks don't create files. Requires refactoring test approach."
@@ -39,7 +41,7 @@ class TestTXTToPDFConverter:
             yield Path(tmpdirname)
 
     @pytest.fixture
-    def mock_weasyprint(self):
+    def mock_reportlab(self):
         """Mock ReportLab for TXT to PDF testing."""
         with patch(
             "transmutation_codex.plugins.txt.to_pdf.SimpleDocTemplate"
@@ -50,7 +52,7 @@ class TestTXTToPDFConverter:
             yield mock_doc
 
     def test_convert_txt_to_pdf_basic(
-        self, test_txt_path, temp_output_dir, mock_weasyprint
+        self, test_txt_path, temp_output_dir, mock_reportlab
     ):
         """Test basic TXT to PDF conversion."""
         output_path = temp_output_dir / "test_output.pdf"
@@ -63,10 +65,10 @@ class TestTXTToPDFConverter:
         assert result_path == output_path
 
         # Verify WeasyPrint was called
-        mock_weasyprint.assert_called()
+        mock_reportlab.assert_called()
 
     def test_convert_txt_to_pdf_auto_output(
-        self, test_txt_path, temp_output_dir, mock_weasyprint
+        self, test_txt_path, temp_output_dir, mock_reportlab
     ):
         """Test TXT to PDF conversion with auto-generated output path."""
         os.chdir(temp_output_dir)
@@ -79,7 +81,7 @@ class TestTXTToPDFConverter:
         assert result_path.name == "electron_test.pdf"
 
     def test_convert_txt_to_pdf_custom_options(
-        self, test_txt_path, temp_output_dir, mock_weasyprint
+        self, test_txt_path, temp_output_dir, mock_reportlab
     ):
         """Test TXT to PDF conversion with custom options."""
         output_path = temp_output_dir / "test_output.pdf"
@@ -93,8 +95,8 @@ class TestTXTToPDFConverter:
         assert result_path.suffix == ".pdf"
 
         # Verify custom options were applied
-        mock_weasyprint.assert_called()
-        html_content = mock_weasyprint.call_args[0][0]
+        mock_reportlab.assert_called()
+        html_content = mock_reportlab.call_args[0][0]
         assert "font-size: 14px" in html_content
 
     def test_convert_txt_to_pdf_invalid_file(self, temp_output_dir):
@@ -102,7 +104,7 @@ class TestTXTToPDFConverter:
         invalid_path = temp_output_dir / "nonexistent.txt"
         output_path = temp_output_dir / "output.pdf"
 
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(ValidationError):
             convert_txt_to_pdf(invalid_path, output_path)
 
     def test_convert_txt_to_pdf_non_txt_file(self, temp_output_dir):
@@ -115,7 +117,7 @@ class TestTXTToPDFConverter:
         with pytest.raises(ValueError, match="Input file must be a text file"):
             convert_txt_to_pdf(binary_file, output_path)
 
-    def test_progress_tracking(self, test_txt_path, temp_output_dir, mock_weasyprint):
+    def test_progress_tracking(self, test_txt_path, temp_output_dir, mock_reportlab):
         """Test that progress tracking works correctly."""
         output_path = temp_output_dir / "test_output.pdf"
 
@@ -138,9 +140,9 @@ class TestTXTToPDFConverter:
             # Verify progress tracking was called
             mock_start.assert_called_once()
             assert mock_update.call_count > 0
-            mock_complete.assert_called_once_with("test_operation_id", success=True)
+            mock_complete.assert_called_once_with("test_operation_id", {"output_path": str(output_path)})
 
-    def test_event_publishing(self, test_txt_path, temp_output_dir, mock_weasyprint):
+    def test_event_publishing(self, test_txt_path, temp_output_dir, mock_reportlab):
         """Test that conversion events are published."""
         output_path = temp_output_dir / "test_output.pdf"
 
@@ -151,9 +153,9 @@ class TestTXTToPDFConverter:
             mock_publish.assert_called()
             call_args = mock_publish.call_args[0][0]
             assert call_args.event_type == "conversion_started"
-            assert call_args.source == "txt2pdf"
+            assert call_args.conversion_type == "txt2pdf"
 
-    def test_text_parsing(self, temp_output_dir, mock_weasyprint):
+    def test_text_parsing(self, temp_output_dir, mock_reportlab):
         """Test text parsing and HTML generation."""
         # Create test text content
         text_content = """This is a test document.
@@ -182,8 +184,8 @@ End of document.
         assert result_path.suffix == ".pdf"
 
         # Verify HTML generation
-        mock_weasyprint.assert_called()
-        html_content = mock_weasyprint.call_args[0][0]
+        mock_reportlab.assert_called()
+        html_content = mock_reportlab.call_args[0][0]
         assert "This is a test document" in html_content
         assert "<p>" in html_content
         assert "<ul>" in html_content
@@ -196,8 +198,8 @@ End of document.
         output_path = temp_output_dir / "test_output.pdf"
 
         # Mock WeasyPrint to raise an error
-        with patch("transmutation_codex.plugins.txt.to_pdf.HTML") as mock_html:
-            mock_html.return_value.write_pdf.side_effect = Exception("WeasyPrint error")
+        with patch("transmutation_codex.plugins.txt.to_pdf.SimpleDocTemplate") as mock_doc:
+            mock_doc.return_value.write_pdf.side_effect = Exception("WeasyPrint error")
 
             with pytest.raises(RuntimeError, match="Error converting text to PDF"):
                 convert_txt_to_pdf(test_txt_path, output_path)
@@ -211,7 +213,7 @@ End of document.
         txt_to_pdf_converters = registry.get_plugins_for_conversion("txt", "pdf")
         assert len(txt_to_pdf_converters) >= 1
 
-    def test_file_encoding_handling(self, temp_output_dir, mock_weasyprint):
+    def test_file_encoding_handling(self, temp_output_dir, mock_reportlab):
         """Test handling of different file encodings."""
         # Create test content with special characters
         text_content = "Test with special chars: é, ñ, ü, 中文, 🚀"
@@ -227,15 +229,15 @@ End of document.
         assert result_path.suffix == ".pdf"
 
         # Verify special characters are handled
-        mock_weasyprint.assert_called()
-        html_content = mock_weasyprint.call_args[0][0]
+        mock_reportlab.assert_called()
+        html_content = mock_reportlab.call_args[0][0]
         assert "é" in html_content
         assert "ñ" in html_content
         assert "ü" in html_content
         assert "中文" in html_content
         assert "🚀" in html_content
 
-    def test_large_file_handling(self, temp_output_dir, mock_weasyprint):
+    def test_large_file_handling(self, temp_output_dir, mock_reportlab):
         """Test handling of large text files."""
         # Create a large text file
         large_content = "Line of text\n" * 10000  # 10,000 lines
@@ -251,9 +253,9 @@ End of document.
         assert result_path.suffix == ".pdf"
 
         # Verify WeasyPrint was called
-        mock_weasyprint.assert_called()
+        mock_reportlab.assert_called()
 
-    def test_empty_file_handling(self, temp_output_dir, mock_weasyprint):
+    def test_empty_file_handling(self, temp_output_dir, mock_reportlab):
         """Test handling of empty text files."""
         # Create empty text file
         txt_file = temp_output_dir / "empty_test.txt"
@@ -267,4 +269,4 @@ End of document.
         assert result_path.suffix == ".pdf"
 
         # Verify WeasyPrint was called
-        mock_weasyprint.assert_called()
+        mock_reportlab.assert_called()

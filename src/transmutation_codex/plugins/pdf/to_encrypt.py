@@ -84,15 +84,15 @@ def convert_pdf_to_encrypt(
         raise_conversion_error("pikepdf is required for PDF encryption")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Encrypting PDF: {Path(input_path).name}"
+    operation_id = start_operation(
+        f"Encrypting PDF: {Path(input_path).name}", total_steps=100
     )
 
     try:
         # Check licensing and file size
         check_feature_access("pdf2encrypt")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("pdf2encrypt")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("pdf2encrypt", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -126,19 +126,57 @@ def convert_pdf_to_encrypt(
         if encryption_level not in ["rc4", "aes128", "aes256"]:
             raise_conversion_error(f"Invalid encryption level: {encryption_level}")
 
-        # Check if at least one password is provided
+        # Configure permissions
+        permissions = pikepdf.Permissions(
+            accessibility=True,
+            extract=extract_perm,
+            modify_annotation=annotate_perm,
+            modify_assembly=assemble_perm,
+            modify_form=form_fill_perm,
+            modify_other=modify_perm,
+            print_lowres=print_perm,
+            print_highres=print_high_perm,
+        )
+
+        # Configure encryption
         if not user_password and not owner_password:
-            raise_conversion_error(
-                "At least one password (user or owner) must be provided"
+            logger.info(
+                "No passwords provided - applying default permissions without encryption"
+            )
+            # No encryption, just save with default permissions
+            encryption_params = {}
+            logger.info("Default permissions configured (no encryption)")
+        else:
+            logger.info(f"Configuring encryption with level: {encryption_level}")
+            if user_password:
+                logger.info("User password provided")
+            if owner_password:
+                logger.info("Owner password provided")
+
+            # Set encryption level (R parameter)
+            if encryption_level == "rc4":
+                R = 2  # RC4 40-bit
+            elif encryption_level == "aes128":
+                R = 4  # AES 128-bit
+            elif encryption_level == "aes256":
+                R = 6  # AES 256-bit
+            else:
+                R = 6  # Default to AES 256-bit
+
+            # Create encryption object
+            encryption_obj = pikepdf.Encryption(
+                owner=owner_password or "",
+                user=user_password or "",
+                R=R,
+                allow=permissions,
+                aes=(encryption_level != "rc4"),
+                metadata=True,
             )
 
-        logger.info(f"Using encryption level: {encryption_level}")
-        if user_password:
-            logger.info("User password provided")
-        if owner_password:
-            logger.info("Owner password provided")
+            encryption_params = {"encryption": encryption_obj}
+            logger.info(f"Encryption parameters configured: {encryption_level}")
 
-        update_progress(operation.id, 10, "Loading PDF file...")
+        update_progress(operation_id, 10, "Loading PDF file...")
 
         # Load PDF file
         try:
@@ -149,53 +187,9 @@ def convert_pdf_to_encrypt(
         total_pages = len(pdf.pages)
         logger.info(f"PDF has {total_pages} pages")
 
-        update_progress(operation.id, 20, "Configuring encryption...")
+        update_progress(operation_id, 20, "Configuring encryption...")
 
-        # Configure encryption
-        try:
-            # Set up encryption parameters
-            encryption_params = {}
-
-            if user_password:
-                encryption_params["user_password"] = user_password
-            if owner_password:
-                encryption_params["owner_password"] = owner_password
-
-            # Set encryption level
-            if encryption_level == "rc4":
-                encryption_params["encryption"] = pikepdf.EncryptionAlgorithm.rc4
-            elif encryption_level == "aes128":
-                encryption_params["encryption"] = pikepdf.EncryptionAlgorithm.aes128
-            elif encryption_level == "aes256":
-                encryption_params["encryption"] = pikepdf.EncryptionAlgorithm.aes256
-
-            # Set permissions
-            permission_flags = 0
-            if print_perm:
-                permission_flags |= pikepdf.PermissionFlag.print_low
-            if modify_perm:
-                permission_flags |= pikepdf.PermissionFlag.modify
-            if copy_perm:
-                permission_flags |= pikepdf.PermissionFlag.copy
-            if annotate_perm:
-                permission_flags |= pikepdf.PermissionFlag.annotate
-            if form_fill_perm:
-                permission_flags |= pikepdf.PermissionFlag.form
-            if extract_perm:
-                permission_flags |= pikepdf.PermissionFlag.extract
-            if assemble_perm:
-                permission_flags |= pikepdf.PermissionFlag.assemble
-            if print_high_perm:
-                permission_flags |= pikepdf.PermissionFlag.print_high
-
-            encryption_params["permissions"] = permission_flags
-
-            logger.info(f"Encryption parameters configured: {encryption_level}")
-
-        except Exception as e:
-            raise_conversion_error(f"Failed to configure encryption: {e}")
-
-        update_progress(operation.id, 30, "Applying encryption...")
+        update_progress(operation_id, 30, "Applying encryption...")
 
         # Apply encryption
         try:
@@ -205,26 +199,25 @@ def convert_pdf_to_encrypt(
         except Exception as e:
             raise_conversion_error(f"Failed to save encrypted PDF: {e}")
 
-        update_progress(operation.id, 90, "Verifying encryption...")
+        update_progress(operation_id, 90, "Verifying encryption...")
 
         # Verify encryption by trying to open without password
-        try:
-            test_pdf = pikepdf.Pdf.open(output_path)
-            # If we can open without password, encryption failed
-            if not user_password:
-                logger.warning(
-                    "PDF opened without password - encryption may have failed"
-                )
-            else:
+        if user_password or owner_password:
+            try:
+                test_pdf = pikepdf.Pdf.open(output_path)
+                # If we can open without password, encryption failed
                 logger.error("PDF opened without password - encryption failed")
                 raise_conversion_error("Encryption verification failed")
-        except pikepdf.PasswordError:
-            # This is expected - PDF should require password
-            logger.info("Encryption verified - PDF requires password")
-        except Exception as e:
-            logger.warning(f"Encryption verification inconclusive: {e}")
+            except pikepdf.PasswordError:
+                # This is expected - PDF should require password
+                logger.info("Encryption verified - PDF requires password")
+            except Exception as e:
+                logger.warning(f"Encryption verification inconclusive: {e}")
+        else:
+            # No encryption applied, just verify file was created
+            logger.info("No encryption applied - file permissions set")
 
-        update_progress(operation.id, 95, "Finalizing...")
+        update_progress(operation_id, 95, "Finalizing...")
 
         # Publish success event
         publish(
@@ -237,7 +230,7 @@ def convert_pdf_to_encrypt(
         )
 
         complete_operation(
-            operation.id,
+            operation_id,
             {
                 "output_path": str(output_path),
                 "encryption_level": encryption_level,

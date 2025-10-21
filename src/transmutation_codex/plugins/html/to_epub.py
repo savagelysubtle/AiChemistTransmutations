@@ -44,7 +44,7 @@ logger = get_log_manager().get_converter_logger("html2epub")
     source_format="html",
     target_format="epub",
     description="Convert HTML to EPUB format",
-    required_dependencies=["ebooklib", "beautifulsoup4"],
+    required_dependencies=["ebooklib", "bs4"],
     priority=10,
     version="1.0.0",
 )
@@ -91,15 +91,13 @@ def convert_html_to_epub(
         raise_conversion_error("beautifulsoup4 is required for HTML parsing")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Converting HTML to EPUB: {Path(input_path).name}"
-    )
+    operation_id = start_operation(f"Converting HTML to EPUB: {Path(input_path).name}", total_steps=100)
 
     try:
         # Check licensing and file size
         check_feature_access("html2epub")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("html2epub")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("html2epub", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -122,7 +120,7 @@ def convert_html_to_epub(
         chapter_split = kwargs.get("chapter_split", "h1")
         preserve_styles = kwargs.get("preserve_styles", False)
 
-        update_progress(operation.id, 10, "Reading HTML file...")
+        update_progress(operation_id, 10, "Reading HTML file...")
 
         # Read HTML file
         try:
@@ -131,7 +129,7 @@ def convert_html_to_epub(
         except Exception as e:
             raise_conversion_error(f"Failed to read HTML file: {e}")
 
-        update_progress(operation.id, 20, "Parsing HTML content...")
+        update_progress(operation_id, 20, "Parsing HTML content...")
 
         # Parse HTML
         soup = BeautifulSoup(html_content, "html.parser")
@@ -142,7 +140,7 @@ def convert_html_to_epub(
             if title_tag:
                 title = title_tag.get_text().strip()
 
-        update_progress(operation.id, 30, "Creating EPUB book...")
+        update_progress(operation_id, 30, "Creating EPUB book...")
 
         # Create EPUB book
         book = epub.EpubBook()
@@ -171,7 +169,7 @@ def convert_html_to_epub(
         )
         book.add_item(nav_css)
 
-        update_progress(operation.id, 40, "Processing HTML content...")
+        update_progress(operation_id, 40, "Processing HTML content...")
 
         # Clean up HTML content
         _clean_html_content(soup)
@@ -182,7 +180,7 @@ def convert_html_to_epub(
         else:
             chapters = [soup]
 
-        update_progress(operation.id, 50, "Creating EPUB chapters...")
+        update_progress(operation_id, 50, "Creating EPUB chapters...")
 
         # Create EPUB chapters
         spine = ["nav"]
@@ -207,7 +205,7 @@ def convert_html_to_epub(
             spine.append(chapter)
             toc.append(chapter)
 
-        update_progress(operation.id, 70, "Adding navigation...")
+        update_progress(operation_id, 70, "Adding navigation...")
 
         # Add navigation
         book.toc = toc
@@ -217,7 +215,7 @@ def convert_html_to_epub(
         book.add_item(epub.EpubNcx())
         book.add_item(epub.EpubNav())
 
-        update_progress(operation.id, 90, "Saving EPUB file...")
+        update_progress(operation_id, 90, "Saving EPUB file...")
 
         # Write EPUB file
         try:
@@ -235,7 +233,7 @@ def convert_html_to_epub(
             )
         )
 
-        complete_operation(operation.id, {"output_path": str(output_path)})
+        complete_operation(operation_id, {"output_path": str(output_path)})
         logger.info(f"HTML to EPUB conversion completed: {output_path}")
 
         return output_path

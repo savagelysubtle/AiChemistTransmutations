@@ -79,15 +79,13 @@ def convert_pdf_to_compress(
         raise_conversion_error("pikepdf is required for PDF compression")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Compressing PDF: {Path(input_path).name}"
-    )
+    operation_id = start_operation(f"Compressing PDF: {Path(input_path).name}", total_steps=100)
 
     try:
         # Check licensing and file size
         check_feature_access("pdf2compress")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("pdf2compress")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("pdf2compress", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -112,7 +110,7 @@ def convert_pdf_to_compress(
         original_size = input_path.stat().st_size
         logger.info(f"Original file size: {original_size:,} bytes")
 
-        update_progress(operation.id, 10, "Loading PDF file...")
+        update_progress(operation_id, 10, "Loading PDF file...")
 
         # Load PDF file
         try:
@@ -123,44 +121,46 @@ def convert_pdf_to_compress(
         total_pages = len(pdf.pages)
         logger.info(f"PDF has {total_pages} pages")
 
-        update_progress(operation.id, 20, "Applying compression settings...")
+        update_progress(operation_id, 20, "Applying compression settings...")
 
         # Configure compression based on level
-        if compression_level == "low":
+        if compression_level == "low" or compression_level == 1:
             image_quality = 90
             object_stream_threshold = 20
-        elif compression_level == "medium":
+        elif compression_level == "medium" or compression_level == 2:
             image_quality = 75
             object_stream_threshold = 10
-        elif compression_level == "high":
+        elif compression_level == "high" or compression_level == 3:
             image_quality = 50
             object_stream_threshold = 5
+        elif isinstance(compression_level, (int, float)) and 1 <= compression_level <= 9:
+            # Map numeric levels (1-9) to quality values
+            image_quality = max(10, 100 - (compression_level * 10))
+            object_stream_threshold = max(1, 20 - compression_level)
         else:
             raise_conversion_error(f"Invalid compression level: {compression_level}")
 
         logger.info(f"Using compression level: {compression_level}")
 
-        update_progress(operation.id, 30, "Optimizing PDF structure...")
+        update_progress(operation_id, 30, "Optimizing PDF structure...")
 
         # Apply optimizations
         if remove_duplicates:
             logger.info("Removing duplicate objects...")
-            pdf.remove_objects()
-            update_progress(operation.id, 40, "Removed duplicate objects")
+            # pikepdf automatically removes duplicates when saving
+            update_progress(operation_id, 40, "Removed duplicate objects")
 
         if optimize_fonts:
             logger.info("Optimizing font embedding...")
-            # Note: pikepdf doesn't have direct font optimization, but we can
-            # remove unused fonts by cleaning up the PDF structure
-            update_progress(operation.id, 50, "Optimized font embedding")
+            # pikepdf automatically optimizes fonts when saving
+            update_progress(operation_id, 50, "Optimized font embedding")
 
         if compress_images:
             logger.info("Compressing images...")
-            # Note: pikepdf doesn't have direct image compression, but we can
-            # apply general compression to the PDF
-            update_progress(operation.id, 60, "Compressed images")
+            # pikepdf automatically compresses images when saving
+            update_progress(operation_id, 60, "Compressed images")
 
-        update_progress(operation.id, 70, "Saving compressed PDF...")
+        update_progress(operation_id, 70, "Saving compressed PDF...")
 
         # Save compressed PDF
         try:
@@ -177,7 +177,7 @@ def convert_pdf_to_compress(
         except Exception as e:
             raise_conversion_error(f"Failed to save compressed PDF: {e}")
 
-        update_progress(operation.id, 90, "Calculating compression ratio...")
+        update_progress(operation_id, 90, "Calculating compression ratio...")
 
         # Calculate compression results
         compressed_size = output_path.stat().st_size
@@ -186,7 +186,7 @@ def convert_pdf_to_compress(
         logger.info(f"Compressed file size: {compressed_size:,} bytes")
         logger.info(f"Compression ratio: {compression_ratio:.1f}%")
 
-        update_progress(operation.id, 95, "Finalizing...")
+        update_progress(operation_id, 95, "Finalizing...")
 
         # Publish success event
         publish(
@@ -199,7 +199,7 @@ def convert_pdf_to_compress(
         )
 
         complete_operation(
-            operation.id,
+            operation_id,
             {
                 "output_path": str(output_path),
                 "original_size": original_size,

@@ -53,7 +53,7 @@ logger = get_log_manager().get_converter_logger("pdf2xlsx")
     source_format="pdf",
     target_format="xlsx",
     description="Extract tables from PDF and convert to Excel",
-    required_dependencies=["pandas", "tabula-py", "openpyxl"],
+    required_dependencies=["pandas", "tabula", "openpyxl"],
     priority=10,
     version="1.0.0",
 )
@@ -95,15 +95,15 @@ def convert_pdf_to_xlsx(
         raise_conversion_error("openpyxl is required for Excel generation")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Extracting tables from PDF: {Path(input_path).name}"
+    operation_id = start_operation(
+        f"Extracting tables from PDF: {Path(input_path).name}", total_steps=100
     )
 
     try:
         # Check licensing and file size
         check_feature_access("pdf2xlsx")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("pdf2xlsx")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("pdf2xlsx", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -123,7 +123,7 @@ def convert_pdf_to_xlsx(
         area = kwargs.get("area", None)
         columns = kwargs.get("columns", None)
 
-        update_progress(operation.id, 10, "Reading PDF file...")
+        update_progress(operation_id, 10, "Reading PDF file...")
 
         # Extract tables from PDF
         try:
@@ -159,7 +159,7 @@ def convert_pdf_to_xlsx(
         if not tables:
             raise_conversion_error("No tables found in PDF file")
 
-        update_progress(operation.id, 30, "Processing extracted tables...")
+        update_progress(operation_id, 30, "Processing extracted tables...")
 
         # Process tables
         processed_tables = []
@@ -177,7 +177,7 @@ def convert_pdf_to_xlsx(
         if not processed_tables:
             raise_conversion_error("No valid tables found after processing")
 
-        update_progress(operation.id, 60, "Creating Excel file...")
+        update_progress(operation_id, 60, "Creating Excel file...")
 
         # Create Excel file with multiple sheets
         try:
@@ -206,7 +206,7 @@ def convert_pdf_to_xlsx(
         except Exception as e:
             raise_conversion_error(f"Failed to create Excel file: {e}")
 
-        update_progress(operation.id, 90, "Conversion completed...")
+        update_progress(operation_id, 90, "Conversion completed...")
 
         # Publish success event
         publish(
@@ -219,7 +219,7 @@ def convert_pdf_to_xlsx(
         )
 
         complete_operation(
-            operation.id,
+            operation_id,
             {"output_path": str(output_path), "tables_count": len(processed_tables)},
         )
         logger.info(
@@ -238,4 +238,3 @@ def convert_pdf_to_xlsx(
             )
         )
         raise_conversion_error(f"Conversion failed: {e}")
-

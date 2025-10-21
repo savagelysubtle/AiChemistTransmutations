@@ -45,7 +45,7 @@ logger = get_log_manager().get_converter_logger("pdf2images")
     source_format="pdf",
     target_format="images",
     description="Convert PDF pages to image files",
-    required_dependencies=["pdf2image", "Pillow"],
+    required_dependencies=["pdf2image", "PIL"],
     priority=10,
     version="1.0.0",
 )
@@ -85,15 +85,15 @@ def convert_pdf_to_images(
         raise_conversion_error("Pillow is required for image processing")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Converting PDF to images: {Path(input_path).name}"
+    operation_id = start_operation(
+        f"Converting PDF to images: {Path(input_path).name}", total_steps=100
     )
 
     try:
         # Check licensing and file size
         check_feature_access("pdf2images")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("pdf2images")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("pdf2images", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -128,7 +128,7 @@ def convert_pdf_to_images(
         if not 50 <= dpi <= 1200:
             raise_conversion_error(f"DPI must be between 50 and 1200, got: {dpi}")
 
-        update_progress(operation.id, 10, "Loading PDF file...")
+        update_progress(operation_id, 10, "Loading PDF file...")
 
         # Determine page range
         if page_range == "all":
@@ -178,7 +178,7 @@ def convert_pdf_to_images(
             if last_page is not None:
                 pages = [p for p in pages if p < last_page]
 
-        update_progress(operation.id, 20, "Converting PDF pages...")
+        update_progress(operation_id, 20, "Converting PDF pages...")
 
         # Convert PDF to images
         try:
@@ -203,14 +203,14 @@ def convert_pdf_to_images(
         if not images:
             raise_conversion_error("No pages were converted")
 
-        update_progress(operation.id, 60, "Saving images...")
+        update_progress(operation_id, 60, "Saving images...")
 
         # Save images
         exported_files = []
         for i, image in enumerate(images):
             logger.info(f"Saving page {i + 1}/{len(images)}")
             update_progress(
-                operation.id, 60 + (i / len(images)) * 30, f"Saving page {i + 1}"
+                operation_id, 60 + (i / len(images)) * 30, f"Saving page {i + 1}"
             )
 
             # Determine page number
@@ -232,7 +232,7 @@ def convert_pdf_to_images(
             image.save(image_path, **save_kwargs)
             exported_files.append(str(image_path))
 
-        update_progress(operation.id, 90, "Conversion completed...")
+        update_progress(operation_id, 90, "Conversion completed...")
 
         # Publish success event
         publish(
@@ -245,7 +245,7 @@ def convert_pdf_to_images(
         )
 
         complete_operation(
-            operation.id, {"output_path": str(output_path), "files": exported_files}
+            operation_id, {"output_path": str(output_path), "files": exported_files}
         )
         logger.info(
             f"PDF to images conversion completed: {output_path} ({len(images)} images)"
@@ -263,4 +263,3 @@ def convert_pdf_to_images(
             )
         )
         raise_conversion_error(f"Conversion failed: {e}")
-

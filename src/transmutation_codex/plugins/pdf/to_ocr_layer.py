@@ -64,7 +64,7 @@ logger = get_log_manager().get_converter_logger("pdf2ocr")
 
 @converter(
     source_format="pdf",
-    target_format="ocr",
+    target_format="ocr_layer",
     description="Add OCR text layer to PDF for searchability",
     required_dependencies=["pikepdf", "pytesseract", "pdf2image", "reportlab"],
     priority=10,
@@ -119,15 +119,15 @@ def convert_pdf_to_ocr_layer(
         raise_conversion_error("reportlab is required for PDF generation")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Adding OCR layer to PDF: {Path(input_path).name}"
+    operation_id = start_operation(
+        f"Adding OCR layer to PDF: {Path(input_path).name}", total_steps=100
     )
 
     try:
         # Check licensing and file size
         check_feature_access("pdf2ocr")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("pdf2ocr")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("pdf2ocr", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -160,7 +160,7 @@ def convert_pdf_to_ocr_layer(
         logger.info(f"OCR language: {language}")
         logger.info(f"DPI: {dpi}, Preprocessing: {preprocess}")
 
-        update_progress(operation.id, 10, "Loading PDF file...")
+        update_progress(operation_id, 10, "Loading PDF file...")
 
         # Load PDF file
         try:
@@ -175,7 +175,7 @@ def convert_pdf_to_ocr_layer(
         pages_to_process = _parse_page_range(page_range, total_pages)
         logger.info(f"Processing pages: {pages_to_process}")
 
-        update_progress(operation.id, 20, "Converting pages to images...")
+        update_progress(operation_id, 20, "Converting pages to images...")
 
         # Convert PDF pages to images
         try:
@@ -190,14 +190,14 @@ def convert_pdf_to_ocr_layer(
         except Exception as e:
             raise_conversion_error(f"Failed to convert PDF to images: {e}")
 
-        update_progress(operation.id, 30, "Processing OCR...")
+        update_progress(operation_id, 30, "Processing OCR...")
 
         # Process OCR for each page
         ocr_results = []
         for i, page_num in enumerate(pages_to_process):
             logger.info(f"Processing OCR for page {page_num}")
             update_progress(
-                operation.id,
+                operation_id,
                 30 + (i / len(pages_to_process)) * 50,
                 f"OCR processing page {page_num}",
             )
@@ -233,7 +233,7 @@ def convert_pdf_to_ocr_layer(
                 logger.error(f"OCR failed for page {page_num}: {e}")
                 continue
 
-        update_progress(operation.id, 80, "Creating OCR text layer...")
+        update_progress(operation_id, 80, "Creating OCR text layer...")
 
         # Create OCR text layer PDF
         try:
@@ -243,7 +243,7 @@ def convert_pdf_to_ocr_layer(
         except Exception as e:
             raise_conversion_error(f"Failed to create OCR text layer: {e}")
 
-        update_progress(operation.id, 90, "Merging with original PDF...")
+        update_progress(operation_id, 90, "Merging with original PDF...")
 
         # Merge OCR layer with original PDF
         try:
@@ -263,7 +263,7 @@ def convert_pdf_to_ocr_layer(
         except Exception as e:
             raise_conversion_error(f"Failed to merge OCR layer: {e}")
 
-        update_progress(operation.id, 95, "Saving OCR-enhanced PDF...")
+        update_progress(operation_id, 95, "Saving OCR-enhanced PDF...")
 
         # Save OCR-enhanced PDF
         try:
@@ -284,7 +284,7 @@ def convert_pdf_to_ocr_layer(
         )
 
         complete_operation(
-            operation.id,
+            operation_id,
             {
                 "output_path": str(output_path),
                 "pages_processed": len(pages_to_process),

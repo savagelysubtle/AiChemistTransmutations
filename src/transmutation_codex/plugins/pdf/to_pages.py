@@ -79,15 +79,15 @@ def convert_pdf_to_pages(
         raise_conversion_error("pikepdf is required for PDF page operations")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Performing page operations on PDF: {Path(input_path).name}"
+    operation_id = start_operation(
+        f"Performing page operations on PDF: {Path(input_path).name}", total_steps=100
     )
 
     try:
         # Check licensing and file size
         check_feature_access("pdf2pages")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("pdf2pages")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("pdf2pages", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -101,31 +101,64 @@ def convert_pdf_to_pages(
 
         logger.info(f"Performing page operations on PDF: {input_path} -> {output_path}")
 
-        # Parse options
-        operation_type = kwargs.get("operation", "extract")
+        # Parse options from GUI
+        page_range = kwargs.get("pageRange", "")
+        rotation = kwargs.get("rotate", 0)
+        remove_pages = kwargs.get("removePages", "")
+
+        # Parse legacy options if provided
+        operation_type = kwargs.get("operation", "")
         page_numbers = kwargs.get("page_numbers", [])
-        rotation = kwargs.get("rotation", 0)
         output_format = kwargs.get("output_format", "single")
         output_prefix = kwargs.get("output_prefix", "page")
+
+        # Determine operation type and page numbers based on GUI inputs
+        if remove_pages:
+            # Remove pages operation
+            operation_type = "remove"
+            page_numbers = _parse_page_range(remove_pages)
+            logger.info(f"Remove pages operation: {page_numbers}")
+        elif rotation != 0:
+            # Rotate pages operation
+            operation_type = "rotate"
+            if page_range:
+                page_numbers = _parse_page_range(page_range)
+            else:
+                # Rotate all pages if no specific range provided
+                page_numbers = []
+            logger.info(
+                f"Rotate pages operation: {rotation}° on pages {page_numbers if page_numbers else 'all'}"
+            )
+        elif page_range:
+            # Extract pages operation
+            operation_type = "extract"
+            page_numbers = _parse_page_range(page_range)
+            logger.info(f"Extract pages operation: {page_numbers}")
+        elif page_numbers:
+            # Legacy mode with explicit page_numbers
+            if not operation_type:
+                operation_type = "extract"
+            logger.info(f"Legacy operation: {operation_type} on pages {page_numbers}")
+        else:
+            # No operation specified - default to extract all pages
+            operation_type = "extract"
+            page_numbers = []
+            logger.info("No specific operation - extracting all pages")
 
         # Validate operation type
         if operation_type not in ["extract", "rotate", "remove"]:
             raise_conversion_error(f"Invalid operation type: {operation_type}")
 
-        # Validate page numbers
-        if not page_numbers:
-            raise_conversion_error("page_numbers must be provided")
-
         # Validate rotation
         if operation_type == "rotate" and rotation not in [0, 90, 180, 270]:
             raise_conversion_error(f"Invalid rotation angle: {rotation}")
 
-        logger.info(f"Operation: {operation_type}")
-        logger.info(f"Page numbers: {page_numbers}")
+        logger.info(f"Final operation: {operation_type}")
+        logger.info(f"Page numbers: {page_numbers if page_numbers else 'all'}")
         if operation_type == "rotate":
             logger.info(f"Rotation: {rotation}°")
 
-        update_progress(operation.id, 10, "Loading PDF file...")
+        update_progress(operation_id, 10, "Loading PDF file...")
 
         # Load PDF file
         try:
@@ -136,12 +169,17 @@ def convert_pdf_to_pages(
         total_pages = len(pdf.pages)
         logger.info(f"PDF has {total_pages} pages")
 
+        # If no specific pages provided, use all pages
+        if not page_numbers:
+            page_numbers = list(range(1, total_pages + 1))
+            logger.info(f"Using all pages: {page_numbers}")
+
         # Validate page numbers
         for page_num in page_numbers:
             if not 1 <= page_num <= total_pages:
                 raise_conversion_error(f"Invalid page number: {page_num}")
 
-        update_progress(operation.id, 20, "Performing page operations...")
+        update_progress(operation_id, 20, "Performing page operations...")
 
         # Perform page operations
         try:
@@ -157,7 +195,7 @@ def convert_pdf_to_pages(
         except Exception as e:
             raise_conversion_error(f"Failed to perform page operation: {e}")
 
-        update_progress(operation.id, 30, "Saving result...")
+        update_progress(operation_id, 30, "Saving result...")
 
         # Save result
         try:
@@ -184,7 +222,7 @@ def convert_pdf_to_pages(
         except Exception as e:
             raise_conversion_error(f"Failed to save result: {e}")
 
-        update_progress(operation.id, 95, "Finalizing...")
+        update_progress(operation_id, 95, "Finalizing...")
 
         # Publish success event
         publish(
@@ -197,7 +235,7 @@ def convert_pdf_to_pages(
         )
 
         complete_operation(
-            operation.id,
+            operation_id,
             {
                 "output_path": str(output_path),
                 "output_files": output_files,
@@ -238,7 +276,8 @@ def _rotate_pages(
 ) -> pikepdf.Pdf:
     """Rotate specific pages in PDF."""
     # Create a copy of the PDF
-    new_pdf = pikepdf.Pdf.open(pdf)
+    new_pdf = pikepdf.Pdf.new()
+    new_pdf.pages.extend(pdf.pages)
 
     for page_num in page_numbers:
         # Convert to 0-based indexing
@@ -247,11 +286,11 @@ def _rotate_pages(
 
         # Apply rotation
         if rotation == 90:
-            page.rotate(90)
+            page.rotate(90, relative=False)
         elif rotation == 180:
-            page.rotate(180)
+            page.rotate(180, relative=False)
         elif rotation == 270:
-            page.rotate(270)
+            page.rotate(270, relative=False)
 
     return new_pdf
 
@@ -259,7 +298,8 @@ def _rotate_pages(
 def _remove_pages(pdf: pikepdf.Pdf, page_numbers: list[int]) -> pikepdf.Pdf:
     """Remove specific pages from PDF."""
     # Create a copy of the PDF
-    new_pdf = pikepdf.Pdf.open(pdf)
+    new_pdf = pikepdf.Pdf.new()
+    new_pdf.pages.extend(pdf.pages)
 
     # Sort page numbers in descending order to avoid index issues
     page_numbers_sorted = sorted(page_numbers, reverse=True)
@@ -270,3 +310,40 @@ def _remove_pages(pdf: pikepdf.Pdf, page_numbers: list[int]) -> pikepdf.Pdf:
         del new_pdf.pages[page_index]
 
     return new_pdf
+
+
+def _parse_page_range(page_range: str) -> list[int]:
+    """Parse page range string into list of page numbers.
+
+    Supports formats like:
+    - "1-5" -> [1, 2, 3, 4, 5]
+    - "1,3,5" -> [1, 3, 5]
+    - "1-3,5,7-9" -> [1, 2, 3, 5, 7, 8, 9]
+    """
+    if not page_range.strip():
+        return []
+
+    page_numbers = []
+
+    # Split by comma to handle multiple ranges
+    parts = page_range.split(",")
+
+    for part in parts:
+        part = part.strip()
+        if "-" in part:
+            # Handle range like "1-5"
+            try:
+                start, end = map(int, part.split("-"))
+                page_numbers.extend(range(start, end + 1))
+            except ValueError:
+                raise_conversion_error(f"Invalid page range format: {part}")
+        else:
+            # Handle single page number
+            try:
+                page_num = int(part)
+                page_numbers.append(page_num)
+            except ValueError:
+                raise_conversion_error(f"Invalid page number: {part}")
+
+    # Remove duplicates and sort
+    return sorted(list(set(page_numbers)))

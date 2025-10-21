@@ -1,6 +1,7 @@
 # Test Results Summary
-**Branch**: `testing/main-branch-validation`  
-**Date**: October 21, 2025  
+
+**Branch**: `testing/main-branch-validation`
+**Date**: October 21, 2025
 **Test Run**: Complete Test Suite
 
 ---
@@ -16,6 +17,7 @@ Total Tests: 185
 ```
 
 ### Pass Rate
+
 - **Including Skipped**: 33.0% pass rate
 - **Excluding Skipped**: 60.4% pass rate (61 passed out of 102 run)
 
@@ -26,6 +28,7 @@ Total Tests: 185
 ### ✅ Passing Categories
 
 #### 1. Core Systems (100% Pass)
+
 - **Event System**: 18/20 tests passing
   - Event creation and data management ✅
   - Event bus subscription and publishing ✅
@@ -47,6 +50,7 @@ Total Tests: 185
   - Plugin discovery and registration working
 
 #### 2. Document Converters (69% Pass)
+
 - **DOCX to Markdown**: 6/6 tests passing ✅
   - Pandoc path resolution ✅
   - Basic conversion ✅
@@ -72,6 +76,7 @@ Total Tests: 185
   - **4 failures**: OCR tests, invalid file handling
 
 #### 3. Integration Tests (26% Pass)
+
 - **End-to-End Conversions**: 5/17 tests passing
   - PDF ↔ Markdown roundtrips ✅ ✅
   - Page break handling ✅ ✅
@@ -84,6 +89,7 @@ Total Tests: 185
   - Event system ✅
 
 #### 4. Licensing System (50% Pass)
+
 - **4/8 tests passing**
   - Free tier converter ✅
   - Trial expiration ✅
@@ -96,7 +102,9 @@ Total Tests: 185
 ### ❌ Failing Categories
 
 #### 1. Electron Bridge Integration (0/14 Pass)
+
 **Critical Issue**: File validation in tests
+
 - All argument parsing tests fail due to file validation
 - Test files don't exist (test.pdf, file1.pdf, etc.)
 - Need to either:
@@ -105,6 +113,7 @@ Total Tests: 185
   - Create actual test files
 
 **Specific Failures**:
+
 - `test_argument_parsing_legacy` - Input file validation
 - `test_argument_parsing_batch` - Batch file validation
 - `test_argument_parsing_merge` - Merge file validation
@@ -114,18 +123,23 @@ Total Tests: 185
 - Subprocess integration tests
 
 #### 2. DOCX to PDF Engine Detection (0/3 Pass)
+
 **Module Import Issue**: Cannot import check_pdf_engine_available
+
 - Tests trying to import functions that may not exist
 - Need to verify module structure
 
 #### 3. PDF Converter Error Handling (0/4 Pass in unit tests)
+
 - `test_convert_pdf_to_md_with_ocr` - OCR functionality issue
 - `test_convert_pdf_to_md_with_enhanced_ocr` - Enhanced OCR issue
 - `test_convert_pdf_to_md_invalid_file` - Error handling issue
 - `test_convert_pdf_to_md_non_pdf_file` - Validation issue
 
 #### 4. End-to-End Registry Tests (0/12 Pass)
+
 **All registry integration tests failing**:
+
 - Converter registry integration
 - Converter execution through registry
 - Options passing
@@ -140,10 +154,12 @@ Total Tests: 185
 - Version compatibility
 
 #### 5. Event System Advanced Features (2/20 Fail)
+
 - `test_emit_function` - Missing emit function
 - `test_event_handler_class` - Event handler class issues
 
 #### 6. Modular Bridge Tests (0/1 Pass)
+
 - `test_bridge_modules` - SystemExit: 2 error
 
 ---
@@ -151,29 +167,35 @@ Total Tests: 185
 ### ⏭️ Skipped Tests (83 total)
 
 #### Config Manager Tests (13 skipped)
+
 - All config manager tests marked as skipped
 - Reason: ConfigManager tests disabled
 
 #### Log Manager Tests (11 skipped)
+
 - All log manager tests skipped
 - Reason: LogManager tests disabled
 
 #### Batch Processor Tests (6 skipped)
+
 - All batch processing tests skipped
 - Reason: Batcher tests disabled
 
 #### Electron Bridge Tests (20 skipped)
+
 - Progress reporting tests
 - File extension compatibility tests
 - Main function tests
 - All integration tests skipped
 
 #### Converter Tests (33 skipped)
+
 - Markdown to PDF: 11 skipped
 - TXT to PDF: 13 skipped
 - Other converters: 9 skipped
 
 #### Bundled Tesseract Tests (6 skipped)
+
 - Tesseract detection
 - Tesseract structure
 - OCR conversion tests
@@ -229,11 +251,13 @@ Total Tests: 185
 ## Warnings to Address
 
 ### Deprecation Warnings
+
 1. **PyPDF2 deprecated** - Should migrate to `pypdf`
 2. **Supabase client** - timeout/verify parameters deprecated
 3. **SwigPy** - Built-in type deprecations (library issue)
 
 ### Pytest Warnings
+
 1. **Unknown marks** - Register `@pytest.mark.unit` and `@pytest.mark.slow`
 2. **Return not None** - Tests returning bool instead of using assert
 
@@ -242,6 +266,7 @@ Total Tests: 185
 ## Test Files Status
 
 ### Available Test Files
+
 ```
 tests/test_files/
 ├── test.txt ✅
@@ -258,6 +283,7 @@ tests/test_files/
 ```
 
 ### Missing Test Files
+
 - test.pdf ❌ (used in electron bridge tests)
 - file1.pdf, file2.pdf, file3.pdf ❌ (used in batch/merge tests)
 - Various test PDFs for converter tests
@@ -269,6 +295,7 @@ tests/test_files/
 ### Immediate Actions
 
 1. **Create Missing Test Files**
+
    ```bash
    # Generate test PDFs from existing markdown files
    python -m transmutation_codex.plugins.markdown.to_pdf \
@@ -276,6 +303,7 @@ tests/test_files/
    ```
 
 2. **Register Pytest Marks**
+
    ```python
    # Add to tests/pytest.ini
    [pytest]
@@ -349,12 +377,14 @@ tests/test_files/
 ## Conclusion
 
 The test suite shows **good core functionality** with:
+
 - ✅ Event system working well
 - ✅ Progress tracking functional
 - ✅ Key converters (DOCX↔MD, EPUB↔DOCX, PDF↔MD) passing
 - ✅ Basic integration tests passing
 
 **Critical areas needing attention**:
+
 - ❌ Electron bridge integration (all tests failing)
 - ❌ Licensing system (50% failure rate)
 - ❌ Registry integration (all advanced tests failing)
@@ -363,6 +393,7 @@ The test suite shows **good core functionality** with:
 **Overall Assessment**: The codebase is **functional but needs test fixes** before production release. Core conversion features work, but integration layers and licensing need attention.
 
 **Estimated Time to Green**: 8-16 hours of focused work to:
+
 1. Create missing test files (1-2 hours)
 2. Fix electron bridge tests (2-4 hours)
 3. Fix licensing tests (2-3 hours)
@@ -371,7 +402,6 @@ The test suite shows **good core functionality** with:
 
 ---
 
-**Report Generated**: October 21, 2025  
-**Next Update**: After fixing critical issues  
+**Report Generated**: October 21, 2025
+**Next Update**: After fixing critical issues
 **Maintainer**: @savagelysubtle
-

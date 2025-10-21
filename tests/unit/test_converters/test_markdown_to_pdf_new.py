@@ -2,6 +2,8 @@
 
 import pytest
 
+from transmutation_codex.core.exceptions import ConversionError
+
 # Skip MD to PDF tests - markdown_pdf library not available, mocks fail with AttributeError
 pytestmark = pytest.mark.skip(
     reason="Markdown to PDF converter tests require markdown_pdf library - not available in test environment"
@@ -35,14 +37,14 @@ class TestMarkdownToPDFConverter:
             yield Path(tmpdirname)
 
     @pytest.fixture
-    def mock_weasyprint(self):
+    def mock_reportlab(self):
         """Mock WeasyPrint for testing."""
-        with patch("transmutation_codex.plugins.markdown.to_pdf.HTML") as mock_html:
-            mock_html.return_value.write_pdf = Mock()
-            yield mock_html
+        with patch("transmutation_codex.plugins.markdown.to_pdf.SimpleDocTemplate") as mock_doc:
+            mock_doc.return_value.write_pdf = Mock()
+            yield mock_doc
 
     def test_convert_md_to_pdf_basic(
-        self, test_md_path, temp_output_dir, mock_weasyprint
+        self, test_md_path, temp_output_dir, mock_reportlab
     ):
         """Test basic Markdown to PDF conversion."""
         output_path = temp_output_dir / "test_output.pdf"
@@ -55,10 +57,10 @@ class TestMarkdownToPDFConverter:
         assert result_path == output_path
 
         # Verify WeasyPrint was called
-        mock_weasyprint.assert_called()
+        mock_reportlab.assert_called()
 
     def test_convert_md_to_pdf_auto_output(
-        self, test_md_path, temp_output_dir, mock_weasyprint
+        self, test_md_path, temp_output_dir, mock_reportlab
     ):
         """Test Markdown to PDF conversion with auto-generated output path."""
         os.chdir(temp_output_dir)
@@ -71,7 +73,7 @@ class TestMarkdownToPDFConverter:
         assert result_path.name == "electron_test.pdf"
 
     def test_convert_md_to_pdf_with_page_breaks(
-        self, test_pagebreak_md_path, temp_output_dir, mock_weasyprint
+        self, test_pagebreak_md_path, temp_output_dir, mock_reportlab
     ):
         """Test Markdown to PDF conversion with page break markers."""
         output_path = temp_output_dir / "test_output.pdf"
@@ -83,12 +85,12 @@ class TestMarkdownToPDFConverter:
         assert result_path.suffix == ".pdf"
 
         # Verify page breaks are handled
-        mock_weasyprint.assert_called()
-        html_content = mock_weasyprint.call_args[0][0]
+        mock_reportlab.assert_called()
+        html_content = mock_reportlab.call_args[0][0]
         assert "page-break" in html_content or "break-after" in html_content
 
     def test_convert_md_to_pdf_custom_options(
-        self, test_md_path, temp_output_dir, mock_weasyprint
+        self, test_md_path, temp_output_dir, mock_reportlab
     ):
         """Test Markdown to PDF conversion with custom options."""
         output_path = temp_output_dir / "test_output.pdf"
@@ -106,8 +108,8 @@ class TestMarkdownToPDFConverter:
         assert result_path.suffix == ".pdf"
 
         # Verify custom options were applied
-        mock_weasyprint.assert_called()
-        html_content = mock_weasyprint.call_args[0][0]
+        mock_reportlab.assert_called()
+        html_content = mock_reportlab.call_args[0][0]
         assert "font-size: 14px" in html_content
 
     def test_convert_md_to_pdf_invalid_file(self, temp_output_dir):
@@ -115,7 +117,7 @@ class TestMarkdownToPDFConverter:
         invalid_path = temp_output_dir / "nonexistent.md"
         output_path = temp_output_dir / "output.pdf"
 
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(ValidationError):
             convert_md_to_pdf(invalid_path, output_path)
 
     def test_convert_md_to_pdf_non_md_file(self, temp_output_dir):
@@ -128,7 +130,7 @@ class TestMarkdownToPDFConverter:
         with pytest.raises(ValueError, match="Input file must be a Markdown file"):
             convert_md_to_pdf(text_file, output_path)
 
-    def test_progress_tracking(self, test_md_path, temp_output_dir, mock_weasyprint):
+    def test_progress_tracking(self, test_md_path, temp_output_dir, mock_reportlab):
         """Test that progress tracking works correctly."""
         output_path = temp_output_dir / "test_output.pdf"
 
@@ -151,9 +153,9 @@ class TestMarkdownToPDFConverter:
             # Verify progress tracking was called
             mock_start.assert_called_once()
             assert mock_update.call_count > 0
-            mock_complete.assert_called_once_with("test_operation_id", success=True)
+            mock_complete.assert_called_once_with("test_operation_id", {"output_path": str(output_path)})
 
-    def test_event_publishing(self, test_md_path, temp_output_dir, mock_weasyprint):
+    def test_event_publishing(self, test_md_path, temp_output_dir, mock_reportlab):
         """Test that conversion events are published."""
         output_path = temp_output_dir / "test_output.pdf"
 
@@ -166,9 +168,9 @@ class TestMarkdownToPDFConverter:
             mock_publish.assert_called()
             call_args = mock_publish.call_args[0][0]
             assert call_args.event_type == "conversion_started"
-            assert call_args.source == "md2pdf"
+            assert call_args.conversion_type == "conversion"
 
-    def test_markdown_parsing(self, temp_output_dir, mock_weasyprint):
+    def test_markdown_parsing(self, temp_output_dir, mock_reportlab):
         """Test Markdown parsing and HTML generation."""
         # Create test Markdown content
         md_content = """# Test Document
@@ -198,8 +200,8 @@ print("Hello, World!")
         assert result_path.suffix == ".pdf"
 
         # Verify HTML generation
-        mock_weasyprint.assert_called()
-        html_content = mock_weasyprint.call_args[0][0]
+        mock_reportlab.assert_called()
+        html_content = mock_reportlab.call_args[0][0]
         assert "<h1>Test Document</h1>" in html_content
         assert "<strong>bold</strong>" in html_content
         assert "<em>italic</em>" in html_content
@@ -213,8 +215,8 @@ print("Hello, World!")
         output_path = temp_output_dir / "test_output.pdf"
 
         # Mock WeasyPrint to raise an error
-        with patch("transmutation_codex.plugins.markdown.to_pdf.HTML") as mock_html:
-            mock_html.return_value.write_pdf.side_effect = Exception("WeasyPrint error")
+        with patch("transmutation_codex.plugins.markdown.to_pdf.SimpleDocTemplate") as mock_doc:
+            mock_doc.return_value.write_pdf.side_effect = Exception("WeasyPrint error")
 
             with pytest.raises(RuntimeError, match="Error converting Markdown to PDF"):
                 convert_md_to_pdf(test_md_path, output_path)

@@ -15,7 +15,6 @@ import pypandoc
 
 from transmutation_codex.core import (
     check_feature_access,
-    check_file_size_limit,
     complete_operation,
     get_log_manager,
     publish,
@@ -44,12 +43,6 @@ def _check_pdf_engine_available(engine: str) -> bool:
     try:
         # License validation and feature gating (docx2pdf is paid-only)
         check_feature_access("docx2pdf")
-
-        # Convert to Path for validation
-        input_path = Path(input_path).resolve()
-
-        # Check file size limit
-        check_file_size_limit(str(input_path))
 
         cmd = ["where", engine] if platform.system() == "Windows" else ["which", engine]
         result = subprocess.run(
@@ -252,15 +245,15 @@ def convert_docx_to_pdf(
 
     start_time = time.time()
 
+    # Set PANDOC_PATH environment variable for pypandoc
+    original_pandoc_env = os.environ.get("PANDOC_PATH")
+
     try:
         # Validate input file
         if not input_path.exists():
             raise FileNotFoundError(f"Input file not found: {input_path}")
 
         update_progress(operation, 10, "Validating Pandoc installation...")
-
-        # Set PANDOC_PATH environment variable for pypandoc
-        original_pandoc_env = os.environ.get("PANDOC_PATH")
         try:
             pandoc_executable_path = get_pandoc_path()
             os.environ["PANDOC_PATH"] = pandoc_executable_path

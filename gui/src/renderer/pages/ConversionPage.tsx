@@ -111,6 +111,16 @@ const ConversionPage: React.FC = () => {
     tocDepth: 3,
   });
 
+  // State for OCR options
+  const [ocrOptions, setOcrOptions] = useState({
+    language: 'eng',
+    dpi: 300,
+    preprocess: 'grayscale',
+    confidenceThreshold: 0,
+    pageRange: 'all',
+    preserveLayout: true,
+  });
+
   // License dialog state
   const [showLicenseDialog, setShowLicenseDialog] = useState(false);
 
@@ -434,6 +444,14 @@ const ConversionPage: React.FC = () => {
           options.includeImages = epubOptions.includeImages;
           options.tocDepth = epubOptions.tocDepth;
         }
+        else if (conversionType === 'pdf2ocr_layer') {
+          options.language = ocrOptions.language;
+          options.dpi = ocrOptions.dpi;
+          options.preprocess = ocrOptions.preprocess;
+          options.confidenceThreshold = ocrOptions.confidenceThreshold;
+          options.pageRange = ocrOptions.pageRange;
+          options.preserveLayout = ocrOptions.preserveLayout;
+        }
         // Add other conversion-specific options here as needed
 
         const result = await electronAPI.runConversion({
@@ -601,6 +619,8 @@ const ConversionPage: React.FC = () => {
           onAdvancedPdfOptionsChange={setAdvancedPdfOptions}
           epubOptions={epubOptions}
           onEpubOptionsChange={setEpubOptions}
+          ocrOptions={ocrOptions}
+          onOcrOptionsChange={setOcrOptions}
         />
 
         <Card variant="elevated" className="animate-fade-in">

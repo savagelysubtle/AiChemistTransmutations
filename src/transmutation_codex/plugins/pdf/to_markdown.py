@@ -316,10 +316,10 @@ def convert_pdf_to_md(
         ConversionEvent(
             event_type=EventTypes.CONVERSION_STARTED,
             source="pdf2md",
+            input_file=str(input_path),
+            conversion_type="pdf2md",
             data={
                 "operation_id": operation,
-                "input_file": str(input_path),
-                "conversion_type": "pdf2md",
             },
         )
     )
@@ -517,10 +517,10 @@ def convert_pdf_to_md_with_enhanced_ocr(
         ConversionEvent(
             event_type=EventTypes.CONVERSION_STARTED,
             source="pdf2md_enhanced_ocr",
+            input_file=str(input_path),
+            conversion_type="pdf2md_enhanced_ocr",
             data={
                 "operation_id": operation,
-                "input_file": str(input_path),
-                "conversion_type": "pdf2md_enhanced_ocr",
             },
         )
     )
@@ -709,10 +709,10 @@ def convert_pdf_to_md_with_pymupdf4llm(
         ConversionEvent(
             event_type=EventTypes.CONVERSION_STARTED,
             source="pdf2md_pymupdf4llm",
+            input_file=str(input_path),
+            conversion_type="pdf2md_pymupdf4llm",
             data={
                 "operation_id": operation,
-                "input_file": str(input_path),
-                "conversion_type": "pdf2md_pymupdf4llm",
             },
         )
     )

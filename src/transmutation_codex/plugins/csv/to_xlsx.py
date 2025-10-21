@@ -85,15 +85,13 @@ def convert_csv_to_xlsx(
         raise_conversion_error("openpyxl is required for Excel generation")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Converting CSV to Excel: {Path(input_path).name}"
-    )
+    operation_id = start_operation(f"Converting CSV to Excel: {Path(input_path).name}", total_steps=100)
 
     try:
         # Check licensing and file size
         check_feature_access("csv2xlsx")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("csv2xlsx")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("csv2xlsx", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -112,7 +110,7 @@ def convert_csv_to_xlsx(
         format_headers = kwargs.get("format_headers", True)
         auto_width = kwargs.get("auto_width", True)
 
-        update_progress(operation.id, 10, "Reading CSV file...")
+        update_progress(operation_id, 10, "Reading CSV file...")
 
         # Read CSV file
         try:
@@ -125,7 +123,7 @@ def convert_csv_to_xlsx(
         except Exception as e:
             raise_conversion_error(f"Failed to read CSV file: {e}")
 
-        update_progress(operation.id, 30, "Creating Excel file...")
+        update_progress(operation_id, 30, "Creating Excel file...")
 
         # Create Excel file
         try:
@@ -134,7 +132,7 @@ def convert_csv_to_xlsx(
         except Exception as e:
             raise_conversion_error(f"Failed to create Excel file: {e}")
 
-        update_progress(operation.id, 60, "Applying formatting...")
+        update_progress(operation_id, 60, "Applying formatting...")
 
         # Apply formatting if requested
         if format_headers or auto_width:
@@ -178,7 +176,7 @@ def convert_csv_to_xlsx(
                 logger.warning(f"Failed to apply formatting: {e}")
                 # Continue without formatting
 
-        update_progress(operation.id, 90, "Conversion completed...")
+        update_progress(operation_id, 90, "Conversion completed...")
 
         # Publish success event
         publish(
@@ -190,7 +188,7 @@ def convert_csv_to_xlsx(
             )
         )
 
-        complete_operation(operation.id, {"output_path": str(output_path)})
+        complete_operation(operation_id, {"output_path": str(output_path)})
         logger.info(f"CSV to Excel conversion completed: {output_path}")
 
         return output_path

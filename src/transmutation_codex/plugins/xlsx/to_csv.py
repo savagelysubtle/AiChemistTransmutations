@@ -83,15 +83,13 @@ def convert_xlsx_to_csv(
         raise_conversion_error("pandas is required for Excel conversion")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Converting Excel to CSV: {Path(input_path).name}"
-    )
+    operation_id = start_operation(f"Converting Excel to CSV: {Path(input_path).name}", total_steps=100)
 
     try:
         # Check licensing and file size
         check_feature_access("xlsx2csv")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("xlsx2csv")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("xlsx2csv", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -109,7 +107,7 @@ def convert_xlsx_to_csv(
         include_index = kwargs.get("include_index", False)
         max_rows = kwargs.get("max_rows", None)
 
-        update_progress(operation.id, 10, "Loading Excel file...")
+        update_progress(operation_id, 10, "Loading Excel file...")
 
         # Load Excel file using pandas
         try:
@@ -117,7 +115,7 @@ def convert_xlsx_to_csv(
         except Exception as e:
             raise_conversion_error(f"Failed to load Excel file: {e}")
 
-        update_progress(operation.id, 20, "Processing worksheets...")
+        update_progress(operation_id, 20, "Processing worksheets...")
 
         # Determine which sheets to process
         if sheet_name:
@@ -134,7 +132,7 @@ def convert_xlsx_to_csv(
         for sheet_idx, current_sheet in enumerate(sheets_to_process):
             logger.info(f"Processing sheet: {current_sheet}")
             update_progress(
-                operation.id,
+                operation_id,
                 20 + (sheet_idx / total_sheets) * 60,
                 f"Processing sheet: {current_sheet}",
             )
@@ -175,7 +173,7 @@ def convert_xlsx_to_csv(
         if not output_files:
             raise_conversion_error("No sheets were successfully converted")
 
-        update_progress(operation.id, 90, "Conversion completed...")
+        update_progress(operation_id, 90, "Conversion completed...")
 
         # Determine final output path
         if len(output_files) == 1:
@@ -195,7 +193,7 @@ def convert_xlsx_to_csv(
         )
 
         complete_operation(
-            operation.id, {"output_path": str(final_output), "files": output_files}
+            operation_id, {"output_path": str(final_output), "files": output_files}
         )
         logger.info(f"Excel to CSV conversion completed: {final_output}")
 

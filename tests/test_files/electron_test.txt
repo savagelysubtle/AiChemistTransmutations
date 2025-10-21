@@ -1,0 +1,5 @@
+=== electron_test.png ===
+
+Sample Image
+For testing purposes
+

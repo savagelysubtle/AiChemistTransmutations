@@ -95,15 +95,15 @@ def convert_csv_to_pdf(
         raise_conversion_error("reportlab is required for PDF generation")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Converting CSV to PDF: {Path(input_path).name}"
+    operation_id = start_operation(
+        f"Converting CSV to PDF: {Path(input_path).name}", total_steps=100
     )
 
     try:
         # Check licensing and file size
         check_feature_access("csv2pdf")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("csv2pdf")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("csv2pdf", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -136,7 +136,7 @@ def convert_csv_to_pdf(
         if orientation.lower() == "landscape":
             pagesize = (pagesize[1], pagesize[0])  # Swap width/height
 
-        update_progress(operation.id, 10, "Reading CSV file...")
+        update_progress(operation_id, 10, "Reading CSV file...")
 
         # Read CSV file
         try:
@@ -149,7 +149,7 @@ def convert_csv_to_pdf(
         except Exception as e:
             raise_conversion_error(f"Failed to read CSV file: {e}")
 
-        update_progress(operation.id, 20, "Creating PDF document...")
+        update_progress(operation_id, 20, "Creating PDF document...")
 
         # Create PDF document
         doc = SimpleDocTemplate(
@@ -177,7 +177,7 @@ def convert_csv_to_pdf(
         story.append(Paragraph(f"<b>{title}</b>", title_style))
         story.append(Spacer(1, 12))
 
-        update_progress(operation.id, 30, "Processing data...")
+        update_progress(operation_id, 30, "Processing data...")
 
         # Process data in chunks
         total_rows = len(df)
@@ -232,7 +232,7 @@ def convert_csv_to_pdf(
 
                     story.append(PageBreak())
 
-        update_progress(operation.id, 90, "Generating PDF...")
+        update_progress(operation_id, 90, "Generating PDF...")
 
         # Build PDF
         doc.build(story)
@@ -247,7 +247,7 @@ def convert_csv_to_pdf(
             )
         )
 
-        complete_operation(operation.id, {"output_path": str(output_path)})
+        complete_operation(operation_id, {"output_path": str(output_path)})
         logger.info(f"CSV to PDF conversion completed: {output_path}")
 
         return output_path
@@ -262,4 +262,3 @@ def convert_csv_to_pdf(
             )
         )
         raise_conversion_error(f"Conversion failed: {e}")
-

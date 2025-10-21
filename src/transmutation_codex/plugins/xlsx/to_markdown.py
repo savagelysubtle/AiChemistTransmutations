@@ -82,15 +82,13 @@ def convert_xlsx_to_markdown(
         raise_conversion_error("pandas is required for Excel conversion")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Converting Excel to Markdown: {Path(input_path).name}"
-    )
+    operation_id = start_operation(f"Converting Excel to Markdown: {Path(input_path).name}", total_steps=100)
 
     try:
         # Check licensing and file size
         check_feature_access("xlsx2md")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("xlsx2md")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("xlsx2md", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -107,7 +105,7 @@ def convert_xlsx_to_markdown(
         include_index = kwargs.get("include_index", False)
         table_format = kwargs.get("table_format", "pipe")
 
-        update_progress(operation.id, 10, "Loading Excel file...")
+        update_progress(operation_id, 10, "Loading Excel file...")
 
         # Load Excel file using pandas
         try:
@@ -115,7 +113,7 @@ def convert_xlsx_to_markdown(
         except Exception as e:
             raise_conversion_error(f"Failed to load Excel file: {e}")
 
-        update_progress(operation.id, 20, "Processing worksheets...")
+        update_progress(operation_id, 20, "Processing worksheets...")
 
         # Generate Markdown content
         markdown_parts = []
@@ -130,7 +128,7 @@ def convert_xlsx_to_markdown(
         for sheet_idx, sheet_name in enumerate(excel_file.sheet_names):
             logger.info(f"Processing sheet: {sheet_name}")
             update_progress(
-                operation.id,
+                operation_id,
                 20 + (sheet_idx / total_sheets) * 60,
                 f"Processing sheet: {sheet_name}",
             )
@@ -172,7 +170,7 @@ def convert_xlsx_to_markdown(
                 markdown_parts.append(f"*Error processing sheet: {e}*")
                 markdown_parts.append("")
 
-        update_progress(operation.id, 90, "Writing Markdown file...")
+        update_progress(operation_id, 90, "Writing Markdown file...")
 
         # Write Markdown file
         with open(output_path, "w", encoding="utf-8") as f:
@@ -188,7 +186,7 @@ def convert_xlsx_to_markdown(
             )
         )
 
-        complete_operation(operation.id, {"output_path": str(output_path)})
+        complete_operation(operation_id, {"output_path": str(output_path)})
         logger.info(f"Excel to Markdown conversion completed: {output_path}")
 
         return output_path

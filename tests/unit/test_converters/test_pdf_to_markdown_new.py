@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from transmutation_codex.core.exceptions import ValidationError
 from transmutation_codex.plugins.pdf.to_markdown import (
     convert_pdf_to_md,
     convert_pdf_to_md_with_enhanced_ocr,
@@ -170,7 +171,7 @@ class TestPDFToMarkdownConverter:
         invalid_path = temp_output_dir / "nonexistent.pdf"
         output_path = temp_output_dir / "output.md"
 
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(ValidationError):
             convert_pdf_to_md(invalid_path, output_path)
 
     def test_convert_pdf_to_md_non_pdf_file(self, temp_output_dir):
@@ -215,7 +216,9 @@ class TestPDFToMarkdownConverter:
             # Verify progress tracking was called
             mock_start.assert_called_once()
             assert mock_update.call_count > 0
-            mock_complete.assert_called_once_with("test_operation_id", success=True)
+            mock_complete.assert_called_once_with(
+                "test_operation_id", {"output_path": str(output_path)}
+            )
 
     def test_event_publishing(self, test_pdf_path, temp_output_dir, mock_fitz):
         """Test that conversion events are published."""
@@ -232,7 +235,7 @@ class TestPDFToMarkdownConverter:
             assert (
                 call_args.event_type == "conversion.started"
             )  # Fixed: dot-separated format
-            assert call_args.source == "pdf2md"
+            assert call_args.conversion_type == "pdf2md"
 
     def test_encrypted_pdf_handling(self, test_pdf_path, temp_output_dir, mock_fitz):
         """Test handling of encrypted PDFs."""

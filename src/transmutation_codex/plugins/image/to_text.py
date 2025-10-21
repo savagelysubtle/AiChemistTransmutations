@@ -43,9 +43,9 @@ logger = get_log_manager().get_converter_logger("image2text")
 
 @converter(
     source_format="image",
-    target_format="txt",
+    target_format="text",
     description="Extract text from images using OCR",
-    required_dependencies=["pytesseract", "Pillow"],
+    required_dependencies=["pytesseract", "PIL"],
     priority=10,
     version="1.0.0",
 )
@@ -83,15 +83,15 @@ def convert_image_to_text(
         raise_conversion_error("Pillow is required for image processing")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Extracting text from images: {Path(input_path).name}"
+    operation_id = start_operation(
+        f"Extracting text from images: {Path(input_path).name}", total_steps=100
     )
 
     try:
         # Check licensing and file size
         check_feature_access("image2text")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("image2text")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("image2text", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -117,7 +117,7 @@ def convert_image_to_text(
         if preprocess not in ["none", "grayscale", "threshold"]:
             raise_conversion_error(f"Invalid preprocessing option: {preprocess}")
 
-        update_progress(operation.id, 10, "Collecting images...")
+        update_progress(operation_id, 10, "Collecting images...")
 
         # Collect image files
         image_files = []
@@ -149,7 +149,7 @@ def convert_image_to_text(
 
         logger.info(f"Found {len(image_files)} image files")
 
-        update_progress(operation.id, 20, "Processing images...")
+        update_progress(operation_id, 20, "Processing images...")
 
         # Process each image
         total_images = len(image_files)
@@ -160,7 +160,7 @@ def convert_image_to_text(
                 f"Processing image {img_idx + 1}/{total_images}: {img_path.name}"
             )
             update_progress(
-                operation.id,
+                operation_id,
                 20 + (img_idx / total_images) * 60,
                 f"Processing image {img_idx + 1}",
             )
@@ -232,7 +232,7 @@ def convert_image_to_text(
         if not extracted_texts:
             raise_conversion_error("No text was successfully extracted")
 
-        update_progress(operation.id, 90, "Writing text file...")
+        update_progress(operation_id, 90, "Writing text file...")
 
         # Write text file
         with open(output_path, "w", encoding="utf-8") as f:
@@ -249,7 +249,7 @@ def convert_image_to_text(
         )
 
         complete_operation(
-            operation.id,
+            operation_id,
             {"output_path": str(output_path), "images_count": len(image_files)},
         )
         logger.info(
@@ -268,4 +268,3 @@ def convert_image_to_text(
             )
         )
         raise_conversion_error(f"Conversion failed: {e}")
-
