@@ -52,8 +52,8 @@
     "wait-on": "^8.0.3"
   },
   "build": {
-    "appId": "com.example.mdtopdfconverter",
-    "productName": "MDtoPDF Converter",
+    "appId": "com.aichemist.transmutationcodex",
+    "productName": "AiChemist Transmutation Codex",
     "files": [
       "dist-electron/**/*",
       "dist/**/*"
@@ -63,7 +63,32 @@
       "output": "release/${version}"
     },
     "win": {
-      "target": "nsis"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "appx",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "appx": {
+      "applicationId": "AiChemist.TransmutationCodex",
+      "displayName": "AiChemist Transmutation Codex",
+      "publisherDisplayName": "Your Company Name",
+      "publisher": "CN=YourCompanyName",
+      "identityName": "AiChemist.TransmutationCodex",
+      "backgroundColor": "#0078D7",
+      "languages": [
+        "en-US"
+      ],
+      "addAutoLaunchExtension": false
     },
     "mac": {
       "target": "dmg"

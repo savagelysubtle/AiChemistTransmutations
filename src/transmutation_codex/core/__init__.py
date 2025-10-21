@@ -17,6 +17,7 @@ from .config_manager import (
     get_user_preferences,
     update_user_preferences,
 )
+from .dependency_checker import DependencyChecker, get_dependency_checker
 from .events import (
     ConversionEvent,
     ErrorEvent,
@@ -56,6 +57,20 @@ from .exceptions import (
     raise_trial_expired_error,
     raise_validation_error,
 )
+
+# Licensing system
+from .licensing import (
+    activate_license_key,
+    check_feature_access,
+    check_file_size_limit,
+    deactivate_current_license,
+    get_full_license_status,
+    get_license_manager,
+    get_license_type,
+    get_trial_status,
+    is_trial_expired,
+    record_conversion_attempt,
+)
 from .logger import LogManager
 from .presets import (
     ConversionPreset as PresetConversionPreset,
@@ -82,20 +97,6 @@ from .registry import (
     converter,
     get_registry,
     register_converter,
-)
-
-# Licensing system
-from .licensing import (
-    activate_license_key,
-    check_feature_access,
-    check_file_size_limit,
-    deactivate_current_license,
-    get_full_license_status,
-    get_license_manager,
-    get_license_type,
-    get_trial_status,
-    is_trial_expired,
-    record_conversion_attempt,
 )
 
 # Singleton instance for LogManager
@@ -130,6 +131,7 @@ __all__ = [
     "ConversionError",
     "ConversionEvent",
     "ConversionPreset",
+    "DependencyChecker",
     "DependencyError",
     "ErrorEvent",
     "Event",
@@ -170,6 +172,7 @@ __all__ = [
     "emit",
     "get_config_manager",
     "get_conversion_preset",
+    "get_dependency_checker",
     "get_environment_config",
     "get_event_bus",
     "get_full_license_status",

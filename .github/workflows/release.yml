@@ -1,0 +1,157 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.13'
+  NODE_VERSION: '20'
+
+jobs:
+  build-windows:
+    name: Build Windows Installers
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: gui/package-lock.json
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install uv
+          uv sync --all-groups
+          pip install pyinstaller
+
+      - name: Install Node dependencies
+        working-directory: gui
+        run: npm ci
+
+      - name: Build Python backend
+        run: |
+          pyinstaller transmutation_codex.spec --clean
+
+      - name: Build Electron GUI
+        working-directory: gui
+        run: |
+          npm run build
+          npm run electron:build
+        env:
+          NODE_ENV: production
+          DEV_MODE: false
+
+      - name: Create version file
+        run: |
+          python -c "import version; print(version.get_version_string())" > dist/VERSION.txt
+
+      # - name: Build Direct Download Installer (Inno Setup)
+      #   run: |
+      #     powershell -ExecutionPolicy Bypass -File scripts/build/build_direct_installer.ps1 -Version ${{ github.ref_name }}
+
+      # - name: Build MSIX Package
+      #   run: |
+      #     powershell -ExecutionPolicy Bypass -File scripts/build/build_msix.ps1 -Version ${{ github.ref_name }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installers-${{ github.ref_name }}
+          path: |
+            dist/installer/*.exe
+            dist/*.msix
+            dist/VERSION.txt
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/installer/*.exe
+            dist/*.msix
+            dist/VERSION.txt
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-docs:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install -e ".[docs]"
+
+      - name: Build Sphinx documentation
+        run: |
+          python docs/build_docs.py
+
+      - name: Upload documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation
+          path: docs/build/html
+          retention-days: 30
+
+  test:
+    name: Run Tests
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install uv
+          uv sync --all-groups
+
+      - name: Run tests
+        run: |
+          pytest tests/unit -v --tb=short
+        env:
+          DEV_MODE: false
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            .pytest_cache/
+            htmlcov/
+          retention-days: 7

@@ -1,0 +1,210 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run GUI (Bun)",
+      "type": "shell",
+      "command": "${workspaceFolder}/run-gui.bat",
+      "windows": {
+        "command": "${workspaceFolder}\\run-gui.bat"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": [],
+      "runOptions": {
+        "runOn": "default"
+      }
+    },
+    {
+      "label": "Run GUI (NPM)",
+      "type": "shell",
+      "command": "cd gui && npm run electron:dev",
+      "windows": {
+        "command": "cd gui && npm run electron:dev"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Application",
+      "type": "shell",
+      "command": "python scripts/start_app.py",
+      "windows": {
+        "command": "python scripts/start_app.py"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Check Dependencies",
+      "type": "shell",
+      "command": "python -c \"import sys; sys.path.insert(0, 'src'); from transmutation_codex.adapters.cli.dependency_status import check_dependency_status; check_dependency_status('text')\"",
+      "windows": {
+        "command": "python -c \"import sys; sys.path.insert(0, 'src'); from transmutation_codex.adapters.cli.dependency_status import check_dependency_status; check_dependency_status('text')\""
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Test Supabase Integration",
+      "type": "shell",
+      "command": "python scripts/test_supabase_integration.py",
+      "windows": {
+        "command": "python scripts/test_supabase_integration.py"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Setup External Dependencies",
+      "type": "shell",
+      "command": "powershell -ExecutionPolicy Bypass -File scripts/setup_external_dependencies.ps1",
+      "windows": {
+        "command": "powershell -ExecutionPolicy Bypass -File scripts/setup_external_dependencies.ps1"
+      },
+      "group": "none",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Check Premium Dependencies",
+      "type": "shell",
+      "command": "python scripts/check_premium_dependencies.py",
+      "windows": {
+        "command": "python scripts/check_premium_dependencies.py"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Generate Dev License",
+      "type": "shell",
+      "command": "python scripts/generate_dev_license.py",
+      "windows": {
+        "command": "python scripts/generate_dev_license.py"
+      },
+      "group": "none",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Python Tests",
+      "type": "shell",
+      "command": "pytest",
+      "windows": {
+        "command": "pytest"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "UV Sync",
+      "type": "shell",
+      "command": "uv sync",
+      "windows": {
+        "command": "uv sync"
+      },
+      "group": "none",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    }
+  ]
+}
+

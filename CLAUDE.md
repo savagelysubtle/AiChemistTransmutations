@@ -1,6 +1,8 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+**AI Agent Instructions for Claude Code**
+
+This file provides comprehensive guidance to Claude AI (claude.ai/code) and other AI coding agents when working with code in this repository. It ensures AI-generated code aligns with project requirements, conventions, and best practices.
 
 ## Project Overview
 
@@ -222,7 +224,8 @@ Follow this workflow (strictly enforced):
 ## External Dependencies
 
 **Tesseract OCR** (required for PDF OCR functionality):
-- Windows: Download from https://github.com/UB-Mannheim/tesseract/wiki
+
+- Windows: Download from <https://github.com/UB-Mannheim/tesseract/wiki>
 - macOS: `brew install tesseract`
 - Linux: `sudo apt-get install tesseract-ocr`
 
@@ -315,3 +318,115 @@ except Exception as e:
 - **Plugin isolation**: Plugins must not import from other plugin directories
 - **Test structure mirrors code**: Tests follow the same directory structure as source code
 - **GUI prefers Python**: Only implement converters in Node.js if Python libraries are insufficient
+
+## Scripts Directory
+
+The `scripts/` directory is organized for production readiness:
+
+- **`scripts/`** - Production scripts (check_premium_dependencies.py, start_app.py)
+- **`scripts/dev/`** - Development-only scripts and testing utilities
+- **`scripts/licensing/`** - License generation and key management (⚠️ SECURITY CRITICAL)
+- **`scripts/setup/`** - External dependency installers and configuration
+- **`scripts/build/`** - Build and packaging scripts for distribution
+
+See `scripts/README.md` for detailed documentation on each script.
+
+## Security Guidelines
+
+### Private Key Management 🔐
+
+- **NEVER** commit `scripts/licensing/keys/private_key.pem` to version control
+- Private keys must be stored securely (password manager, HSM, encrypted storage)
+- Only the public key should be embedded in the application
+- Use separate key pairs for dev/test/production environments
+
+### Environment Variables
+
+- Use `.env` files for local development (already in `.gitignore`)
+- Never hardcode credentials in scripts or code
+- Required production variables:
+  - `SUPABASE_URL` - Supabase project URL
+  - `SUPABASE_SERVICE_KEY` - For admin operations (license generation)
+  - `SUPABASE_ANON_KEY` - For client-side operations
+
+### Secrets Detection
+
+Before committing, always verify:
+
+```bash
+# Check for hardcoded secrets
+grep -r "SUPABASE" --include="*.py" --exclude-dir=".venv"
+grep -r "-----BEGIN" --include="*.py"
+```
+
+## AI Agent Best Practices
+
+### When Making Changes
+
+1. **Read first**: Always read relevant files before making changes
+2. **Test locally**: Verify changes work in the development environment
+3. **Follow patterns**: Match existing code style and structure
+4. **Update tests**: Add/update tests for any functionality changes
+5. **Document**: Update docstrings and README files as needed
+
+### When Creating New Features
+
+1. Check `AGENTS.md` for architectural guidance
+2. Follow the plugin organization rules (source format → target format)
+3. Use centralized logging and configuration managers
+4. Add comprehensive error handling
+5. Include progress tracking for long operations
+
+### When Debugging
+
+1. Check `logs/python/` for session logs
+2. Verify external dependencies with `check_premium_dependencies.py`
+3. Test converters with files from `tests/test_files/`
+4. Use pytest markers to run specific test categories
+
+## Quick Reference
+
+### File Locations (Never Change These)
+
+- Logger: `src/transmutation_codex/core/logger.py`
+- Config: `src/transmutation_codex/core/config_manager.py`
+- Electron bridge: `src/transmutation_codex/adapters/bridges/electron_bridge.py`
+- CLI entry: `src/transmutation_codex/adapters/cli/main.py`
+
+### Command Cheatsheet
+
+```bash
+# Development
+uv sync --all-groups          # Install all dependencies
+python scripts/start_app.py   # Launch application
+pytest -m unit                # Run unit tests
+ruff check                    # Lint code
+
+# Licensing (Admin Only)
+python scripts/licensing/generate_rsa_keys.py      # One-time setup
+python scripts/licensing/generate_dev_license.py   # Dev license
+python scripts/licensing/generate_license.py       # Customer license
+
+# Setup
+powershell -ExecutionPolicy Bypass -File scripts/setup/setup_external_dependencies.ps1
+
+# Build
+powershell -ExecutionPolicy Bypass -File scripts/build/build_installer.ps1
+```
+
+## Contributing Workflow
+
+1. Create feature branch: `git checkout -b feature/your-feature`
+2. Make changes following this guide
+3. Run tests: `pytest`
+4. Lint code: `ruff check && ruff format`
+5. Update documentation
+6. Commit with meaningful message
+7. Push and create pull request
+
+---
+
+**Last Updated**: October 2025
+**For Detailed Guidance**: See AGENTS.md
+**For Scripts**: See scripts/README.md
+**Author**: AiChemist Development Team (@savagelysubtle)

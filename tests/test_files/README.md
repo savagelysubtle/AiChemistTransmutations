@@ -28,7 +28,12 @@ This directory contains comprehensive test files for all premium converters and 
 
 ### EPUB Test Files
 
-- `test_epub_sample.epub` - Complete EPUB book with multiple chapters and metadata
+- `test_epub_simple.epub` - Simple EPUB with basic text content and 2 chapters
+- `test_epub_complex.epub` - Complex EPUB with rich formatting, tables, CSS, and 4 chapters
+- `test_epub_multilang.epub` - Multi-language EPUB (English, Spanish, French, German)
+- `test_epub_technical.epub` - Technical documentation with code examples (Python, JavaScript)
+- `test_epub_sample.epub` - Original sample EPUB for basic testing
+- `create_epub_test.py` - Script to generate comprehensive EPUB test files (requires ebooklib)
 
 ### Advanced PDF Test Files
 
@@ -81,11 +86,25 @@ This directory contains comprehensive test files for all premium converters and 
 
 ### EPUB Converters
 
+**Test Files Used:**
+
+- `test_epub_simple.epub` - Basic EPUB structure and navigation
+- `test_epub_complex.epub` - Rich formatting, CSS, tables, and code blocks
+- `test_epub_multilang.epub` - Unicode and multi-language support
+- `test_epub_technical.epub` - Code syntax and technical documentation
+
+**Test Scenarios:**
+
 - EPUB to PDF/HTML/Markdown conversion
 - Markdown/DOCX/HTML to EPUB creation
-- Metadata preservation
-- Chapter structure maintenance
-- Image and styling handling
+- Metadata preservation (title, author, language, date)
+- Chapter structure and navigation maintenance
+- Table of contents generation
+- CSS styling preservation
+- Image and asset handling
+- Multi-language character encoding
+- Code block formatting
+- Table rendering
 
 ### Advanced PDF Operations
 
