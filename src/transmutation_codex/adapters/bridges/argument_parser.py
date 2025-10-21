@@ -315,13 +315,12 @@ def parse_legacy_arguments(args: list[str] | None = None) -> BridgeArguments:
     parser.add_argument(
         "--include-notes", action="store_true", help="Include speaker notes"
     )
-    parser.add_argument("--image-quality", type=int, help="Image quality (1-100)")
 
-    # Image options
+    # Image options (shared by PowerPoint and Image converters)
+    parser.add_argument("--image-quality", type=int, help="Image quality (1-100)")
     parser.add_argument(
         "--image-format", help="Output image format (png, jpg, tiff, etc.)"
     )
-    parser.add_argument("--image-quality", type=int, help="Image quality (1-100)")
     parser.add_argument("--resize", help="Resize image (e.g., '800x600')")
     parser.add_argument("--crop", help="Crop image (e.g., '100,100,400,300')")
 

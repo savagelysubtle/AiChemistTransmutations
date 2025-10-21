@@ -1,230 +1,445 @@
-# Production Deployment Quick Start
+# Production Deployment Guide
 
-This guide helps you quickly deploy AiChemist Transmutation Codex with bundled Tesseract for end users.
+This document provides comprehensive guidance for deploying AiChemist Transmutation Codex to production.
 
-## Prerequisites
+## Table of Contents
 
-- Windows 10 or later (64-bit)
-- Python 3.13+ with UV
-- Tesseract OCR installed (for bundling)
-- PyInstaller (install: `uv add --dev pyinstaller`)
-- Inno Setup (download from: <https://jrsoftware.org/isinfo.php>)
+1. [Pre-Deployment Checklist](#pre-deployment-checklist)
+2. [Environment Setup](#environment-setup)
+3. [Build Process](#build-process)
+4. [Distribution Channels](#distribution-channels)
+5. [License Server Setup](#license-server-setup)
+6. [Monitoring and Analytics](#monitoring-and-analytics)
+7. [Post-Deployment](#post-deployment)
 
-## 5-Minute Deployment
+## Pre-Deployment Checklist
 
-### 1. Prepare Tesseract Bundle
+### Code Preparation
 
-```powershell
-# Run the automated build script
-.\scripts\build_installer.ps1 -Version "1.0.0"
-```
+- [ ] All tests passing (`pytest`)
+- [ ] No linter errors (`ruff check`)
+- [ ] Version updated in `version.py`
+- [ ] Changelog updated with release notes
+- [ ] DEV_MODE environment variable defaults to false
+- [ ] DEV_LICENSE.txt excluded from build
+- [ ] Supabase SERVICE_KEY not included in app (only in webhook server)
+- [ ] Private key not in repository (only public key embedded)
 
-This script will:
+### Configuration
 
-- ✅ Clean previous builds
-- ✅ Copy Tesseract files to `build/resources/tesseract/`
-- ✅ Bundle configuration files
-- ✅ Prepare for PyInstaller
-
-### 2. Build Standalone Executable
-
-```powershell
-# Build with PyInstaller
-pyinstaller transmutation_codex.spec --clean
-```
-
-Output: `dist/aichemist_transmutation_codex/` (standalone folder)
-
-### 3. Create Windows Installer
-
-```powershell
-# Compile with Inno Setup
-iscc installer.iss
-```
-
-Output: `dist/installer/AiChemistSetup_1.0.0.exe`
-
-### 4. Test on Clean Machine
-
-- Copy installer to test machine (no Tesseract installed)
-- Run installer
-- Launch application
-- Test PDF to Editable conversion
-- Check logs for: "Using bundled Tesseract"
-
-## What Gets Bundled?
-
-| Component | Size | Required |
-|-----------|------|----------|
-| Tesseract.exe | ~5MB | ✅ Yes |
-| DLLs | ~20MB | ✅ Yes |
-| English Language Pack | ~15MB | ✅ Yes |
-| Additional Languages | ~15MB each | ⚠️ Optional |
-| **Total** | **~40-60MB** | |
-
-## File Structure After Installation
-
-```
-C:\Program Files\AiChemist\
-├── aichemist_transmutation_codex.exe
-├── resources\
-│   └── tesseract\
-│       ├── tesseract.exe
-│       ├── *.dll
-│       ├── tessdata\
-│       │   ├── eng.traineddata
-│       │   └── osd.traineddata
-│       └── LICENSE
-├── config\
-│   └── default_config.yaml
-├── licenses\
-│   └── TESSERACT_LICENSE.txt
-└── logs\
-```
-
-## Verification Checklist
-
-Before distributing:
-
-- [ ] Run bundled Tesseract test: `uv run python tests/test_bundled_tesseract.py`
-- [ ] Test all converters (PDF↔MD, PDF→HTML, PDF→Editable, etc.)
-- [ ] Check log files for Tesseract detection messages
-- [ ] Test on Windows 10 and Windows 11
-- [ ] Test on machine without Tesseract installed
-- [ ] Verify installer includes LICENSE files
-- [ ] Test uninstaller
-
-## Configuration Options
-
-Users can customize Tesseract location via `config/default_config.yaml`:
-
-```yaml
-environment:
-  tesseract_path: "C:\\Custom\\Path\\tesseract.exe"
-```
-
-## Troubleshooting
-
-### Build Script Fails
-
-**Problem:** `Tesseract not found at C:\Program Files\Tesseract-OCR`
-
-**Solution:** Update `$tesseractSource` in `scripts/build_installer.ps1` to your Tesseract installation path.
-
-### PyInstaller Import Errors
-
-**Problem:** `ModuleNotFoundError` during build
-
-**Solution:** Add missing modules to `hiddenimports` in `transmutation_codex.spec`.
-
-### Bundled Tesseract Not Found
-
-**Problem:** Application doesn't detect bundled Tesseract
-
-**Solution:** Check `_get_bundled_tesseract_path()` search paths match your installer structure.
-
-### Large Installer Size
-
-**Problem:** Installer is > 100MB
-
-**Solution:**
-
-- Remove unnecessary language packs from `tessdata/`
-- Use `eng.traineddata` only (~15MB)
-- Consider using `eng_fast.traineddata` (~5MB, less accurate)
-
-## Advanced Options
-
-### Custom Installer Icon
-
-Edit `installer.iss`:
-
-```ini
-SetupIconFile=resources\icon.ico
-```
-
-### Code Signing
-
-Edit `scripts/build_installer.ps1`:
-
-```powershell
-signtool sign /f "cert.pfx" /p "password" /t "http://timestamp.digicert.com" $installerPath
-```
-
-### Environment Variables
-
-For enterprise deployments, set system-wide Tesseract path:
-
-```powershell
-[System.Environment]::SetEnvironmentVariable("TESSERACT_PATH", "C:\Tesseract\tesseract.exe", "Machine")
-```
-
-## Distribution
-
-### Direct Download
-
-- Upload `AiChemistSetup_1.0.0.exe` to your website
-- Provide SHA256 checksum
-- Include installation instructions
-
-### Auto-Updates
-
-Consider implementing:
-
-- GitHub Releases for version tracking
-- Electron auto-updater for GUI updates
-- Update notification system
+- [ ] Production config created (`.env.production`, `config/production_config.yaml`)
+- [ ] Free tier limits configured (50 conversions, 5MB files, 4 converters)
+- [ ] Premium features defined in `TrialManager`
+- [ ] Supabase Row Level Security policies enabled
+- [ ] Telemetry and analytics configured (anonymous only)
 
 ### Licensing
 
-Remember to:
+- [ ] RSA keys generated and secured
+- [ ] Public key embedded in application
+- [ ] Private key stored securely (password manager/HSM)
+- [ ] Supabase license database configured
+- [ ] Gumroad webhook server deployed
+- [ ] Test license generation and activation workflow
 
-- Include Tesseract's Apache 2.0 license
-- Add attribution in your About dialog
-- Document any modifications to Tesseract
+### External Dependencies
+
+- [ ] Tesseract OCR bundled or installer included
+- [ ] Ghostscript installer included
+- [ ] Pandoc installer included
+- [ ] All dependencies check script updated
+
+## Environment Setup
+
+### Production Environment Variables
+
+Create `.env` for production (DO NOT commit):
+
+```env
+NODE_ENV=production
+DEV_MODE=false
+
+# Supabase (public credentials only)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key-here
+
+# Application settings
+AICHEMIST_LOG_LEVEL=INFO
+AICHEMIST_TELEMETRY_ENABLED=true
+```
+
+### Webhook Server Environment
+
+For the Gumroad webhook server (separate deployment):
+
+```env
+GUMROAD_WEBHOOK_SECRET=your-webhook-secret
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-service-role-key  # ADMIN ACCESS - SECURE THIS!
+PRIVATE_KEY_PATH=/secure/path/to/private_key.pem
+```
+
+## Build Process
+
+### 1. Clean Build Environment
+
+```powershell
+# Remove old builds
+Remove-Item -Path dist -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path build -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path gui/dist -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path gui/dist-electron -Recurse -Force -ErrorAction SilentlyContinue
+
+# Clean Python cache
+Get-ChildItem -Path . -Include __pycache__ -Recurse -Force | Remove-Item -Force -Recurse
+```
+
+### 2. Set Production Environment
+
+```powershell
+$env:NODE_ENV = "production"
+$env:DEV_MODE = "false"
+```
+
+### 3. Build Python Backend
+
+```powershell
+pyinstaller transmutation_codex.spec --clean
+```
+
+### 4. Build Electron GUI
+
+```powershell
+cd gui
+npm run build
+npm run electron:build
+cd ..
+```
+
+### 5. Create Installers
+
+```powershell
+# Microsoft Store MSIX
+.\scripts\build\build_msix.ps1 -Version "1.0.0.0" -Sign -CertPath "cert.pfx"
+
+# Direct Download Inno Setup
+.\scripts\build\build_direct_installer.ps1 -Version "1.0.0"
+```
+
+## Distribution Channels
+
+### Microsoft Store
+
+**Pros:**
+
+- Automatic updates
+- Trusted distribution
+- Microsoft security scanning
+- Built-in payment processing (if using Store payments)
+
+**Cons:**
+
+- 15% revenue share (if using Store payments)
+- Longer review process
+- Must follow Microsoft guidelines
+
+**Submission Process:**
+
+1. Create Partner Center account
+2. Reserve app name
+3. Upload signed MSIX
+4. Fill in store listing
+5. Submit for certification
+6. Wait 24-72 hours for review
+
+**Requirements:**
+
+- EV code signing certificate
+- Age rating
+- Privacy policy
+- Screenshots (4 required)
+- App description (< 10,000 characters)
+
+### Direct Download (Gumroad)
+
+**Pros:**
+
+- Higher profit margin (10% vs 15%)
+- Full control over pricing/licensing
+- Immediate deployment
+- Flexible payment options
+
+**Cons:**
+
+- Manual update notification
+- Trust/security concerns from users
+- Requires own website/hosting
+
+**Setup:**
+
+1. Create Gumroad product
+2. Upload installer to hosting (GitHub Releases, S3, etc.)
+3. Configure webhook for license generation
+4. Set up product page with features/pricing
+5. Test purchase flow end-to-end
+
+## License Server Setup
+
+### Deploy Webhook Server
+
+#### Option A: Railway (Recommended)
+
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Login
+railway login
+
+# Create project
+railway init
+
+# Set environment variables
+railway variables set GUMROAD_WEBHOOK_SECRET=xxx
+railway variables set SUPABASE_URL=xxx
+railway variables set SUPABASE_SERVICE_KEY=xxx
+railway variables set PRIVATE_KEY_PATH=/app/private_key.pem
+
+# Deploy
+railway up
+```
+
+#### Option B: AWS Lambda
+
+```bash
+# Install Serverless Framework
+npm install -g serverless
+
+# Create serverless.yml
+# Deploy
+serverless deploy
+
+# Get endpoint URL
+serverless info
+```
+
+### Configure Gumroad Webhook
+
+1. Go to Gumroad Dashboard > Settings > Advanced > Webhooks
+2. Add webhook URL: `https://your-domain.com/webhook/gumroad`
+3. Select events: `sale.successful`
+4. Save webhook secret
+5. Test with "Send Ping"
+
+### Test License Flow
+
+```bash
+# Test webhook endpoint
+curl -X POST https://your-domain.com/webhook/test \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "product_id": "aichemist_pro",
+    "order_id": "TEST-001"
+  }'
+
+# Verify license created in Supabase
+# Test activation in application
+```
+
+## Monitoring and Analytics
+
+### Application Telemetry
+
+Configured in `config/production_config.yaml`:
+
+```yaml
+telemetry:
+  enabled: true
+  anonymous: true  # NO PII collected
+  collect_pii: false
+```
+
+### Metrics to Track
+
+- Total installations (Microsoft Store analytics)
+- Active users (monthly/daily)
+- Conversion attempts (free vs premium)
+- License activations
+- Feature usage (which converters most popular)
+- Error rates
+- Update adoption rate
+
+### Supabase Analytics
+
+Monitor in Supabase dashboard:
+
+- License table size
+- Activation count per license
+- Failed activation attempts
+- Usage logs
+
+### Webhook Monitoring
+
+- Successful license generations
+- Failed webhook calls
+- Response times
+- Error rates
+
+Tools:
+
+- Railway logs: `railway logs`
+- AWS CloudWatch (if using Lambda)
+- Sentry for error tracking (optional)
+
+## Post-Deployment
+
+### Day 1
+
+- [ ] Monitor webhook for first purchases
+- [ ] Verify license delivery emails
+- [ ] Test license activation flow
+- [ ] Check for crash reports
+- [ ] Monitor support emails
+
+### Week 1
+
+- [ ] Review analytics dashboard
+- [ ] Check for common issues
+- [ ] Collect user feedback
+- [ ] Update documentation if needed
+- [ ] Fix critical bugs
+
+### Month 1
+
+- [ ] Analyze conversion rates (free to paid)
+- [ ] Review feature usage data
+- [ ] Plan next version features
+- [ ] Update marketing based on data
+- [ ] Consider A/B testing pricing
+
+## Rollback Plan
+
+If critical issues arise:
+
+### Microsoft Store
+
+1. Remove app from Store temporarily
+2. Fix issues
+3. Submit updated package
+4. Wait for re-certification
+
+### Direct Download
+
+1. Replace installer on download server
+2. Send email to recent purchasers
+3. Update version on website
+4. Monitor social media/support
+
+### License Issues
+
+1. Disable webhook temporarily
+2. Manually generate licenses for pending orders
+3. Fix webhook code
+4. Redeploy
+5. Re-enable webhook
+
+## Security Checklist
+
+- [ ] HTTPS enabled on all services
+- [ ] Webhook signature verification active
+- [ ] Private keys never in code/repository
+- [ ] Environment variables used for all secrets
+- [ ] Supabase RLS policies enforced
+- [ ] Rate limiting on webhook endpoint
+- [ ] Error messages don't leak sensitive info
+- [ ] Logs don't contain PII or secrets
+- [ ] Code signing certificates secured
+- [ ] Backup of private key in secure location
 
 ## Support Resources
 
-- **Installation Issues:** `docs/TESSERACT_CONFIGURATION.md`
-- **Bundling Details:** `docs/BUNDLING_TESSERACT.md`
-- **Build Errors:** Check `build_installer.ps1` logs
-- **Test Suite:** `tests/test_bundled_tesseract.py`
+### Documentation
 
-## Production Checklist
+- User Guide: Include in installer
+- FAQ: Website/docs site
+- API Documentation: Sphinx generated docs
+- Video Tutorials: YouTube channel (optional)
 
-Before release:
+### Support Channels
 
-- [ ] Update version numbers in all files
-- [ ] Generate fresh GUID for `installer.iss`
-- [ ] Update publisher information
-- [ ] Test installer on multiple machines
-- [ ] Create backup of signing certificate
-- [ ] Document system requirements
-- [ ] Prepare release notes
-- [ ] Set up support channels
+- Email: <support@yourcompany.com>
+- GitHub Issues: For bug reports
+- Discord/Slack: Community support (optional)
+- Documentation site: docs.yourcompany.com
 
-## Quick Commands Reference
+### Common Issues
 
-```powershell
-# Build everything
-.\scripts\build_installer.ps1 -Version "1.0.0"
-pyinstaller transmutation_codex.spec --clean
-iscc installer.iss
+Document solutions for:
 
-# Test
-uv run python tests/test_bundled_tesseract.py
+- License activation failures
+- External dependency missing (Tesseract, etc.)
+- File conversion errors
+- Performance issues
+- Update problems
 
-# Verify Tesseract
-tesseract --version
+## Legal Requirements
 
-# Check bundled detection
-python -c "from transmutation_codex.plugins.pdf.to_editable_pdf import _get_bundled_tesseract_path; print(_get_bundled_tesseract_path())"
-```
+- [ ] Privacy policy published
+- [ ] Terms of service published
+- [ ] EULA included in installer
+- [ ] Cookie policy (if using website analytics)
+- [ ] GDPR compliance (if serving EU users)
+- [ ] Refund policy documented
+- [ ] Support contact information provided
+
+## Launch Announcement
+
+### Marketing Channels
+
+- Product Hunt launch
+- Reddit (r/productivity, r/software, etc.)
+- Twitter/X announcement
+- LinkedIn post
+- Newsletter to mailing list
+- Blog post with features/pricing
+- YouTube demo video
+
+### Press Kit
+
+- App icon (various sizes)
+- Screenshots
+- Feature list
+- Pricing information
+- Company background
+- Press release
+- Demo video link
+
+## Ongoing Maintenance
+
+### Regular Tasks
+
+- Monitor error logs daily
+- Review analytics weekly
+- Update dependencies monthly
+- Security patches as needed
+- Respond to support within 24h
+- Process refunds within 48h
+
+### Quarterly Reviews
+
+- Analyze conversion funnel
+- Review pricing strategy
+- Plan feature additions
+- Update marketing materials
+- Check competitor landscape
+- Collect user testimonials
 
 ---
 
-**Ready to deploy?** Follow steps 1-4 above, then distribute your installer! 🚀
+**Deployment Date**: TBD
+**Version**: 1.0.0
+**Deployment Lead**: [Your Name]
+**Status**: Pre-Production
 
-
-
-
+**Next Steps**: Complete pre-deployment checklist and schedule deployment date.

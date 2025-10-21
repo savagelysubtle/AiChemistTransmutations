@@ -4,18 +4,18 @@ This module provides decorators that add validation, error handling,
 and other cross-cutting concerns to converter functions.
 """
 
-import inspect
+from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
+from transmutation_codex.core.dependency_checker import get_dependency_checker
 from transmutation_codex.core.exceptions import (
-    ValidationError,
     raise_validation_error,
 )
 from transmutation_codex.utils.validators import (
-    validate_file_path,
     validate_file_format,
+    validate_file_path,
     validate_file_size,
     validate_output_path,
 )
@@ -25,6 +25,7 @@ def validate_conversion(
     input_formats: list[str] | None = None,
     max_file_size_mb: int | None = None,
     required_dependencies: list[str] | None = None,
+    validate_dependencies: bool = True,
 ):
     """Decorator to validate conversion inputs before execution.
 
@@ -32,6 +33,7 @@ def validate_conversion(
         input_formats: List of acceptable input formats (e.g., ['md', 'markdown'])
         max_file_size_mb: Maximum input file size in megabytes
         required_dependencies: List of required Python modules
+        validate_dependencies: Whether to validate external dependencies
 
     Example:
         @validate_conversion(
@@ -42,12 +44,11 @@ def validate_conversion(
             # Validation happens automatically before this runs
             ...
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(
-            input_path: str | Path,
-            output_path: str | Path | None = None,
-            **kwargs: Any
+            input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
         ) -> Path:
             # Convert to Path objects
             input_path_obj = Path(input_path)
@@ -60,8 +61,7 @@ def validate_conversion(
             # Validate input format if specified
             if input_formats:
                 is_valid, error = validate_file_format(
-                    str(input_path_obj),
-                    input_formats
+                    str(input_path_obj), input_formats
                 )
                 if not is_valid:
                     raise_validation_error(f"Format validation failed: {error}")
@@ -69,11 +69,24 @@ def validate_conversion(
             # Validate file size if specified
             if max_file_size_mb:
                 is_valid, error = validate_file_size(
-                    str(input_path_obj),
-                    max_file_size_mb
+                    str(input_path_obj), max_file_size_mb
                 )
                 if not is_valid:
                     raise_validation_error(f"File size validation failed: {error}")
+
+            # Validate dependencies if enabled
+            if validate_dependencies:
+                # Extract converter type from function name
+                converter_type = func.__name__.replace("convert_", "").replace(
+                    "_to_", "2"
+                )
+
+                # Check dependencies for this converter
+                dependency_checker = get_dependency_checker()
+                if not dependency_checker.validate_converter(converter_type):
+                    raise_validation_error(
+                        f"Required dependencies not available for converter {converter_type}"
+                    )
 
             # Validate required dependencies
             if required_dependencies:
@@ -100,6 +113,7 @@ def validate_conversion(
             return func(input_path, output_path, **kwargs)
 
         return wrapper
+
     return decorator
 
 
@@ -138,12 +152,11 @@ def validate_options(schema: dict[str, dict[str, Any]]):
             engine = options['engine']  # Guaranteed to be valid
             dpi = options['dpi']  # Guaranteed to be in range
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(
-            input_path: str | Path,
-            output_path: str | Path | None = None,
-            **kwargs: Any
+            input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
         ) -> Path:
             validated_options = {}
 
@@ -152,21 +165,21 @@ def validate_options(schema: dict[str, dict[str, Any]]):
                 value = kwargs.get(option_name)
 
                 # Check if required
-                if rules.get('required', False) and value is None:
+                if rules.get("required", False) and value is None:
                     raise_validation_error(
                         f"Required option '{option_name}' is missing"
                     )
 
                 # Apply default if not provided
-                if value is None and 'default' in rules:
-                    value = rules['default']
+                if value is None and "default" in rules:
+                    value = rules["default"]
 
                 # Skip validation if value is still None (optional field)
                 if value is None:
                     continue
 
                 # Validate type
-                expected_type = rules.get('type')
+                expected_type = rules.get("type")
                 if expected_type and not isinstance(value, expected_type):
                     raise_validation_error(
                         f"Option '{option_name}' must be of type {expected_type.__name__}, "
@@ -174,18 +187,18 @@ def validate_options(schema: dict[str, dict[str, Any]]):
                     )
 
                 # Validate choices
-                if 'choices' in rules and value not in rules['choices']:
+                if "choices" in rules and value not in rules["choices"]:
                     raise_validation_error(
                         f"Option '{option_name}' must be one of {rules['choices']}, "
                         f"got '{value}'"
                     )
 
                 # Validate min/max for numeric types
-                if 'min' in rules and value < rules['min']:
+                if "min" in rules and value < rules["min"]:
                     raise_validation_error(
                         f"Option '{option_name}' must be >= {rules['min']}, got {value}"
                     )
-                if 'max' in rules and value > rules['max']:
+                if "max" in rules and value > rules["max"]:
                     raise_validation_error(
                         f"Option '{option_name}' must be <= {rules['max']}, got {value}"
                     )
@@ -199,6 +212,7 @@ def validate_options(schema: dict[str, dict[str, Any]]):
             return func(input_path, output_path, **final_options)
 
         return wrapper
+
     return decorator
 
 
@@ -240,6 +254,7 @@ def auto_register_converter(
             # Converter is automatically registered on import
             ...
     """
+
     def decorator(func: Callable) -> Callable:
         from transmutation_codex.core import get_registry
 
@@ -263,11 +278,7 @@ def auto_register_converter(
     return decorator
 
 
-def converter(
-    source_format: str,
-    target_format: str,
-    **registration_kwargs: Any
-):
+def converter(source_format: str, target_format: str, **registration_kwargs: Any):
     """Combined decorator for validation and registration.
 
     This is a convenience decorator that combines common validation
@@ -290,12 +301,16 @@ def converter(
     """
     # Extract validation kwargs
     validation_kwargs = {}
-    if 'input_formats' in registration_kwargs:
-        validation_kwargs['input_formats'] = registration_kwargs.pop('input_formats')
-    if 'max_file_size_mb' in registration_kwargs:
-        validation_kwargs['max_file_size_mb'] = registration_kwargs.pop('max_file_size_mb')
-    if 'required_dependencies' in registration_kwargs:
-        validation_kwargs['required_dependencies'] = registration_kwargs.pop('required_dependencies')
+    if "input_formats" in registration_kwargs:
+        validation_kwargs["input_formats"] = registration_kwargs.pop("input_formats")
+    if "max_file_size_mb" in registration_kwargs:
+        validation_kwargs["max_file_size_mb"] = registration_kwargs.pop(
+            "max_file_size_mb"
+        )
+    if "required_dependencies" in registration_kwargs:
+        validation_kwargs["required_dependencies"] = registration_kwargs.pop(
+            "required_dependencies"
+        )
 
     def decorator(func: Callable) -> Callable:
         # Apply validation decorator
@@ -306,7 +321,7 @@ def converter(
         func = auto_register_converter(
             source_format=source_format,
             target_format=target_format,
-            **registration_kwargs
+            **registration_kwargs,
         )(func)
 
         return func

@@ -4,9 +4,8 @@ This module handles trial limitations including conversion counting
 and provides trial status information to the application.
 """
 
-import json
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
@@ -17,11 +16,33 @@ class TrialManager:
     """Manage trial period and conversion limits."""
 
     # Trial configuration
-    TRIAL_CONVERSION_LIMIT = 10  # Free users get 10 conversions
-    TRIAL_DURATION_DAYS = 14  # Alternative: 14-day trial (not currently enforced)
+    TRIAL_CONVERSION_LIMIT = 50  # Free users get 50 conversions
+    TRIAL_DURATION_DAYS = 30  # 30-day trial period
+    FILE_SIZE_LIMIT_MB = 5  # 5MB file size limit for free tier
 
-    # Conversion types allowed in trial
-    FREE_CONVERTERS = {"md2pdf"}  # Only MD→PDF allowed in free trial
+    # Free tier converters - basic document conversion
+    FREE_CONVERTERS = {
+        "md2pdf",  # Markdown to PDF
+        "pdf2md",  # PDF to Markdown (basic, no OCR)
+        "md2html",  # Markdown to HTML
+        "txt2pdf",  # Text to PDF
+    }
+
+    # Premium converters - require paid license
+    PREMIUM_CONVERTERS = {
+        "pdf2md_ocr",  # PDF to Markdown with OCR
+        "html2pdf",  # HTML to PDF
+        "docx2md",  # DOCX to Markdown
+        "docx2pdf",  # DOCX to PDF
+        "pdf2docx",  # PDF to DOCX
+        "excel2pdf",  # Excel to PDF
+        "pptx2pdf",  # PowerPoint to PDF
+        "epub2pdf",  # EPUB to PDF
+        "rst2pdf",  # ReStructuredText to PDF
+        "pdf2images",  # PDF to Images
+        "merge_pdf",  # PDF Merging
+        "batch",  # Batch processing
+    }
 
     def __init__(self, data_dir: Path):
         """Initialize trial manager.
@@ -166,7 +187,7 @@ class TrialManager:
 
         Example:
             >>> status = trial.get_trial_status()
-            >>> if status['status'] == 'expired':
+            >>> if status["status"] == "expired":
             ...     print("Trial expired!")
         """
         used = self.get_conversion_count()
@@ -181,9 +202,7 @@ class TrialManager:
         first_run = datetime.fromisoformat(first_run_str)
         days_since = (datetime.now() - first_run).days
 
-        status: Literal["active", "expired"] = (
-            "expired" if remaining == 0 else "active"
-        )
+        status: Literal["active", "expired"] = "expired" if remaining == 0 else "active"
 
         return {
             "status": status,

@@ -1,8 +1,9 @@
 ; Inno Setup Script for AiChemist Transmutation Codex
 ; This script creates a Windows installer that includes bundled Tesseract and Ghostscript
 
-#define MyAppName "AiChemist Transmutation Codex"
+; Import version from version.py
 #define MyAppVersion "1.0.0"
+#define MyAppName "AiChemist Transmutation Codex"
 #define MyAppPublisher "Your Company Name"
 #define MyAppURL "https://yourwebsite.com"
 #define MyAppExeName "aichemist_transmutation_codex.exe"
@@ -39,10 +40,12 @@ Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescrip
 
 [Files]
 ; Main application files from PyInstaller output
-Source: "dist\aichemist_transmutation_codex\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\aichemist_transmutation_codex\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "DEV_LICENSE.txt,*.log,__pycache__"
 
-; Bundled Tesseract (if not already in PyInstaller output)
-; Source: "build\resources\tesseract\*"; DestDir: "{app}\resources\tesseract"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Configuration files
+Source: "config\default_config.yaml"; DestDir: "{app}\config"; Flags: ignoreversion
+; Exclude development configs
+; Source: "config\production_config.yaml"; DestDir: "{app}\config"; Flags: ignoreversion
 
 ; Ghostscript installer (bundled for automatic installation)
 Source: "build\installers\gs10.04.0-win64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
