@@ -91,7 +91,9 @@ def convert_html_to_epub(
         raise_conversion_error("beautifulsoup4 is required for HTML parsing")
 
     # Start operation
-    operation_id = start_operation(f"Converting HTML to EPUB: {Path(input_path).name}", total_steps=100)
+    operation_id = start_operation(
+        f"Converting HTML to EPUB: {Path(input_path).name}", total_steps=100
+    )
 
     try:
         # Check licensing and file size

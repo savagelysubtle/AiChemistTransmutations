@@ -1,5 +1,3 @@
 === electron_test.png ===
 
-Sample Image
-For testing purposes
-
+Error processing image: 'Mock' object does not support the context manager protocol
