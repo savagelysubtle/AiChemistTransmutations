@@ -9,6 +9,8 @@ import ConversionLog from '../components/ConversionLog';
 import MergeOptions from '../components/MergeOptions';
 import Card from '../components/Card';
 import Button from '../components/Button';
+import TrialStatus from '../components/TrialStatus';
+import LicenseDialog from '../components/LicenseDialog';
 
 // Updated PlaceholderElectronAPI
 interface PlaceholderElectronAPI {
@@ -65,6 +67,9 @@ const ConversionPage: React.FC = () => {
     fontName: 'Helvetica',
     fontSize: 10,
   });
+
+  // License dialog state
+  const [showLicenseDialog, setShowLicenseDialog] = useState(false);
 
   const electronAPI = getElectronAPI();
 
@@ -335,6 +340,26 @@ const ConversionPage: React.FC = () => {
       <div className="container mx-auto px-6 py-8 max-w-6xl">
         <Header />
 
+        {/* Trial Status Bar */}
+        <div className="flex items-center justify-between mt-6 p-4 bg-light-surface dark:bg-dark-surface rounded-lg border border-light-border dark:border-dark-border">
+          <TrialStatus />
+          <button
+            onClick={() => setShowLicenseDialog(true)}
+            className="px-4 py-2 bg-gradient-to-r from-light-gradientStart to-light-gradientEnd dark:from-dark-gradientStart dark:to-dark-gradientEnd text-white font-medium rounded-lg hover:opacity-90 transition-opacity"
+          >
+            Activate License
+          </button>
+        </div>
+
+        {/* License Dialog */}
+        <LicenseDialog
+          isOpen={showLicenseDialog}
+          onClose={() => setShowLicenseDialog(false)}
+          onActivated={() => {
+            setConversionLog(prev => [...prev, '✅ License activated successfully! All features unlocked.']);
+          }}
+        />
+
         <main className="space-y-8 mt-8">
           {/* Progress Stepper */}
           <div className="flex items-center justify-center mb-8">
@@ -371,6 +396,7 @@ const ConversionPage: React.FC = () => {
               </div>
             </div>
           </div>
+
         <ConversionTypeSelect
           conversionType={conversionType}
           onConversionTypeChange={(newType) => {

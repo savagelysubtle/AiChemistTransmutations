@@ -8,14 +8,17 @@ import time
 from pathlib import Path
 
 from transmutation_codex.core import (
+    check_feature_access,
+    check_file_size_limit,
     complete_operation,
     get_log_manager,
     publish,
+    record_conversion_attempt,
     start_operation,
     update_progress,
 )
+from transmutation_codex.core.decorators import converter
 from transmutation_codex.core.events import ConversionEvent
-from transmutation_codex.core.registry import converter
 
 # Setup logger
 log_manager = get_log_manager()
@@ -112,6 +115,15 @@ def convert_md_to_html(
     start_time = time.time()
 
     try:
+        # License validation and feature gating (md2html is paid-only)
+        check_feature_access("md2html")
+
+        # Convert to Path for validation
+        input_path = Path(input_path).resolve()
+
+        # Check file size limit
+        check_file_size_limit(str(input_path))
+
         # Validate input file
         if not input_path.exists():
             raise FileNotFoundError(f"Input file not found: {input_path}")
@@ -165,6 +177,14 @@ def convert_md_to_html(
         logger.info(f"Conversion completed in {duration:.2f}s")
 
         # Complete operation
+        # Record conversion for trial tracking
+        record_conversion_attempt(
+            converter_name="md2html",
+            input_file=str(input_path),
+            output_file=str(output_path),
+            success=True,
+        )
+
         complete_operation(operation, success=True)
 
         # Publish conversion completed event

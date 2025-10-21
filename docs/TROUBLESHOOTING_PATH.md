@@ -66,3 +66,4 @@ The bundled Tesseract implementation we created eliminates this issue entirely:
 
 
 
+

@@ -219,6 +219,20 @@ begin
       InstalledComponents := InstalledComponents + '  • Pandoc' + #13#10;
     end;
 
+    // Add MiKTeX to PATH after installation if detected
+    if MiktexInstalled() then
+    begin
+      // Try common MiKTeX bin locations
+      if FileExists('C:\Program Files\MiKTeX\miktex\bin\x64\pdflatex.exe') then
+        AddToPath('C:\Program Files\MiKTeX\miktex\bin\x64')
+      else if FileExists('C:\Program Files (x86)\MiKTeX\miktex\bin\pdflatex.exe') then
+        AddToPath('C:\Program Files (x86)\MiKTeX\miktex\bin')
+      else if FileExists(ExpandConstant('{localappdata}\Programs\MiKTeX\miktex\bin\x64\pdflatex.exe')) then
+        AddToPath(ExpandConstant('{localappdata}\Programs\MiKTeX\miktex\bin\x64'));
+
+      InstalledComponents := InstalledComponents + '  • MiKTeX (PDF engines)' + #13#10;
+    end;
+
     // Show message if any components were installed
     if InstalledComponents <> '' then
     begin

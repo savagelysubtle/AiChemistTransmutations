@@ -94,3 +94,11 @@ gui/.cache/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Licensing - SECURITY CRITICAL
+scripts/keys/          # RSA private/public keys
+licenses.json          # Generated license keys
+trial.db               # Trial tracking database
+.env
+.env.local
+.env.development

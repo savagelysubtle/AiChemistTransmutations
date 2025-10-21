@@ -993,6 +993,7 @@ name = "transmutation-codex"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "cryptography" },
     { name = "docx2pdf" },
     { name = "fpdf" },
     { name = "fpdf2" },
@@ -1037,6 +1038,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", specifier = ">=42.0.0" },
     { name = "docx2pdf" },
     { name = "fpdf", specifier = ">=1.7.2" },
     { name = "fpdf2", specifier = ">=2.8.3" },

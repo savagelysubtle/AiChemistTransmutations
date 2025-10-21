@@ -116,8 +116,13 @@ class BridgeArguments:
             except BridgeValidationError as e:
                 raise BridgeValidationError(f"File {i + 1}: {e}") from e
 
+        # Auto-generate output path if not provided
         if not self.output_path:
-            raise BridgeValidationError("Output path is required for merge mode")
+            from pathlib import Path
+
+            # Use first input file's directory and create merged.pdf
+            first_file = Path(self.input_files[0])
+            self.output_path = str(first_file.parent / "merged.pdf")
 
 
 def parse_bridge_arguments(args: list[str] | None = None) -> BridgeArguments:
@@ -293,6 +298,14 @@ def parse_legacy_arguments(args: list[str] | None = None) -> BridgeArguments:
     parser.add_argument("--page-break-marker", help="Page break marker for MD2PDF")
     parser.add_argument("--output-file-name", help="Output filename for merged PDF")
 
+    # TXT to PDF specific options
+    parser.add_argument(
+        "--font-name", help="Font name for TXT to PDF (default: Helvetica)"
+    )
+    parser.add_argument(
+        "--font-size", type=int, help="Font size for TXT to PDF (default: 10)"
+    )
+
     # OCRmyPDF-specific options for pdf2editable
     parser.add_argument(
         "--output-type", help="OCRmyPDF output type (pdf, pdfa, pdfa-1, pdfa-2, pdfa-3)"
@@ -320,11 +333,23 @@ def parse_legacy_arguments(args: list[str] | None = None) -> BridgeArguments:
     else:
         mode = "convert"
 
+    # Determine output path - for merge, check both --output and --output-file-name
+    output_path = parsed.output_path
+    if mode == "merge" and not output_path and hasattr(parsed, "output_file_name"):
+        output_path = parsed.output_file_name
+
     # Collect converter options from parsed args
     options = {}
     for key, value in vars(parsed).items():
         if (
-            key not in ["conversion_type", "input_files", "output_dir", "output_path"]
+            key
+            not in [
+                "conversion_type",
+                "input_files",
+                "output_dir",
+                "output_path",
+                "output_file_name",
+            ]
             and value is not None
         ):
             options[key] = value
@@ -333,7 +358,7 @@ def parse_legacy_arguments(args: list[str] | None = None) -> BridgeArguments:
         mode=mode,
         conversion_type=conversion_type,
         input_path=parsed.input_files[0] if mode == "convert" else None,
-        output_path=parsed.output_path,
+        output_path=output_path,
         input_files=parsed.input_files if mode in ["batch", "merge"] else None,
         output_dir=parsed.output_dir,
         options=options,

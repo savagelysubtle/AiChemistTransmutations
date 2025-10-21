@@ -14,14 +14,17 @@ from typing import Any
 import pypandoc
 
 from transmutation_codex.core import (
+    check_feature_access,
+    check_file_size_limit,
     complete_operation,
     get_log_manager,
     publish,
+    record_conversion_attempt,
     start_operation,
     update_progress,
 )
+from transmutation_codex.core.decorators import converter
 from transmutation_codex.core.events import ConversionEvent
-from transmutation_codex.core.registry import converter
 
 # Setup logger
 log_manager = get_log_manager()
@@ -82,6 +85,15 @@ def get_pandoc_path() -> str:
 
     # Check PATH if not found in common locations
     try:
+        # License validation and feature gating (docx2md is paid-only)
+        check_feature_access("docx2md")
+
+        # Convert to Path for validation
+        input_path = Path(input_path).resolve()
+
+        # Check file size limit
+        check_file_size_limit(str(input_path))
+
         # Use `where` on Windows, `which` on Unix-like systems
         cmd = (
             ["where", "pandoc"]
@@ -215,6 +227,14 @@ def convert_docx_to_markdown(
         logger.info(f"Conversion completed in {duration:.2f}s")
 
         # Complete operation
+        # Record conversion for trial tracking
+        record_conversion_attempt(
+            converter_name="docx2md",
+            input_file=str(input_path),
+            output_file=str(output_path),
+            success=True,
+        )
+
         complete_operation(operation, success=True)
 
         # Publish conversion completed event
