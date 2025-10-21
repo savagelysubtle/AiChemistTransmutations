@@ -111,8 +111,8 @@ def convert_epub_to_docx(
     try:
         # Check licensing and file size
         check_feature_access("epub2docx")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("epub2docx")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("epub2docx", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -184,7 +184,7 @@ def convert_epub_to_docx(
             # Get spine items
             spine_items = book.spine
             for i, (item_id, _) in enumerate(spine_items):
-                item = book.get_item_by_id(item_id)
+                item = book.get_item_with_id(item_id)
                 if item and item.get_name():
                     toc_para = doc.add_paragraph(
                         f"{i + 1}. {item.get_name()}", style="List Number"
@@ -206,7 +206,7 @@ def convert_epub_to_docx(
                 f"Processing chapter {i + 1}",
             )
 
-            item = book.get_item_by_id(item_id)
+            item = book.get_item_with_id(item_id)
             if not item:
                 continue
 

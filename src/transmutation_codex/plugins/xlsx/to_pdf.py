@@ -110,15 +110,15 @@ def convert_xlsx_to_pdf(
         raise_conversion_error("reportlab is required for PDF generation")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Converting Excel to PDF: {Path(input_path).name}"
+    operation_id = start_operation(
+        f"Converting Excel to PDF: {Path(input_path).name}", total_steps=100
     )
 
     try:
         # Check licensing and file size
         check_feature_access("xlsx2pdf")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("xlsx2pdf")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("xlsx2pdf", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -150,7 +150,7 @@ def convert_xlsx_to_pdf(
         if orientation.lower() == "landscape":
             pagesize = (pagesize[1], pagesize[0])  # Swap width/height
 
-        update_progress(operation.id, 10, "Loading Excel file...")
+        update_progress(operation_id, 10, "Loading Excel file...")
 
         # Load Excel file
         try:
@@ -158,7 +158,7 @@ def convert_xlsx_to_pdf(
         except Exception as e:
             raise_conversion_error(f"Failed to load Excel file: {e}")
 
-        update_progress(operation.id, 20, "Processing worksheets...")
+        update_progress(operation_id, 20, "Processing worksheets...")
 
         # Create PDF document
         doc = SimpleDocTemplate(
@@ -189,7 +189,7 @@ def convert_xlsx_to_pdf(
         for sheet_idx, sheet_name in enumerate(sheet_names):
             logger.info(f"Processing sheet: {sheet_name}")
             update_progress(
-                operation.id,
+                operation_id,
                 20 + (sheet_idx / total_sheets) * 60,
                 f"Processing sheet: {sheet_name}",
             )
@@ -261,7 +261,7 @@ def convert_xlsx_to_pdf(
             if sheet_idx < total_sheets - 1:
                 story.append(PageBreak())
 
-        update_progress(operation.id, 90, "Generating PDF...")
+        update_progress(operation_id, 90, "Generating PDF...")
 
         # Build PDF
         doc.build(story)
@@ -276,7 +276,7 @@ def convert_xlsx_to_pdf(
             )
         )
 
-        complete_operation(operation.id, {"output_path": str(output_path)})
+        complete_operation(operation_id, {"output_path": str(output_path)})
         logger.info(f"Excel to PDF conversion completed: {output_path}")
 
         return output_path
@@ -291,4 +291,3 @@ def convert_xlsx_to_pdf(
             )
         )
         raise_conversion_error(f"Excel to PDF conversion failed: {e}")
-

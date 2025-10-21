@@ -48,6 +48,25 @@ interface ConversionOptionsProps {
     preserveFormatting: boolean;
   };
   /** Callback function when Excel options change. */
+
+  /** Options for OCR layer conversion. */
+  ocrOptions?: {
+    language: string;
+    dpi: number;
+    preprocess: string;
+    confidenceThreshold: number;
+    pageRange: string;
+    preserveLayout: boolean;
+  };
+  /** Callback function when OCR options change. */
+  onOcrOptionsChange?: React.Dispatch<React.SetStateAction<{
+    language: string;
+    dpi: number;
+    preprocess: string;
+    confidenceThreshold: number;
+    pageRange: string;
+    preserveLayout: boolean;
+  }>>;
   onExcelOptionsChange?: React.Dispatch<React.SetStateAction<{
     sheetName?: string;
     includeCharts: boolean;
@@ -702,6 +721,129 @@ const ConversionOptions: React.FC<ConversionOptionsProps> = ({
             </div>
           </>
         )}
+      </section>
+    );
+  }
+
+  // OCR layer conversion options
+  if (conversionType === 'pdf2ocr_layer') {
+    const handleOcrOptionChange = <K extends keyof NonNullable<ConversionOptionsProps['ocrOptions']>>(
+      optionKey: K,
+      value: NonNullable<ConversionOptionsProps['ocrOptions']>[K]
+    ) => {
+      if (onOcrOptionsChange && ocrOptions) {
+        onOcrOptionsChange({
+          ...ocrOptions,
+          [optionKey]: value,
+        });
+      }
+    };
+
+    return (
+      <section className="p-6 border border-dark-border rounded-lg shadow-lg bg-dark-surface space-y-4">
+        <h2 className="text-2xl font-semibold mb-3 text-dark-textPrimary">OCR Layer Options</h2>
+
+        <div className="space-y-2">
+          <label htmlFor="language" className="block text-sm font-medium text-dark-textSecondary">
+            OCR Language
+          </label>
+          <select
+            id="language"
+            name="language"
+            value={ocrOptions?.language || 'eng'}
+            onChange={(e) => handleOcrOptionChange('language', e.target.value)}
+            className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm appearance-none"
+          >
+            <option value="eng" className="bg-dark-surface text-dark-textPrimary">English</option>
+            <option value="spa" className="bg-dark-surface text-dark-textPrimary">Spanish</option>
+            <option value="fra" className="bg-dark-surface text-dark-textPrimary">French</option>
+            <option value="deu" className="bg-dark-surface text-dark-textPrimary">German</option>
+            <option value="ita" className="bg-dark-surface text-dark-textPrimary">Italian</option>
+            <option value="por" className="bg-dark-surface text-dark-textPrimary">Portuguese</option>
+            <option value="rus" className="bg-dark-surface text-dark-textPrimary">Russian</option>
+            <option value="chi_sim" className="bg-dark-surface text-dark-textPrimary">Chinese (Simplified)</option>
+            <option value="jpn" className="bg-dark-surface text-dark-textPrimary">Japanese</option>
+            <option value="kor" className="bg-dark-surface text-dark-textPrimary">Korean</option>
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="dpi" className="block text-sm font-medium text-dark-textSecondary">
+            DPI (Image Quality)
+          </label>
+          <input
+            type="number"
+            id="dpi"
+            name="dpi"
+            value={ocrOptions?.dpi || 300}
+            onChange={(e) => handleOcrOptionChange('dpi', parseInt(e.target.value, 10) || 300)}
+            min="50"
+            max="1200"
+            className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+          />
+          <p className="text-xs text-dark-textSecondary">Higher DPI = better quality but slower processing</p>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="preprocess" className="block text-sm font-medium text-dark-textSecondary">
+            Image Preprocessing
+          </label>
+          <select
+            id="preprocess"
+            name="preprocess"
+            value={ocrOptions?.preprocess || 'grayscale'}
+            onChange={(e) => handleOcrOptionChange('preprocess', e.target.value)}
+            className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm appearance-none"
+          >
+            <option value="none" className="bg-dark-surface text-dark-textPrimary">None</option>
+            <option value="grayscale" className="bg-dark-surface text-dark-textPrimary">Grayscale</option>
+            <option value="threshold" className="bg-dark-surface text-dark-textPrimary">Threshold</option>
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="confidenceThreshold" className="block text-sm font-medium text-dark-textSecondary">
+            Confidence Threshold
+          </label>
+          <input
+            type="number"
+            id="confidenceThreshold"
+            name="confidenceThreshold"
+            value={ocrOptions?.confidenceThreshold || 0}
+            onChange={(e) => handleOcrOptionChange('confidenceThreshold', parseInt(e.target.value, 10) || 0)}
+            min="0"
+            max="100"
+            className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+          />
+          <p className="text-xs text-dark-textSecondary">Minimum confidence for text extraction (0-100)</p>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="pageRange" className="block text-sm font-medium text-dark-textSecondary">
+            Page Range (optional)
+          </label>
+          <input
+            type="text"
+            id="pageRange"
+            name="pageRange"
+            value={ocrOptions?.pageRange || 'all'}
+            onChange={(e) => handleOcrOptionChange('pageRange', e.target.value)}
+            placeholder="e.g., all, 1-5, or 1,3,5"
+            className="block w-full p-2.5 bg-dark-input border border-dark-border text-dark-textPrimary rounded-md shadow-sm focus:ring-dark-primary focus:border-dark-primary sm:text-sm focus:outline-none"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={ocrOptions?.preserveLayout || true}
+              onChange={(e) => handleOcrOptionChange('preserveLayout', e.target.checked)}
+              className="rounded border-dark-border bg-dark-input text-dark-primary focus:ring-dark-primary focus:ring-offset-0"
+            />
+            <span className="text-sm text-dark-textSecondary">Preserve text layout</span>
+          </label>
+        </div>
       </section>
     );
   }

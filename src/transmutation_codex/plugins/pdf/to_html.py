@@ -16,13 +16,13 @@ from transmutation_codex.core import (
     check_file_size_limit,
     record_conversion_attempt,
 )
+from transmutation_codex.core.decorators import converter
 from transmutation_codex.core.events import ConversionEvent, EventTypes, publish
 from transmutation_codex.core.progress import (
     complete_operation,
     start_operation,
     update_progress,
 )
-from transmutation_codex.core.decorators import converter
 
 # Setup logger
 log_manager = LogManager()
@@ -98,10 +98,10 @@ def convert_pdf_to_html(
         ConversionEvent(
             event_type=EventTypes.CONVERSION_STARTED,
             source="pdf2html",
+            input_file=str(input_path),
+            conversion_type="pdf2html",
             data={
                 "operation_id": operation,
-                "input_file": str(input_path),
-                "conversion_type": "pdf2html",
             },
         )
     )
@@ -237,10 +237,11 @@ def convert_pdf_to_html(
             ConversionEvent(
                 event_type=EventTypes.CONVERSION_COMPLETED,
                 source="pdf2html",
+                input_file=str(input_path),
+                output_file=str(output_path),
+                conversion_type="pdf2html",
                 data={
                     "operation_id": operation,
-                    "output_file": str(output_path),
-                    "conversion_type": "pdf2html",
                 },
             )
         )
@@ -257,10 +258,11 @@ def convert_pdf_to_html(
             ConversionEvent(
                 event_type=EventTypes.CONVERSION_FAILED,
                 source="pdf2html",
+                input_file=str(input_path),
+                conversion_type="pdf2html",
                 data={
                     "operation_id": operation,
                     "error": str(e),
-                    "conversion_type": "pdf2html",
                 },
             )
         )
@@ -285,4 +287,3 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
-

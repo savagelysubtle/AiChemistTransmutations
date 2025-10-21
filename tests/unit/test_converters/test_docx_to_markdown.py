@@ -6,6 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
+from transmutation_codex.core.exceptions import ValidationError
+
 from transmutation_codex.plugins.docx.to_markdown import (
     convert_docx_to_markdown,
     get_pandoc_path,
@@ -107,7 +109,7 @@ class TestDOCXToMarkdownConverter:
         non_existent = Path("/nonexistent/file.docx")
         output_path = temp_output_dir / "output.md"
 
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(ValidationError):
             convert_docx_to_markdown(
                 input_path=non_existent,
                 output_path=output_path,
@@ -124,7 +126,7 @@ class TestDOCXToMarkdownConverter:
 
         output_path = temp_output_dir / "output.md"
 
-        with pytest.raises(FileNotFoundError, match="Pandoc not found"):
+        with pytest.raises(ValidationError, match="Pandoc not found"):
             convert_docx_to_markdown(
                 input_path=mock_docx_file,
                 output_path=output_path,

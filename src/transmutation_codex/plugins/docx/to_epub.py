@@ -51,7 +51,7 @@ logger = get_log_manager().get_converter_logger("docx2epub")
     source_format="docx",
     target_format="epub",
     description="Convert DOCX to EPUB format",
-    required_dependencies=["ebooklib", "python-docx", "beautifulsoup4"],
+    required_dependencies=["ebooklib", "docx", "bs4"],
     priority=10,
     version="1.0.0",
 )
@@ -93,20 +93,20 @@ def convert_docx_to_epub(
     if not EBOOKLIB_AVAILABLE:
         raise_conversion_error("ebooklib is required for EPUB generation")
     if not DOCX_AVAILABLE:
-        raise_conversion_error("python-docx is required for DOCX conversion")
+        raise_conversion_error("docx is required for DOCX conversion")
     if not BS4_AVAILABLE:
         raise_conversion_error("beautifulsoup4 is required for HTML parsing")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Converting DOCX to EPUB: {Path(input_path).name}"
+    operation_id = start_operation(
+        f"Converting DOCX to EPUB: {Path(input_path).name}", total_steps=100
     )
 
     try:
         # Check licensing and file size
         check_feature_access("docx2epub")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("docx2epub")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("docx2epub", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -128,7 +128,7 @@ def convert_docx_to_epub(
         include_toc = kwargs.get("include_toc", True)
         chapter_split = kwargs.get("chapter_split", "heading1")
 
-        update_progress(operation.id, 10, "Loading DOCX file...")
+        update_progress(operation_id, 10, "Loading DOCX file...")
 
         # Load DOCX file
         try:
@@ -138,12 +138,12 @@ def convert_docx_to_epub(
 
         logger.info(f"DOCX loaded: {len(doc.paragraphs)} paragraphs")
 
-        update_progress(operation.id, 20, "Processing DOCX content...")
+        update_progress(operation_id, 20, "Processing DOCX content...")
 
         # Extract content from DOCX
         html_content = _docx_to_html(doc)
 
-        update_progress(operation.id, 30, "Creating EPUB book...")
+        update_progress(operation_id, 30, "Creating EPUB book...")
 
         # Create EPUB book
         book = epub.EpubBook()
@@ -164,7 +164,7 @@ def convert_docx_to_epub(
         )
         book.add_item(nav_css)
 
-        update_progress(operation.id, 40, "Processing HTML content...")
+        update_progress(operation_id, 40, "Processing HTML content...")
 
         # Parse HTML and create chapters
         soup = BeautifulSoup(html_content, "html.parser")
@@ -175,7 +175,7 @@ def convert_docx_to_epub(
         else:
             chapters = [soup]
 
-        update_progress(operation.id, 50, "Creating EPUB chapters...")
+        update_progress(operation_id, 50, "Creating EPUB chapters...")
 
         # Create EPUB chapters
         spine = ["nav"]
@@ -200,7 +200,7 @@ def convert_docx_to_epub(
             spine.append(chapter)
             toc.append(chapter)
 
-        update_progress(operation.id, 70, "Adding navigation...")
+        update_progress(operation_id, 70, "Adding navigation...")
 
         # Add navigation
         book.toc = toc
@@ -210,7 +210,7 @@ def convert_docx_to_epub(
         book.add_item(epub.EpubNcx())
         book.add_item(epub.EpubNav())
 
-        update_progress(operation.id, 90, "Saving EPUB file...")
+        update_progress(operation_id, 90, "Saving EPUB file...")
 
         # Write EPUB file
         try:
@@ -228,7 +228,7 @@ def convert_docx_to_epub(
             )
         )
 
-        complete_operation(operation.id, {"output_path": str(output_path)})
+        complete_operation(operation_id, {"output_path": str(output_path)})
         logger.info(f"DOCX to EPUB conversion completed: {output_path}")
 
         return output_path

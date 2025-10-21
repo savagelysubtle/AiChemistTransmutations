@@ -51,7 +51,7 @@ logger = get_log_manager().get_converter_logger("md2epub")
     source_format="md",
     target_format="epub",
     description="Convert Markdown to EPUB format",
-    required_dependencies=["ebooklib", "markdown", "beautifulsoup4"],
+    required_dependencies=["ebooklib", "markdown", "bs4"],
     priority=10,
     version="1.0.0",
 )
@@ -98,15 +98,15 @@ def convert_markdown_to_epub(
         raise_conversion_error("beautifulsoup4 is required for HTML parsing")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Converting Markdown to EPUB: {Path(input_path).name}"
+    operation_id = start_operation(
+        f"Converting Markdown to EPUB: {Path(input_path).name}", total_steps=100
     )
 
     try:
         # Check licensing and file size
         check_feature_access("md2epub")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("md2epub")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("md2epub", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -128,7 +128,7 @@ def convert_markdown_to_epub(
         include_toc = kwargs.get("include_toc", True)
         chapter_split = kwargs.get("chapter_split", "h1")
 
-        update_progress(operation.id, 10, "Reading Markdown file...")
+        update_progress(operation_id, 10, "Reading Markdown file...")
 
         # Read Markdown file
         try:
@@ -137,7 +137,7 @@ def convert_markdown_to_epub(
         except Exception as e:
             raise_conversion_error(f"Failed to read Markdown file: {e}")
 
-        update_progress(operation.id, 20, "Converting Markdown to HTML...")
+        update_progress(operation_id, 20, "Converting Markdown to HTML...")
 
         # Convert Markdown to HTML
         try:
@@ -146,7 +146,7 @@ def convert_markdown_to_epub(
         except Exception as e:
             raise_conversion_error(f"Failed to convert Markdown to HTML: {e}")
 
-        update_progress(operation.id, 30, "Creating EPUB book...")
+        update_progress(operation_id, 30, "Creating EPUB book...")
 
         # Create EPUB book
         book = epub.EpubBook()
@@ -167,7 +167,7 @@ def convert_markdown_to_epub(
         )
         book.add_item(nav_css)
 
-        update_progress(operation.id, 40, "Processing HTML content...")
+        update_progress(operation_id, 40, "Processing HTML content...")
 
         # Parse HTML and create chapters
         soup = BeautifulSoup(html_content, "html.parser")
@@ -178,7 +178,7 @@ def convert_markdown_to_epub(
         else:
             chapters = [soup]
 
-        update_progress(operation.id, 50, "Creating EPUB chapters...")
+        update_progress(operation_id, 50, "Creating EPUB chapters...")
 
         # Create EPUB chapters
         spine = ["nav"]
@@ -203,7 +203,7 @@ def convert_markdown_to_epub(
             spine.append(chapter)
             toc.append(chapter)
 
-        update_progress(operation.id, 70, "Adding navigation...")
+        update_progress(operation_id, 70, "Adding navigation...")
 
         # Add navigation
         book.toc = toc
@@ -213,7 +213,7 @@ def convert_markdown_to_epub(
         book.add_item(epub.EpubNcx())
         book.add_item(epub.EpubNav())
 
-        update_progress(operation.id, 90, "Saving EPUB file...")
+        update_progress(operation_id, 90, "Saving EPUB file...")
 
         # Write EPUB file
         try:
@@ -231,7 +231,7 @@ def convert_markdown_to_epub(
             )
         )
 
-        complete_operation(operation.id, {"output_path": str(output_path)})
+        complete_operation(operation_id, {"output_path": str(output_path)})
         logger.info(f"Markdown to EPUB conversion completed: {output_path}")
 
         return output_path
@@ -309,7 +309,12 @@ def _split_html_into_chapters(soup, split_level: str) -> list:
                 current_chapter = BeautifulSoup("<div></div>", "html.parser")
 
         # Add element to current chapter
-        current_chapter.div.append(element)
+        # Create a new element to avoid BeautifulSoup isinstance issues
+        new_element = current_chapter.new_tag(element.name)
+        new_element.string = element.get_text()
+        if element.attrs:
+            new_element.attrs.update(element.attrs)
+        current_chapter.div.append(new_element)
 
     # Add the last chapter
     if current_chapter.find_all():

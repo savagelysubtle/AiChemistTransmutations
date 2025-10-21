@@ -47,7 +47,7 @@ logger = get_log_manager().get_converter_logger("image2pdf")
     source_format="image",
     target_format="pdf",
     description="Convert images to PDF format",
-    required_dependencies=["Pillow", "reportlab"],
+    required_dependencies=["PIL", "reportlab"],
     priority=10,
     version="1.0.0",
 )
@@ -85,15 +85,15 @@ def convert_image_to_pdf(
         raise_conversion_error("reportlab is required for PDF generation")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Converting images to PDF: {Path(input_path).name}"
+    operation_id = start_operation(
+        f"Converting images to PDF: {Path(input_path).name}", total_steps=100
     )
 
     try:
         # Check licensing and file size
         check_feature_access("image2pdf")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("image2pdf")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("image2pdf", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -127,7 +127,7 @@ def convert_image_to_pdf(
         if fit_mode not in ["fit", "fill", "stretch"]:
             raise_conversion_error(f"Invalid fit mode: {fit_mode}")
 
-        update_progress(operation.id, 10, "Collecting images...")
+        update_progress(operation_id, 10, "Collecting images...")
 
         # Collect image files
         image_files = []
@@ -159,7 +159,7 @@ def convert_image_to_pdf(
 
         logger.info(f"Found {len(image_files)} image files")
 
-        update_progress(operation.id, 20, "Creating PDF document...")
+        update_progress(operation_id, 20, "Creating PDF document...")
 
         # Create PDF document
         doc = SimpleDocTemplate(
@@ -181,7 +181,7 @@ def convert_image_to_pdf(
                 f"Processing image {img_idx + 1}/{total_images}: {img_path.name}"
             )
             update_progress(
-                operation.id,
+                operation_id,
                 20 + (img_idx / total_images) * 60,
                 f"Processing image {img_idx + 1}",
             )
@@ -259,7 +259,7 @@ def convert_image_to_pdf(
         if not story:
             raise_conversion_error("No images were successfully processed")
 
-        update_progress(operation.id, 90, "Generating PDF...")
+        update_progress(operation_id, 90, "Generating PDF...")
 
         # Build PDF
         doc.build(story)
@@ -275,7 +275,7 @@ def convert_image_to_pdf(
         )
 
         complete_operation(
-            operation.id,
+            operation_id,
             {"output_path": str(output_path), "images_count": len(image_files)},
         )
         logger.info(
@@ -294,4 +294,3 @@ def convert_image_to_pdf(
             )
         )
         raise_conversion_error(f"Conversion failed: {e}")
-

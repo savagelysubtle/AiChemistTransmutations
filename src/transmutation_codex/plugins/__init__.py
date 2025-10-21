@@ -200,6 +200,7 @@ except Exception as e:
 
 # EPUB converters
 try:
+    from .epub.to_docx import convert_epub_to_docx
     from .epub.to_html import convert_epub_to_html
     from .epub.to_markdown import convert_epub_to_markdown
     from .epub.to_pdf import convert_epub_to_pdf
@@ -268,6 +269,7 @@ __all__ = [
     "convert_pdf_to_pages",
     "convert_pdf_to_ocr_layer",
     # EPUB converters
+    "convert_epub_to_docx",
     "convert_epub_to_pdf",
     "convert_epub_to_html",
     "convert_epub_to_markdown",

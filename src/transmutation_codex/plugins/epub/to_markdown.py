@@ -44,7 +44,7 @@ logger = get_log_manager().get_converter_logger("epub2md")
     source_format="epub",
     target_format="md",
     description="Convert EPUB to Markdown format",
-    required_dependencies=["ebooklib", "beautifulsoup4"],
+    required_dependencies=["ebooklib", "bs4"],
     priority=10,
     version="1.0.0",
 )
@@ -87,15 +87,15 @@ def convert_epub_to_markdown(
         raise_conversion_error("beautifulsoup4 is required for HTML parsing")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Converting EPUB to Markdown: {Path(input_path).name}"
+    operation_id = start_operation(
+        f"Converting EPUB to Markdown: {Path(input_path).name}", total_steps=100
     )
 
     try:
         # Check licensing and file size
         check_feature_access("epub2md")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("epub2md")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("epub2md", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -115,7 +115,7 @@ def convert_epub_to_markdown(
         preserve_formatting = kwargs.get("preserve_formatting", True)
         include_metadata = kwargs.get("include_metadata", True)
 
-        update_progress(operation.id, 10, "Loading EPUB file...")
+        update_progress(operation_id, 10, "Loading EPUB file...")
 
         # Load EPUB file
         try:
@@ -125,7 +125,7 @@ def convert_epub_to_markdown(
 
         logger.info(f"EPUB loaded: {book.get_metadata('DC', 'title')}")
 
-        update_progress(operation.id, 20, "Processing EPUB content...")
+        update_progress(operation_id, 20, "Processing EPUB content...")
 
         # Generate Markdown content
         markdown_parts = []
@@ -158,7 +158,7 @@ def convert_epub_to_markdown(
             # Get spine items
             spine_items = book.spine
             for i, (item_id, _) in enumerate(spine_items):
-                item = book.get_item_by_id(item_id)
+                item = book.get_item_with_id(item_id)
                 if item and item.get_name():
                     markdown_parts.append(
                         f"{i + 1}. [{item.get_name()}](#chapter-{i + 1})"
@@ -168,7 +168,7 @@ def convert_epub_to_markdown(
             markdown_parts.append("---")
             markdown_parts.append("")
 
-        update_progress(operation.id, 30, "Converting chapters...")
+        update_progress(operation_id, 30, "Converting chapters...")
 
         # Process chapters
         spine_items = book.spine
@@ -177,12 +177,12 @@ def convert_epub_to_markdown(
         for i, (item_id, _) in enumerate(spine_items):
             logger.info(f"Processing chapter {i + 1}/{total_items}")
             update_progress(
-                operation.id,
+                operation_id,
                 30 + (i / total_items) * 60,
                 f"Processing chapter {i + 1}",
             )
 
-            item = book.get_item_by_id(item_id)
+            item = book.get_item_with_id(item_id)
             if not item:
                 continue
 
@@ -208,7 +208,7 @@ def convert_epub_to_markdown(
                 markdown_parts.append("---")
                 markdown_parts.append("")
 
-        update_progress(operation.id, 90, "Saving Markdown file...")
+        update_progress(operation_id, 90, "Saving Markdown file...")
 
         # Write Markdown file
         with open(output_path, "w", encoding="utf-8") as f:
@@ -224,7 +224,7 @@ def convert_epub_to_markdown(
             )
         )
 
-        complete_operation(operation.id, {"output_path": str(output_path)})
+        complete_operation(operation_id, {"output_path": str(output_path)})
         logger.info(f"EPUB to Markdown conversion completed: {output_path}")
 
         return output_path

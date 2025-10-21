@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from transmutation_codex.core.exceptions import ValidationError
+
 # Mock dependencies before importing
 sys.modules["ebooklib"] = MagicMock()
 sys.modules["ebooklib.epub"] = MagicMock()

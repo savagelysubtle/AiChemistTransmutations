@@ -108,15 +108,13 @@ def convert_pdf_to_watermark(
         raise_conversion_error("reportlab is required for PDF watermarking")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Adding watermark to PDF: {Path(input_path).name}"
-    )
+    operation_id = start_operation(f"Adding watermark to PDF: {Path(input_path).name}", total_steps=100)
 
     try:
         # Check licensing and file size
         check_feature_access("pdf2watermark")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("pdf2watermark")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("pdf2watermark", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -160,7 +158,7 @@ def convert_pdf_to_watermark(
         logger.info(f"Watermark type: {watermark_type}")
         logger.info(f"Position: {position}, Opacity: {opacity}, Rotation: {rotation}°")
 
-        update_progress(operation.id, 10, "Loading PDF file...")
+        update_progress(operation_id, 10, "Loading PDF file...")
 
         # Load PDF file
         try:
@@ -171,7 +169,7 @@ def convert_pdf_to_watermark(
         total_pages = len(pdf.pages)
         logger.info(f"PDF has {total_pages} pages")
 
-        update_progress(operation.id, 20, "Creating watermark...")
+        update_progress(operation_id, 20, "Creating watermark...")
 
         # Create watermark
         try:
@@ -191,14 +189,14 @@ def convert_pdf_to_watermark(
         except Exception as e:
             raise_conversion_error(f"Failed to create watermark: {e}")
 
-        update_progress(operation.id, 30, "Applying watermark to pages...")
+        update_progress(operation_id, 30, "Applying watermark to pages...")
 
         # Apply watermark to each page
         try:
             for page_num in range(total_pages):
                 logger.info(f"Applying watermark to page {page_num + 1}/{total_pages}")
                 update_progress(
-                    operation.id,
+                    operation_id,
                     30 + (page_num / total_pages) * 60,
                     f"Processing page {page_num + 1}",
                 )
@@ -229,7 +227,7 @@ def convert_pdf_to_watermark(
         except Exception as e:
             raise_conversion_error(f"Failed to apply watermark: {e}")
 
-        update_progress(operation.id, 90, "Saving watermarked PDF...")
+        update_progress(operation_id, 90, "Saving watermarked PDF...")
 
         # Save watermarked PDF
         try:
@@ -239,7 +237,7 @@ def convert_pdf_to_watermark(
         except Exception as e:
             raise_conversion_error(f"Failed to save watermarked PDF: {e}")
 
-        update_progress(operation.id, 95, "Finalizing...")
+        update_progress(operation_id, 95, "Finalizing...")
 
         # Publish success event
         publish(
@@ -252,7 +250,7 @@ def convert_pdf_to_watermark(
         )
 
         complete_operation(
-            operation.id,
+            operation_id,
             {
                 "output_path": str(output_path),
                 "watermark_type": watermark_type,

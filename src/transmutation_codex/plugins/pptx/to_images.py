@@ -45,7 +45,7 @@ logger = get_log_manager().get_converter_logger("pptx2images")
     source_format="pptx",
     target_format="images",
     description="Export PowerPoint slides as image files",
-    required_dependencies=["python-pptx", "Pillow"],
+    required_dependencies=["pptx", "PIL"],
     priority=10,
     version="1.0.0",
 )
@@ -82,15 +82,16 @@ def convert_pptx_to_images(
         raise_conversion_error("Pillow is required for image processing")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Exporting PowerPoint slides as images: {Path(input_path).name}"
+    operation_id = start_operation(
+        f"Exporting PowerPoint slides as images: {Path(input_path).name}",
+        total_steps=100,
     )
 
     try:
         # Check licensing and file size
         check_feature_access("pptx2images")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("pptx2images")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("pptx2images", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -122,7 +123,7 @@ def convert_pptx_to_images(
                 f"Image quality must be between 1 and 100, got: {image_quality}"
             )
 
-        update_progress(operation.id, 10, "Loading PowerPoint file...")
+        update_progress(operation_id, 10, "Loading PowerPoint file...")
 
         # Load PowerPoint file
         try:
@@ -130,7 +131,7 @@ def convert_pptx_to_images(
         except Exception as e:
             raise_conversion_error(f"Failed to load PowerPoint file: {e}")
 
-        update_progress(operation.id, 20, "Processing slides...")
+        update_progress(operation_id, 20, "Processing slides...")
 
         # Determine slide range
         total_slides = len(presentation.slides)
@@ -158,7 +159,7 @@ def convert_pptx_to_images(
         for idx, slide_idx in enumerate(slides_to_export):
             logger.info(f"Processing slide {slide_idx + 1}/{total_slides}")
             update_progress(
-                operation.id,
+                operation_id,
                 20 + (idx / len(slides_to_export)) * 60,
                 f"Processing slide {slide_idx + 1}",
             )
@@ -225,7 +226,7 @@ def convert_pptx_to_images(
         if not exported_files:
             raise_conversion_error("No slides were successfully exported")
 
-        update_progress(operation.id, 90, "Export completed...")
+        update_progress(operation_id, 90, "Export completed...")
 
         # Publish success event
         publish(
@@ -238,7 +239,7 @@ def convert_pptx_to_images(
         )
 
         complete_operation(
-            operation.id, {"output_path": str(output_path), "files": exported_files}
+            operation_id, {"output_path": str(output_path), "files": exported_files}
         )
         logger.info(
             f"PowerPoint to images conversion completed: {output_path} ({len(exported_files)} images)"
@@ -256,4 +257,3 @@ def convert_pptx_to_images(
             )
         )
         raise_conversion_error(f"Conversion failed: {e}")
-

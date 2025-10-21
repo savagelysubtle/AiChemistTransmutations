@@ -37,7 +37,7 @@ logger = get_log_manager().get_converter_logger("image2image")
     source_format="image",
     target_format="image",
     description="Convert between image formats and apply transformations",
-    required_dependencies=["Pillow"],
+    required_dependencies=["PIL"],
     priority=10,
     version="1.0.0",
 )
@@ -79,15 +79,15 @@ def convert_image_to_image(
         raise_conversion_error("Pillow is required for image processing")
 
     # Start operation
-    operation = start_operation(
-        "conversion", f"Converting image: {Path(input_path).name}"
+    operation_id = start_operation(
+        f"Converting image: {Path(input_path).name}", total_steps=100
     )
 
     try:
         # Check licensing and file size
         check_feature_access("image2image")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("image2image")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("image2image", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -141,7 +141,7 @@ def convert_image_to_image(
         if flip and flip not in ["horizontal", "vertical"]:
             raise_conversion_error(f"Invalid flip direction: {flip}")
 
-        update_progress(operation.id, 10, "Loading image...")
+        update_progress(operation_id, 10, "Loading image...")
 
         # Open image
         try:
@@ -162,7 +162,7 @@ def convert_image_to_image(
                 elif pil_image.mode != "RGB":
                     pil_image = pil_image.convert("RGB")
 
-                update_progress(operation.id, 20, "Applying transformations...")
+                update_progress(operation_id, 20, "Applying transformations...")
 
                 # Apply transformations
                 if resize:
@@ -233,7 +233,7 @@ def convert_image_to_image(
                         enhancer = ImageEnhance.Sharpness(pil_image)
                         pil_image = enhancer.enhance(enhance_factor)
 
-                update_progress(operation.id, 80, "Saving image...")
+                update_progress(operation_id, 80, "Saving image...")
 
                 # Save image
                 save_kwargs = {}
@@ -248,7 +248,7 @@ def convert_image_to_image(
         except Exception as e:
             raise_conversion_error(f"Failed to process image: {e}")
 
-        update_progress(operation.id, 90, "Conversion completed...")
+        update_progress(operation_id, 90, "Conversion completed...")
 
         # Publish success event
         publish(
@@ -260,7 +260,7 @@ def convert_image_to_image(
             )
         )
 
-        complete_operation(operation.id, {"output_path": str(output_path)})
+        complete_operation(operation_id, {"output_path": str(output_path)})
         logger.info(f"Image to image conversion completed: {output_path}")
 
         return output_path
@@ -275,4 +275,3 @@ def convert_image_to_image(
             )
         )
         raise_conversion_error(f"Conversion failed: {e}")
-

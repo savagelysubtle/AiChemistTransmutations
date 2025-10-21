@@ -79,13 +79,15 @@ def convert_pdf_to_split(
         raise_conversion_error("pikepdf is required for PDF splitting")
 
     # Start operation
-    operation = start_operation("conversion", f"Splitting PDF: {Path(input_path).name}")
+    operation_id = start_operation(
+        f"Splitting PDF: {Path(input_path).name}", total_steps=100
+    )
 
     try:
         # Check licensing and file size
         check_feature_access("pdf2split")
-        check_file_size_limit(input_path, max_size_mb=100)
-        record_conversion_attempt("pdf2split")
+        check_file_size_limit(input_path)
+        record_conversion_attempt("pdf2split", str(input_path))
 
         # Convert paths
         input_path = Path(input_path)
@@ -106,7 +108,7 @@ def convert_pdf_to_split(
         pages_per_file = kwargs.get("pages_per_file", 1)
         output_prefix = kwargs.get("output_prefix", "page")
 
-        update_progress(operation.id, 10, "Loading PDF file...")
+        update_progress(operation_id, 10, "Loading PDF file...")
 
         # Load PDF file
         try:
@@ -117,7 +119,7 @@ def convert_pdf_to_split(
         total_pages = len(pdf.pages)
         logger.info(f"PDF has {total_pages} pages")
 
-        update_progress(operation.id, 20, "Processing split configuration...")
+        update_progress(operation_id, 20, "Processing split configuration...")
 
         # Determine split configuration
         split_configs = []
@@ -171,14 +173,14 @@ def convert_pdf_to_split(
 
         logger.info(f"Will create {len(split_configs)} split files")
 
-        update_progress(operation.id, 30, "Creating split files...")
+        update_progress(operation_id, 30, "Creating split files...")
 
         # Create split files
         output_files = []
         for i, config in enumerate(split_configs):
             logger.info(f"Creating split file: {config['name']}")
             update_progress(
-                operation.id,
+                operation_id,
                 30 + (i / len(split_configs)) * 60,
                 f"Creating {config['name']}",
             )
@@ -199,7 +201,7 @@ def convert_pdf_to_split(
                 logger.error(f"Failed to create {config['name']}: {e}")
                 continue
 
-        update_progress(operation.id, 95, "Finalizing...")
+        update_progress(operation_id, 95, "Finalizing...")
 
         # Publish success event
         publish(
@@ -212,7 +214,7 @@ def convert_pdf_to_split(
         )
 
         complete_operation(
-            operation.id,
+            operation_id,
             {
                 "output_path": str(output_path),
                 "files": output_files,
