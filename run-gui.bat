@@ -1,2 +1,2 @@
 cd gui
-npm run start:dev
+bun run start:dev

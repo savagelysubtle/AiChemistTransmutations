@@ -9,14 +9,20 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from transmutation_codex.core import ConfigManager, LogManager
+from transmutation_codex.core import (
+    ConfigManager,
+    LogManager,
+    check_feature_access,
+    check_file_size_limit,
+    record_conversion_attempt,
+)
 from transmutation_codex.core.events import ConversionEvent, EventTypes, publish
 from transmutation_codex.core.progress import (
     complete_operation,
     start_operation,
     update_progress,
 )
-from transmutation_codex.core.registry import converter
+from transmutation_codex.core.decorators import converter
 
 # Setup logger
 log_manager = LogManager()
@@ -101,7 +107,15 @@ def convert_pdf_to_html(
     )
 
     try:
+        # License validation and feature gating (PDF→HTML is paid-only)
+        check_feature_access("pdf2html")
+
+        # Convert to Path for validation
         input_path = Path(input_path).resolve()
+
+        # Check file size limit
+        check_file_size_limit(str(input_path))
+
         update_progress(operation, 10, "Validating input file")
 
         if not input_path.exists():
@@ -210,6 +224,14 @@ def convert_pdf_to_html(
         update_progress(operation, 100, "Conversion complete")
         logger.info(f"PDF converted to HTML: {output_path}")
 
+        # Record conversion for trial tracking
+        record_conversion_attempt(
+            converter_name="pdf2html",
+            input_file=str(input_path),
+            output_file=str(output_path),
+            success=True,
+        )
+
         # Publish completion event
         publish(
             ConversionEvent(
@@ -263,3 +285,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
+

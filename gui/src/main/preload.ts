@@ -17,6 +17,12 @@ export interface ElectronAPI {
     outputFile?: string;
   }) => Promise<{ success: boolean; outputPath?: string; error?: string }>;
   notifyLogCleared?: () => void; // Optional: To inform main process
+
+  // License management API
+  getLicenseStatus: () => Promise<any>;
+  activateLicense: (licenseKey: string) => Promise<any>;
+  deactivateLicense: () => Promise<any>;
+  getTrialStatus: () => Promise<any>;
 }
 
 const electronAPI: ElectronAPI = {
@@ -35,6 +41,12 @@ const electronAPI: ElectronAPI = {
   convertMdxToMd: (args) => ipcRenderer.invoke('convert-mdx-to-md', args),
   // Optional: Notify main process that GUI log was cleared
   notifyLogCleared: () => ipcRenderer.send('log:gui-cleared'),
+
+  // License management implementations
+  getLicenseStatus: () => ipcRenderer.invoke('license:get-status'),
+  activateLicense: (licenseKey: string) => ipcRenderer.invoke('license:activate', licenseKey),
+  deactivateLicense: () => ipcRenderer.invoke('license:deactivate'),
+  getTrialStatus: () => ipcRenderer.invoke('license:get-trial-status'),
 };
 
 // Expose the API to the renderer process under window.electronAPI

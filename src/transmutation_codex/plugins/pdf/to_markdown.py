@@ -14,10 +14,13 @@ from transmutation_codex.core import (
     ConfigManager,
     ConversionEvent,
     EventTypes,
+    check_feature_access,
+    check_file_size_limit,
     complete_operation,
     get_log_manager,
     publish,
     raise_validation_error,
+    record_conversion_attempt,
     start_operation,
     update_progress,
 )
@@ -322,13 +325,21 @@ def convert_pdf_to_md(
     )
 
     try:
+        # License validation and feature gating (PDF→MD is paid-only)
+        check_feature_access("pdf2md")
+
+        # Convert to Path for validation
+        input_path = Path(input_path).resolve()
+
+        # Check file size limit (free tier: 5MB, paid: unlimited)
+        check_file_size_limit(str(input_path))
+
         if fitz is None:
             logger.error("PyMuPDF is required for PDF conversion.")
             raise_validation_error(
                 "PyMuPDF is required. Install it with: pip install pymupdf"
             )
 
-        input_path = Path(input_path).resolve()
         if not input_path.exists():
             logger.error(f"Input file not found: {input_path}")
             raise FileNotFoundError(f"Input file not found: {input_path}")
@@ -445,6 +456,14 @@ def convert_pdf_to_md(
         with open(output_path, "w", encoding="utf-8") as md_file:
             md_file.write("".join(md_lines))
 
+        # Record conversion for trial tracking
+        record_conversion_attempt(
+            converter_name="pdf2md",
+            input_file=str(input_path),
+            output_file=str(output_path),
+            success=True,
+        )
+
         # Complete operation
         complete_operation(operation, success=True)
 
@@ -507,6 +526,15 @@ def convert_pdf_to_md_with_enhanced_ocr(
     )
 
     try:
+        # License validation and feature gating (PDF→MD is paid-only)
+        check_feature_access("pdf2md")
+
+        # Convert to Path for validation
+        input_path = Path(input_path).resolve()
+
+        # Check file size limit
+        check_file_size_limit(str(input_path))
+
         if fitz is None:
             logger.error("PyMuPDF is required.")
             raise_validation_error("PyMuPDF is required.")
@@ -518,7 +546,6 @@ def convert_pdf_to_md_with_enhanced_ocr(
                 "OpenCV not found. Enhanced image preprocessing will be limited."
             )
 
-        input_path = Path(input_path).resolve()
         if not input_path.exists():
             logger.error(f"Input file not found: {input_path}")
             raise FileNotFoundError(f"Input file not found: {input_path}")
@@ -638,6 +665,14 @@ def convert_pdf_to_md_with_enhanced_ocr(
         with open(output_path, "w", encoding="utf-8") as md_file:
             md_file.write("".join(md_lines))
 
+        # Record conversion for trial tracking
+        record_conversion_attempt(
+            converter_name="pdf2md",
+            input_file=str(input_path),
+            output_file=str(output_path),
+            success=True,
+        )
+
         # Complete operation
         complete_operation(operation, success=True)
 
@@ -683,11 +718,19 @@ def convert_pdf_to_md_with_pymupdf4llm(
     )
 
     try:
+        # License validation and feature gating (PDF→MD is paid-only)
+        check_feature_access("pdf2md")
+
+        # Convert to Path for validation
+        input_path = Path(input_path).resolve()
+
+        # Check file size limit
+        check_file_size_limit(str(input_path))
+
         if not PYMUPDF4LLM_AVAILABLE:
             logger.error("PyMuPDF4LLM is required for this engine.")
             raise_validation_error("PyMuPDF4LLM is required.")
 
-        input_path = Path(input_path).resolve()
         if not input_path.exists():
             logger.error(f"Input file not found: {input_path}")
             raise FileNotFoundError(f"Input file not found: {input_path}")
@@ -717,6 +760,14 @@ def convert_pdf_to_md_with_pymupdf4llm(
         update_progress(operation, 95, "Saving Markdown file")
         with open(output_path, "w", encoding="utf-8") as md_file:
             md_file.write(markdown_text)
+
+        # Record conversion for trial tracking
+        record_conversion_attempt(
+            converter_name="pdf2md",
+            input_file=str(input_path),
+            output_file=str(output_path),
+            success=True,
+        )
 
         # Complete operation
         complete_operation(operation, success=True)

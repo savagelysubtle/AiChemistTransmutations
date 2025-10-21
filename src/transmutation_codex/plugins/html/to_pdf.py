@@ -10,7 +10,11 @@ from typing import Any
 
 import pdfkit
 
-from transmutation_codex.core import LogManager
+from transmutation_codex.core import (
+    LogManager,
+    check_feature_access,
+    check_file_size_limit,
+)
 from transmutation_codex.core.decorators import converter
 from transmutation_codex.core.settings import ConfigManager
 
@@ -84,6 +88,15 @@ def convert_html_to_pdf(
     logger.info(f"Converting {input_path} to PDF using engine: {engine}")
 
     try:
+        # License validation and feature gating (html2pdf is paid-only)
+        check_feature_access("html2pdf")
+
+        # Convert to Path for validation
+        input_path = Path(input_path).resolve()
+
+        # Check file size limit
+        check_file_size_limit(str(input_path))
+
         # pdfkit options can be passed as a dictionary
         options = {
             "page-size": kwargs.get("page_size", settings.get("page_size", "A4")),

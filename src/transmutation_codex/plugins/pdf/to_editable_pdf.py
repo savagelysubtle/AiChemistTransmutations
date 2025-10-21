@@ -16,14 +16,20 @@ import ocrmypdf
 # Import specific exceptions directly
 from ocrmypdf.exceptions import InputFileError, MissingDependencyError
 
-from transmutation_codex.core import ConfigManager, LogManager
+from transmutation_codex.core import (
+    ConfigManager,
+    LogManager,
+    check_feature_access,
+    check_file_size_limit,
+    record_conversion_attempt,
+)
+from transmutation_codex.core.decorators import converter
 from transmutation_codex.core.events import ConversionEvent, EventTypes, publish
 from transmutation_codex.core.progress import (
     complete_operation,
     start_operation,
     update_progress,
 )
-from transmutation_codex.core.registry import converter
 
 # Setup logger using the LogManager singleton
 log_manager = LogManager()
@@ -56,6 +62,15 @@ def _get_bundled_tesseract_path() -> Path | None:
         Path to bundled tesseract.exe or None if not found
     """
     try:
+        # License validation and feature gating (pdf2editable is paid-only)
+        check_feature_access("pdf2editable")
+
+        # Convert to Path for validation
+        input_path = Path(input_path).resolve()
+
+        # Check file size limit
+        check_file_size_limit(str(input_path))
+
         app_dir = _get_app_dir()
         logger.debug(f"Searching for Tesseract from app dir: {app_dir}")
 
@@ -399,6 +414,14 @@ def convert_pdf_to_editable(
                     "conversion_type": "pdf2editable",
                 },
             )
+        )
+
+        # Record conversion for trial tracking
+        record_conversion_attempt(
+            converter_name="pdf2editable",
+            input_file=str(input_path),
+            output_file=str(output_path),
+            success=True,
         )
 
         complete_operation(operation, success=True)

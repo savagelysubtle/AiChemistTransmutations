@@ -14,14 +14,17 @@ from typing import Any
 import pypandoc
 
 from transmutation_codex.core import (
+    check_feature_access,
+    check_file_size_limit,
     complete_operation,
     get_log_manager,
     publish,
+    record_conversion_attempt,
     start_operation,
     update_progress,
 )
+from transmutation_codex.core.decorators import converter
 from transmutation_codex.core.events import ConversionEvent
-from transmutation_codex.core.registry import converter
 
 # Setup logger
 log_manager = get_log_manager()
@@ -37,20 +40,50 @@ def _check_pdf_engine_available(engine: str) -> bool:
     Returns:
         True if the engine is available, False otherwise
     """
+    # First, try PATH
     try:
+        # License validation and feature gating (docx2pdf is paid-only)
+        check_feature_access("docx2pdf")
+
+        # Convert to Path for validation
+        input_path = Path(input_path).resolve()
+
+        # Check file size limit
+        check_file_size_limit(str(input_path))
+
         cmd = ["where", engine] if platform.system() == "Windows" else ["which", engine]
         result = subprocess.run(
             cmd, capture_output=True, text=True, check=False, timeout=5
         )
-        available = result.returncode == 0
-        if available:
-            logger.debug(f"PDF engine '{engine}' is available")
-        else:
-            logger.debug(f"PDF engine '{engine}' is NOT available")
-        return available
+        if result.returncode == 0:
+            logger.debug(f"PDF engine '{engine}' found in PATH")
+            return True
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        logger.debug(f"Could not check for PDF engine '{engine}': {e}")
-        return False
+        logger.debug(f"Could not check PATH for '{engine}': {e}")
+
+    # Fallback: Check common MiKTeX installation locations on Windows
+    if platform.system() == "Windows" and engine in ["pdflatex", "xelatex", "lualatex"]:
+        common_miktex_paths = [
+            f"C:\\Program Files\\MiKTeX\\miktex\\bin\\x64\\{engine}.exe",
+            f"C:\\Program Files (x86)\\MiKTeX\\miktex\\bin\\{engine}.exe",
+            os.path.join(
+                os.environ.get("LOCALAPPDATA", ""),
+                f"Programs\\MiKTeX\\miktex\\bin\\x64\\{engine}.exe",
+            ),
+        ]
+
+        for path in common_miktex_paths:
+            if os.path.exists(path) and os.access(path, os.X_OK):
+                logger.debug(f"PDF engine '{engine}' found at: {path}")
+                # Add to PATH for this process if not already there
+                miktex_bin = os.path.dirname(path)
+                if miktex_bin not in os.environ.get("PATH", ""):
+                    os.environ["PATH"] = f"{miktex_bin};{os.environ.get('PATH', '')}"
+                    logger.info(f"Added MiKTeX bin to process PATH: {miktex_bin}")
+                return True
+
+    logger.debug(f"PDF engine '{engine}' is NOT available")
+    return False
 
 
 def _get_available_pdf_engine() -> str:
@@ -259,14 +292,33 @@ def convert_docx_to_pdf(
         # Build extra args
         extra_args = [f"--pdf-engine={pdf_engine}"]
 
-        # Perform conversion
-        pypandoc.convert_file(
-            str(input_path),
-            to="pdf",
-            format="docx",
-            outputfile=str(output_path),
-            extra_args=extra_args,
-        )
+        # MiKTeX workaround: Clean PATH of problematic entries
+        original_path = os.environ.get("PATH", "")
+        if pdf_engine in ["pdflatex", "xelatex", "lualatex"]:
+            # Remove Cloudflare and other problematic paths that confuse MiKTeX
+            cleaned_paths = [
+                p
+                for p in original_path.split(";")
+                if "cloudflare" not in p.lower() and os.path.exists(p)
+            ]
+            os.environ["PATH"] = ";".join(cleaned_paths)
+            logger.debug(
+                f"Cleaned PATH for MiKTeX (removed {len(original_path.split(';')) - len(cleaned_paths)} problematic entries)"
+            )
+
+        try:
+            # Perform conversion
+            pypandoc.convert_file(
+                str(input_path),
+                to="pdf",
+                format="docx",
+                outputfile=str(output_path),
+                extra_args=extra_args,
+            )
+        finally:
+            # Restore original PATH
+            if pdf_engine in ["pdflatex", "xelatex", "lualatex"]:
+                os.environ["PATH"] = original_path
 
         update_progress(operation, 90, "Finalizing PDF file...")
 
@@ -275,6 +327,14 @@ def convert_docx_to_pdf(
         logger.info(f"Conversion completed in {duration:.2f}s")
 
         # Complete operation
+        # Record conversion for trial tracking
+        record_conversion_attempt(
+            converter_name="docx2pdf",
+            input_file=str(input_path),
+            output_file=str(output_path),
+            success=True,
+        )
+
         complete_operation(operation, success=True)
 
         # Publish conversion completed event

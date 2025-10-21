@@ -450,6 +450,74 @@ class TransmutationTimeoutError(TransmutationError):
         self.elapsed_seconds = elapsed_seconds
 
 
+class LicenseError(TransmutationError):
+    """Raised when license validation or verification fails.
+
+    This exception covers invalid license keys, expired licenses,
+    feature access denial, and license activation failures.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        license_type: str | None = None,
+        feature: str | None = None,
+        reason: str | None = None,
+    ):
+        """Initialize license error.
+
+        Args:
+            message: Error message
+            license_type: Type of license (free, trial, paid)
+            feature: Feature that requires a license
+            reason: Specific reason for license failure
+        """
+        details = {}
+        if license_type:
+            details["license_type"] = license_type
+        if feature:
+            details["feature"] = feature
+        if reason:
+            details["reason"] = reason
+
+        super().__init__(message, details)
+        self.license_type = license_type
+        self.feature = feature
+        self.reason = reason
+
+
+class TrialExpiredError(LicenseError):
+    """Raised when trial period has expired.
+
+    This exception is raised when the user's trial has expired
+    (either by time or conversion count) and they attempt to use
+    restricted features.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        conversions_used: int | None = None,
+        trial_limit: int | None = None,
+    ):
+        """Initialize trial expired error.
+
+        Args:
+            message: Error message
+            conversions_used: Number of conversions already used
+            trial_limit: Maximum conversions allowed in trial
+        """
+        details = {}
+        if conversions_used is not None:
+            details["conversions_used"] = conversions_used
+        if trial_limit is not None:
+            details["trial_limit"] = trial_limit
+
+        super().__init__(message, license_type="trial", reason="expired")
+        self.conversions_used = conversions_used
+        self.trial_limit = trial_limit
+
+
 # Convenience functions for raising common exceptions
 
 
@@ -495,3 +563,22 @@ def raise_dependency_error(
 ) -> None:
     """Raise a DependencyError with the given parameters."""
     raise DependencyError(message, dependency_name, required_version, found_version)
+
+
+def raise_license_error(
+    message: str,
+    license_type: str | None = None,
+    feature: str | None = None,
+    reason: str | None = None,
+) -> None:
+    """Raise a LicenseError with the given parameters."""
+    raise LicenseError(message, license_type, feature, reason)
+
+
+def raise_trial_expired_error(
+    message: str,
+    conversions_used: int | None = None,
+    trial_limit: int | None = None,
+) -> None:
+    """Raise a TrialExpiredError with the given parameters."""
+    raise TrialExpiredError(message, conversions_used, trial_limit)

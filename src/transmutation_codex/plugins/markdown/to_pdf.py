@@ -19,11 +19,14 @@ from transmutation_codex.core import (
     ConfigManager,
     ConversionEvent,
     EventTypes,
+    check_feature_access,
+    check_file_size_limit,
     complete_operation,
     get_log_manager,
     publish,
     raise_conversion_error,
     raise_validation_error,
+    record_conversion_attempt,
     start_operation,
     update_progress,
 )
@@ -120,13 +123,21 @@ def convert_md_to_pdf(
     )
 
     try:
+        # License validation and feature gating
+        check_feature_access("md2pdf")  # Check if user has access to MD→PDF conversion
+
+        # Convert to Path for validation
+        input_path = Path(input_path).resolve()
+
+        # Check file size limit (free tier: 5MB, paid: unlimited)
+        check_file_size_limit(str(input_path))
+
         if not MARKDOWN_PDF_AVAILABLE:
             logger.error("markdown_pdf is required for Markdown to PDF conversion.")
             raise_validation_error(
                 "markdown_pdf is required. Install it with: pip install markdown-pdf"
             )
 
-        input_path = Path(input_path).resolve()
         if not input_path.exists():
             logger.error(f"Input file not found: {input_path}")
             raise FileNotFoundError(f"Input file not found: {input_path}")
@@ -216,6 +227,14 @@ def convert_md_to_pdf(
         update_progress(operation, 95, "Saving PDF")
         pdf.save(str(output_path))
 
+        # Record conversion for trial tracking
+        record_conversion_attempt(
+            converter_name="md2pdf",
+            input_file=str(input_path),
+            output_file=str(output_path),
+            success=True,
+        )
+
         # Complete operation
         complete_operation(operation, success=True)
 
@@ -229,3 +248,4 @@ def convert_md_to_pdf(
             input_path=str(input_path),
             output_path=str(output_path),
         )
+

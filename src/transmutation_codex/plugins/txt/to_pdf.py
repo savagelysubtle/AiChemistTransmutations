@@ -2,10 +2,11 @@
 
 This module provides functionality to convert plain text files to PDF documents.
 """
+
 from __future__ import annotations
 
-import logging
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -14,25 +15,32 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 from transmutation_codex.core import (
-    ConfigManager,
+    check_feature_access,
+    check_file_size_limit,
+    complete_operation,
     get_log_manager,
-    raise_conversion_error,
+    publish,
+    record_conversion_attempt,
+    start_operation,
+    update_progress,
 )
 from transmutation_codex.core.decorators import converter
+from transmutation_codex.core.events import ConversionEvent
 
 
 @converter(
-    source_format='txt',
-    target_format='pdf',
+    source_format="txt",
+    target_format="pdf",
+    name="txt_to_pdf_convert_txt_to_pdf",
     description="Convert plain text files to PDF with configurable font and styling",
-    input_formats=['txt'],
-    max_file_size_mb=10,
-    required_dependencies=['reportlab'],
+    required_dependencies=["reportlab"],
     priority=10,
     version="1.0.0",
 )
 def convert_txt_to_pdf(
-    input_path: str | Path, output_path: str | Path | None = None, **kwargs: Any
+    input_path: str | Path,
+    output_path: str | Path | None = None,
+    **kwargs: Any,
 ) -> Path:
     """Converts a plain text file to a PDF document.
 
@@ -49,38 +57,78 @@ def convert_txt_to_pdf(
 
     Raises:
         FileNotFoundError: If the input_path does not exist.
-        Exception: For errors encountered during PDF generation.
+        RuntimeError: For errors encountered during PDF generation.
     """
-    # Obtain logger at runtime from the centralized LogManager
+    # Get logger
     logger = get_log_manager().get_converter_logger("txt2pdf")
 
+    # Convert to Path objects
     input_path = Path(input_path).resolve()
-    if not input_path.exists():
-        logger.error(f"Input TXT file not found: {input_path}")
-        raise FileNotFoundError(f"Input file not found: {input_path}")
-    if input_path.suffix.lower() != ".txt":
-        logger.error(f"Invalid input file type: {input_path.suffix}")
-        raise ValueError(f"Input file must be a TXT file: {input_path}")
+    if output_path:
+        output_path = Path(output_path).resolve()
+    else:
+        output_path = input_path.with_suffix(".pdf")
 
-    output_path = (
-        Path(output_path).resolve() if output_path else input_path.with_suffix(".pdf")
+    # Start operation tracking
+    operation = start_operation(
+        "conversion",
+        100,
+        description=f"Converting {input_path.name} to PDF",
     )
-    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Get config and options
-    config = ConfigManager()
-    settings = config.get_environment_config()
-    font_name = kwargs.get("font_name", settings.get("font_name", "Helvetica"))
-    font_size = kwargs.get("font_size", settings.get("font_size", 10))
-
-    logger.info(
-        f"Converting {input_path.name} to PDF. Output: {output_path.name}, Font: {font_name}, Size: {font_size}"
+    # Publish conversion started event
+    publish(
+        ConversionEvent(
+            event_type="conversion.started",
+            conversion_type="txt2pdf",
+            plugin_name="txt_to_pdf_convert_txt_to_pdf",
+            input_file=str(input_path),
+            output_file=str(output_path),
+        )
     )
+
+    logger.info(f"Starting TXT to PDF conversion: {input_path}")
+    logger.info(f"Output will be saved to: {output_path}")
+
+    start_time = time.time()
 
     try:
-        with open(input_path, "r", encoding="utf-8") as f:
+        # License validation and feature gating (txt2pdf is paid-only)
+        check_feature_access("txt2pdf")
+
+        # Convert to Path for validation
+        input_path = Path(input_path).resolve()
+
+        # Check file size limit
+        check_file_size_limit(str(input_path))
+
+        # Validate input file
+        if not input_path.exists():
+            raise FileNotFoundError(f"Input file not found: {input_path}")
+
+        if input_path.suffix.lower() != ".txt":
+            raise ValueError(f"Input file must be a TXT file: {input_path}")
+
+        update_progress(operation, 10, "Reading text file...")
+
+        # Get options
+        font_name = kwargs.get("font_name", "Helvetica")
+        font_size = kwargs.get("font_size", 10)
+
+        logger.info(f"Font: {font_name}, Size: {font_size}")
+
+        # Ensure output directory exists
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        update_progress(operation, 30, "Preparing PDF document...")
+
+        # Read text content
+        with open(input_path, encoding="utf-8") as f:
             text_content = f.read()
 
+        update_progress(operation, 50, "Generating PDF...")
+
+        # Create PDF
         doc = SimpleDocTemplate(str(output_path), pagesize=letter)
         styles = getSampleStyleSheet()
         style = styles["Normal"]
@@ -89,62 +137,134 @@ def convert_txt_to_pdf(
         style.leading = font_size * 1.2  # Line spacing
 
         story = []
-        # Replace multiple newlines with a single paragraph break equivalent
-        # Preserve single newlines by converting them to <br/> tags,
-        # which ReportLab Paragraphs can interpret.
-        processed_text = text_content.replace("\\r\\n", "\\n").replace("\\n", "<br/>\\n")
+        # Process text - replace newlines with <br/> tags
+        processed_text = text_content.replace("\r\n", "\n").replace("\n", "<br/>\n")
 
-        # Split into paragraphs based on what would visually be a paragraph break (multiple newlines)
-        # However, a simpler approach for plain text is often to treat each line as a potential start
-        # of a new paragraph if it's separated by blank lines, or just wrap the whole content.
-        # For now, let's create paragraphs by splitting by double newlines (or more)
-        # and then rejoining with single <br/> for lines within those.
-
-        # A simpler initial approach: treat the whole text as a single block,
-        # and let ReportLab handle line wrapping.
-        # We will replace newlines with <br/> for explicit line breaks.
-        paragraphs = processed_text.split("<br/>\\n<br/>\\n") # Split by what were double newlines
+        # Split by double newlines for paragraphs
+        paragraphs = processed_text.split("<br/>\n<br/>\n")
 
         for para_text in paragraphs:
             if para_text.strip():
                 story.append(Paragraph(para_text, style))
-                story.append(Spacer(1, 0.2 * style.fontSize)) # Add some space between paragraphs
+                story.append(Spacer(1, 0.2 * style.fontSize))
 
-        if not story: # Handle empty or whitespace-only files
+        if not story:  # Handle empty files
             story.append(Paragraph("<i>(Empty Document)</i>", style))
 
+        update_progress(operation, 80, "Building PDF...")
+
         doc.build(story)
-        logger.info(f"Successfully converted {input_path.name} to {output_path.name}")
+
+        update_progress(operation, 90, "Finalizing PDF...")
+
+        duration = time.time() - start_time
+        logger.info(f"Successfully converted {input_path.name} to PDF: {output_path}")
+        logger.info(f"Conversion completed in {duration:.2f}s")
+
+        # Complete operation
+        # Record conversion for trial tracking
+        record_conversion_attempt(
+            converter_name="txt2pdf",
+            input_file=str(input_path),
+            output_file=str(output_path),
+            success=True,
+        )
+
+        complete_operation(operation, success=True)
+
+        # Publish conversion completed event
+        publish(
+            ConversionEvent(
+                event_type="conversion.completed",
+                conversion_type="txt2pdf",
+                plugin_name="txt_to_pdf_convert_txt_to_pdf",
+                input_file=str(input_path),
+                output_file=str(output_path),
+            )
+        )
+
         return output_path
 
     except FileNotFoundError:
-        logger.error(f"Input file not found during conversion: {input_path}")
+        logger.error(f"Input file not found: {input_path}")
+        complete_operation(operation, success=False)
+
+        publish(
+            ConversionEvent(
+                event_type="conversion.failed",
+                conversion_type="txt2pdf",
+                plugin_name="txt_to_pdf_convert_txt_to_pdf",
+                input_file=str(input_path),
+                output_file=str(output_path) if output_path else None,
+            )
+        )
         raise
     except Exception as e:
-        logger.exception(
-            f"An error occurred during TXT to PDF conversion for {input_path.name}: {e}"
+        duration = time.time() - start_time
+        error_message = f"TXT to PDF conversion failed: {e}"
+        logger.exception(error_message)
+
+        complete_operation(operation, success=False)
+
+        # Publish conversion failed event
+        publish(
+            ConversionEvent(
+                event_type="conversion.failed",
+                conversion_type="txt2pdf",
+                plugin_name="txt_to_pdf_convert_txt_to_pdf",
+                input_file=str(input_path),
+                output_file=str(output_path) if output_path else None,
+            )
         )
-        raise_conversion_error(
-            f"TXT to PDF conversion failed: {e}",
-            input_path=str(input_path),
-            output_path=str(output_path)
-        )
+
+        raise RuntimeError(error_message) from e
+
+
+# Alias for backward compatibility
+txt_to_pdf = convert_txt_to_pdf
+
 
 if __name__ == "__main__":
     # Example usage for direct script execution (testing)
-    if len(sys.argv) < 2:
-        print("Usage: python to_pdf.py <input_txt_file> [output_pdf_file]")
-        sys.exit(1)
+    import logging
 
-    input_file = sys.argv[1]
-    output_file = sys.argv[2] if len(sys.argv) > 2 else None
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+    )
 
-    # Basic logging for testing
-    logging.basicConfig(level=logging.INFO)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Convert TXT to PDF")
+    parser.add_argument("input_file", type=Path, help="Path to input TXT file")
+    parser.add_argument(
+        "output_file",
+        type=Path,
+        nargs="?",
+        help="Path to output PDF file (optional)",
+    )
+    parser.add_argument(
+        "--font-name",
+        default="Helvetica",
+        help="Font name (default: Helvetica)",
+    )
+    parser.add_argument(
+        "--font-size",
+        type=int,
+        default=10,
+        help="Font size (default: 10)",
+    )
+
+    args = parser.parse_args()
 
     try:
-        result_path = convert_txt_to_pdf(input_file, output_file)
-        print(f"Successfully converted to: {result_path}")
+        result = convert_txt_to_pdf(
+            args.input_file,
+            args.output_file,
+            font_name=args.font_name,
+            font_size=args.font_size,
+        )
+        print(f"Successfully converted to: {result}")
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Conversion failed: {e}")
         sys.exit(1)
