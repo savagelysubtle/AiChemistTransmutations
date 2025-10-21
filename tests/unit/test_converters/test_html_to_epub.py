@@ -7,7 +7,6 @@ from unittest.mock import Mock, patch
 import pytest
 
 from transmutation_codex.core.exceptions import ValidationError
-
 from transmutation_codex.plugins.html.to_epub import convert_html_to_epub
 
 
@@ -28,20 +27,21 @@ class TestHTMLToEPUBConverter:
     @pytest.fixture
     def mock_ebooklib(self):
         """Mock ebooklib for testing."""
-        with patch(
-            "transmutation_codex.plugins.html.to_epub.epub"
-        ) as mock_epub:
+        with patch("transmutation_codex.plugins.html.to_epub.epub") as mock_epub:
             mock_book = Mock()
             mock_epub.EpubBook.return_value = mock_book
             mock_epub.EpubHtml.return_value = Mock()
             mock_epub.EpubNcx.return_value = Mock()
             mock_epub.EpubNav.return_value = Mock()
-            
-            # Create a mock that simulates file creation
-            def mock_write_epub(output_path, book, options=None):
+
+            # Create a mock that simulates file creation and can be asserted
+            mock_write_epub = Mock()
+
+            def write_epub_side_effect(output_path, book, options=None):
                 # Simulate creating the output file
                 Path(output_path).touch()
-            
+
+            mock_write_epub.side_effect = write_epub_side_effect
             mock_epub.write_epub = mock_write_epub
             yield mock_epub
 
@@ -118,12 +118,12 @@ class TestHTMLToEPUBConverter:
 
         # The converter accepts any text file as HTML content
         result_path = convert_html_to_epub(text_file, output_path)
-        
+
         # Verify output
         assert result_path.exists()
         assert result_path.suffix == ".epub"
         assert result_path == output_path
-        
+
         # Verify EPUB was created
         mock_ebooklib.write_epub.assert_called()
 
@@ -150,7 +150,9 @@ class TestHTMLToEPUBConverter:
             # Verify progress tracking was called
             mock_start.assert_called_once()
             assert mock_update.call_count > 0
-            mock_complete.assert_called_once_with("test_operation_id", {"output_path": str(output_path)})
+            mock_complete.assert_called_once_with(
+                "test_operation_id", {"output_path": str(output_path)}
+            )
 
     def test_event_publishing(self, test_html_path, temp_output_dir, mock_ebooklib):
         """Test that conversion events are published."""
