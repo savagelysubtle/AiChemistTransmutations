@@ -175,6 +175,7 @@ def convert_docx_to_markdown(
     logger.info(f"Output will be saved to: {output_path}")
 
     start_time = time.time()
+    original_pandoc_env = None  # Initialize before try block
 
     try:
         # Validate input file
