@@ -71,7 +71,7 @@ jobs:
       #     powershell -ExecutionPolicy Bypass -File scripts/build/build_msix.ps1 -Version ${{ github.ref_name }}
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: windows-installers-${{ github.ref_name }}
           path: |
@@ -116,7 +116,7 @@ jobs:
           python docs/build_docs.py
 
       - name: Upload documentation
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: documentation
           path: docs/build/html
@@ -148,7 +148,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-results
           path: |
