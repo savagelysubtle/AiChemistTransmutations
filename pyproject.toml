@@ -75,7 +75,7 @@ where   = [ "src" ]
 
 [build-system]
 build-backend = "uv_build"
-requires      = [ "uv-build>=0.7.19,<0.8.0" ]
+requires      = [ "uv-build>=0.7.19,<0.10.0" ]
 
 [dependency-groups]
 dev = [
