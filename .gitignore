@@ -114,3 +114,4 @@ DEV_LICENSE.txt
 generated_keys/
 node_modules/
 logs/
+.playwright-mcp/
