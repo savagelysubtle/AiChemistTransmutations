@@ -8,6 +8,11 @@ import json
 import sys
 from typing import Any
 
+from transmutation_codex.core import ErrorCode, get_log_manager
+
+# Setup logger
+logger = get_log_manager().get_bridge_logger()
+
 
 class BridgeError(Exception):
     """Base exception for bridge-related errors."""
@@ -41,11 +46,18 @@ def send_json_message(message_type: str, data: dict[str, Any]) -> None:
     """
     try:
         json_str = json.dumps(data, ensure_ascii=False)
+        logger.debug(f"Sending {message_type} message: {json_str[:200]}...")
         print(f"{message_type}:{json_str}", flush=True)
     except (TypeError, ValueError) as e:
+        error_code = ErrorCode.BRIDGE_JSON_SERIALIZATION_FAILED
+        logger.error(f"[{error_code}] Failed to serialize {message_type} message: {e}", exc_info=True)
         # Fallback if data isn't JSON serializable
-        error_data = {"error": f"Failed to serialize message: {e}", "type": message_type}
-        print(f"ERROR:{json.dumps(error_data)}", flush=True)
+        error_data = {"error": f"Failed to serialize message: {e}", "type": message_type, "error_code": error_code}
+        try:
+            print(f"ERROR:{json.dumps(error_data)}", flush=True)
+        except Exception:
+            # Last resort: print raw error
+            print(f"ERROR:{{\"error\":\"Critical: Failed to serialize error message\",\"type\":\"{message_type}\"}}", flush=True)
 
 
 def send_progress(
@@ -135,11 +147,17 @@ def validate_file_exists(file_path: str, file_description: str = "File") -> None
     """
     from pathlib import Path
 
+    logger.debug(f"Validating file exists: {file_path}")
     path = Path(file_path)
     if not path.exists():
+        error_code = ErrorCode.VALIDATION_FILE_NOT_FOUND
+        logger.error(f"[{error_code}] {file_description} not found: {file_path}")
         raise BridgeValidationError(f"{file_description} not found: {file_path}")
     if not path.is_file():
+        error_code = ErrorCode.VALIDATION_INVALID_FORMAT
+        logger.error(f"[{error_code}] {file_description} is not a file: {file_path}")
         raise BridgeValidationError(f"{file_description} is not a file: {file_path}")
+    logger.debug(f"File validation passed: {file_path}")
 
 
 def validate_output_directory(output_path: str | None) -> None:
@@ -152,10 +170,12 @@ def validate_output_directory(output_path: str | None) -> None:
         BridgeValidationError: If directory validation fails
     """
     if not output_path:
+        logger.debug("Output path not provided, skipping validation")
         return
 
     from pathlib import Path
 
+    logger.debug(f"Validating output directory: {output_path}")
     path = Path(output_path)
 
     # If it's an existing directory, ensure it's writable
@@ -165,14 +185,20 @@ def validate_output_directory(output_path: str | None) -> None:
         try:
             test_file.touch()
             test_file.unlink()
+            logger.debug(f"Output directory is writable: {output_path}")
         except (PermissionError, OSError) as e:
+            error_code = ErrorCode.BRIDGE_OUTPUT_DIRECTORY_INVALID
+            logger.error(f"[{error_code}] Output directory is not writable: {output_path}", exc_info=True)
             raise BridgeValidationError(f"Output directory is not writable: {output_path}") from e
 
     # If it's a file path, ensure parent directory exists
     elif not path.is_dir():
         parent = path.parent
         if not parent.exists():
+            error_code = ErrorCode.BRIDGE_OUTPUT_DIRECTORY_INVALID
+            logger.error(f"[{error_code}] Output directory does not exist: {parent}")
             raise BridgeValidationError(f"Output directory does not exist: {parent}")
+        logger.debug(f"Output directory validation passed: {parent}")
 
 
 def format_file_size(size_bytes: int) -> str:

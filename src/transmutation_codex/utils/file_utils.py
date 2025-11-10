@@ -13,6 +13,11 @@ from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 
+from transmutation_codex.core import ErrorCode, get_log_manager
+
+# Setup logger
+logger = get_log_manager().get_logger("transmutation_codex.utils.file_utils")
+
 # Common MIME type mappings for document formats
 MIME_TYPE_MAPPINGS = {
     "application/pdf": "pdf",
@@ -270,26 +275,34 @@ def safe_copy_file(source: str, destination: str, overwrite: bool = False) -> bo
     Returns:
         True if copy successful, False otherwise
     """
+    logger.debug(f"Copying file: {source} -> {destination} (overwrite={overwrite})")
     try:
         source_path = Path(source)
         dest_path = Path(destination)
 
         # Validate source
         if not source_path.exists() or not source_path.is_file():
+            error_code = ErrorCode.VALIDATION_FILE_NOT_FOUND
+            logger.error(f"[{error_code}] Source file not found or not a file: {source}")
             return False
 
         # Check if destination exists
         if dest_path.exists() and not overwrite:
+            logger.debug(f"Destination file exists and overwrite=False: {destination}")
             return False
 
         # Create destination directory if needed
         dest_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.debug(f"Created destination directory: {dest_path.parent}")
 
         # Copy file
         shutil.copy2(source, destination)
+        logger.debug(f"Successfully copied file: {source} -> {destination}")
         return True
 
-    except Exception:
+    except Exception as e:
+        error_code = ErrorCode.UTILS_FILE_COPY_FAILED
+        logger.error(f"[{error_code}] Failed to copy file {source} -> {destination}: {e}", exc_info=True)
         return False
 
 
@@ -304,26 +317,34 @@ def safe_move_file(source: str, destination: str, overwrite: bool = False) -> bo
     Returns:
         True if move successful, False otherwise
     """
+    logger.debug(f"Moving file: {source} -> {destination} (overwrite={overwrite})")
     try:
         source_path = Path(source)
         dest_path = Path(destination)
 
         # Validate source
         if not source_path.exists() or not source_path.is_file():
+            error_code = ErrorCode.VALIDATION_FILE_NOT_FOUND
+            logger.error(f"[{error_code}] Source file not found or not a file: {source}")
             return False
 
         # Check if destination exists
         if dest_path.exists() and not overwrite:
+            logger.debug(f"Destination file exists and overwrite=False: {destination}")
             return False
 
         # Create destination directory if needed
         dest_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.debug(f"Created destination directory: {dest_path.parent}")
 
         # Move file
         shutil.move(source, destination)
+        logger.debug(f"Successfully moved file: {source} -> {destination}")
         return True
 
-    except Exception:
+    except Exception as e:
+        error_code = ErrorCode.UTILS_FILE_OPERATION_FAILED
+        logger.error(f"[{error_code}] Failed to move file {source} -> {destination}: {e}", exc_info=True)
         return False
 
 
@@ -336,13 +357,18 @@ def safe_delete_file(file_path: str) -> bool:
     Returns:
         True if deletion successful, False otherwise
     """
+    logger.debug(f"Deleting file: {file_path}")
     try:
         path = Path(file_path)
         if path.exists() and path.is_file():
             path.unlink()
+            logger.debug(f"Successfully deleted file: {file_path}")
             return True
+        logger.debug(f"File does not exist or is not a file: {file_path}")
         return False
-    except Exception:
+    except Exception as e:
+        error_code = ErrorCode.UTILS_FILE_DELETE_FAILED
+        logger.error(f"[{error_code}] Failed to delete file {file_path}: {e}", exc_info=True)
         return False
 
 

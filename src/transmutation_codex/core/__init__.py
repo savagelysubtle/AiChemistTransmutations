@@ -33,6 +33,7 @@ from .events import (
     subscribe,
     unsubscribe,
 )
+from .error_codes import ErrorCode, ErrorCategory, get_error_message
 from .exceptions import (
     BatchProcessingError,
     ConfigurationError,
@@ -133,6 +134,8 @@ __all__ = [
     "ConversionPreset",
     "DependencyChecker",
     "DependencyError",
+    "ErrorCategory",
+    "ErrorCode",
     "ErrorEvent",
     "Event",
     "EventBus",
@@ -174,6 +177,7 @@ __all__ = [
     "get_conversion_preset",
     "get_dependency_checker",
     "get_environment_config",
+    "get_error_message",
     "get_event_bus",
     "get_full_license_status",
     "get_license_manager",

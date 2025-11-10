@@ -18,6 +18,7 @@ except ImportError:
 from transmutation_codex.core import (
     ConfigManager,
     ConversionEvent,
+    ErrorCode,
     EventTypes,
     check_feature_access,
     check_file_size_limit,
@@ -123,23 +124,39 @@ def convert_md_to_pdf(
     )
 
     try:
+        logger.info(f"Starting Markdown to PDF conversion: {input_path}")
+
         # License validation and feature gating
-        check_feature_access("md2pdf")  # Check if user has access to MD→PDF conversion
+        try:
+            check_feature_access("md2pdf")  # Check if user has access to MD→PDF conversion
+            logger.debug("Feature access check passed for md2pdf")
+        except Exception as e:
+            logger.error(f"Feature access denied for md2pdf: {e}", exc_info=True)
+            raise
 
         # Convert to Path for validation
         input_path = Path(input_path).resolve()
+        logger.debug(f"Resolved input path: {input_path}")
 
         # Check file size limit (free tier: 5MB, paid: unlimited)
-        check_file_size_limit(str(input_path))
+        try:
+            check_file_size_limit(str(input_path))
+            logger.debug("File size check passed")
+        except Exception as e:
+            logger.error(f"File size limit exceeded: {e}", exc_info=True)
+            raise
 
         if not MARKDOWN_PDF_AVAILABLE:
-            logger.error("markdown_pdf is required for Markdown to PDF conversion.")
+            error_code = ErrorCode.CONVERSION_MD2PDF_LIBRARY_MISSING
+            logger.error(f"[{error_code}] markdown_pdf library is required but not installed")
             raise_validation_error(
-                "markdown_pdf is required. Install it with: pip install markdown-pdf"
+                "markdown_pdf is required. Install it with: pip install markdown-pdf",
+                error_code=error_code,
             )
 
         if not input_path.exists():
-            logger.error(f"Input file not found: {input_path}")
+            error_code = ErrorCode.VALIDATION_FILE_NOT_FOUND
+            logger.error(f"[{error_code}] Input file not found: {input_path}")
             raise FileNotFoundError(f"Input file not found: {input_path}")
 
         output_path = (
@@ -168,9 +185,22 @@ def convert_md_to_pdf(
 
         # Update progress: reading file
         update_progress(operation, 20, "Reading markdown file")
+        logger.debug("Reading markdown file content")
 
-        with open(input_path, encoding="utf-8") as md_file:
-            markdown_content = md_file.read()
+        try:
+            with open(input_path, encoding="utf-8") as md_file:
+                markdown_content = md_file.read()
+            logger.debug(f"Successfully read {len(markdown_content)} characters from markdown file")
+        except Exception as e:
+            error_code = ErrorCode.CONVERSION_MD2PDF_READ_FAILED
+            logger.error(f"[{error_code}] Failed to read markdown file: {input_path}", exc_info=True)
+            raise_conversion_error(
+                f"Failed to read markdown file: {e}",
+                source_format="md",
+                target_format="pdf",
+                source_file=str(input_path),
+                error_code=error_code,
+            )
 
         # Extract title
         title_match = re.search(r"^#\s+(.+)$", markdown_content, re.MULTILINE)
@@ -225,7 +255,21 @@ def convert_md_to_pdf(
 
         # Update progress: saving
         update_progress(operation, 95, "Saving PDF")
-        pdf.save(str(output_path))
+        logger.debug(f"Saving PDF to: {output_path}")
+
+        try:
+            pdf.save(str(output_path))
+            logger.debug(f"Successfully saved PDF to: {output_path}")
+        except Exception as e:
+            error_code = ErrorCode.CONVERSION_MD2PDF_SAVE_FAILED
+            logger.error(f"[{error_code}] Failed to save PDF file: {output_path}", exc_info=True)
+            raise_conversion_error(
+                f"Failed to save PDF file: {e}",
+                source_format="md",
+                target_format="pdf",
+                source_file=str(input_path),
+                error_code=error_code,
+            )
 
         # Record conversion for trial tracking
         record_conversion_attempt(
@@ -238,14 +282,23 @@ def convert_md_to_pdf(
         # Complete operation
         complete_operation(operation, success=True)
 
-        logger.info(f"Markdown converted to PDF: {output_path}")
+        logger.info(f"Successfully converted Markdown to PDF: {output_path}")
         return output_path
 
+    except FileNotFoundError as e:
+        error_code = ErrorCode.VALIDATION_FILE_NOT_FOUND
+        logger.error(f"[{error_code}] File not found during conversion: {e}", exc_info=True)
+        complete_operation(operation, success=False)
+        raise
     except Exception as e:
-        logger.exception(f"Error converting Markdown to PDF: {e}")
+        error_code = ErrorCode.CONVERSION_MD2PDF_GENERATION_FAILED
+        logger.error(f"[{error_code}] Error converting Markdown to PDF: {e}", exc_info=True)
+        complete_operation(operation, success=False)
         raise_conversion_error(
             f"Markdown to PDF conversion failed: {e}",
-            input_path=str(input_path),
-            output_path=str(output_path),
+            source_format="md",
+            target_format="pdf",
+            source_file=str(input_path) if isinstance(input_path, Path) else str(input_path),
+            error_code=error_code,
         )
 

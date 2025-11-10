@@ -1,7 +1,22 @@
 # AiChemist Transmutation Codex
 
-AiChemist Transmutation Codex is a Python library for converting between different document formats,
-with a focus on Markdown and PDF conversions, intended as a core component of the AiChemist suite.
+<div align="center">
+  <img src="gui/assets/logo.svg" alt="AiChemist Transmutation Codex Logo" width="256" height="256">
+  <br><br>
+  <strong>Professional Document Conversion Suite</strong>
+  <br>
+  Convert between Markdown, PDF, HTML, DOCX, and more formats
+  <br><br>
+  [![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://paypal.me/safeappealnavigator)
+  <br>
+  [Support this project](https://paypal.me/safeappealnavigator)
+</div>
+
+---
+
+AiChemist Transmutation Codex is a Python library for converting between
+different document formats, with a focus on Markdown and PDF conversions,
+intended as a core component of the AiChemist suite.
 
 ## Features
 
@@ -106,9 +121,10 @@ convert_pdf_to_md_with_pymupdf4llm("input.pdf", "output.md")
 
 ## OCR Support for Scanned PDFs
 
-AiChemist Transmutation Codex now includes OCR (Optical Character Recognition) support for extracting
-text from scanned PDF documents. This feature is particularly useful for PDFs
-that are scanned images or documents without embedded text.
+AiChemist Transmutation Codex now includes OCR (Optical Character Recognition)
+support for extracting text from scanned PDF documents. This feature is
+particularly useful for PDFs that are scanned images or documents without
+embedded text.
 
 ### How OCR Works
 
@@ -134,9 +150,9 @@ that are scanned images or documents without embedded text.
 
 ### PyMuPDF4LLM for LLM-Optimized Conversion
 
-For converting PDFs for use with Large Language Models (LLMs), AiChemist Transmutation Codex
-integrates with PyMuPDF4LLM, which provides specialized Markdown output that
-works well as input for LLMs.
+For converting PDFs for use with Large Language Models (LLMs), AiChemist
+Transmutation Codex integrates with PyMuPDF4LLM, which provides specialized
+Markdown output that works well as input for LLMs.
 
 To use this feature, install the PyMuPDF4LLM package:
 
@@ -164,6 +180,22 @@ pip install pymupdf4llm
    ```bash
    pytest
    ```
+
+## Support
+
+If you find this project useful and would like to support its development, you
+can make a contribution via PayPal:
+
+<div align="center">
+
+[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://paypal.me/safeappealnavigator)
+
+**PayPal:**
+[paypal.me/safeappealnavigator](https://paypal.me/safeappealnavigator)
+
+Your support helps maintain and improve this project! 🙏
+
+</div>
 
 ## License
 

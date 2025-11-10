@@ -9,6 +9,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from transmutation_codex.core import ErrorCode, get_log_manager
+
+# Setup logger
+logger = get_log_manager().get_logger("transmutation_codex.utils.metadata")
+
 
 def extract_file_metadata(file_path: str) -> dict[str, Any]:
     """Extract basic file system metadata.
@@ -59,6 +64,8 @@ def extract_file_metadata(file_path: str) -> dict[str, Any]:
                 metadata["format_detected"] = detected_format
 
     except Exception as e:
+        error_code = ErrorCode.UTILS_METADATA_EXTRACTION_FAILED
+        logger.error(f"[{error_code}] Failed to extract file metadata from {file_path}: {e}", exc_info=True)
         metadata["extraction_error"] = str(e)
 
     return metadata
@@ -127,6 +134,8 @@ def extract_pdf_metadata(file_path: str) -> dict[str, Any]:
                 metadata["has_text"] = False
 
     except Exception as e:
+        error_code = ErrorCode.UTILS_METADATA_EXTRACTION_FAILED
+        logger.error(f"[{error_code}] Failed to extract PDF metadata from {file_path}: {e}", exc_info=True)
         metadata["extraction_error"] = str(e)
 
     return metadata
@@ -224,6 +233,8 @@ def extract_markdown_metadata(file_path: str) -> dict[str, Any]:
             metadata["title"] = headings[0]
 
     except Exception as e:
+        error_code = ErrorCode.UTILS_METADATA_EXTRACTION_FAILED
+        logger.error(f"[{error_code}] Failed to extract Markdown metadata from {file_path}: {e}", exc_info=True)
         metadata["extraction_error"] = str(e)
 
     return metadata
@@ -347,6 +358,8 @@ def extract_html_metadata(file_path: str) -> dict[str, Any]:
             )
 
     except Exception as e:
+        error_code = ErrorCode.UTILS_METADATA_EXTRACTION_FAILED
+        logger.error(f"[{error_code}] Failed to extract HTML metadata from {file_path}: {e}", exc_info=True)
         metadata["extraction_error"] = str(e)
 
     return metadata
@@ -429,6 +442,8 @@ def extract_text_metadata(file_path: str) -> dict[str, Any]:
             pass
 
     except Exception as e:
+        error_code = ErrorCode.UTILS_METADATA_EXTRACTION_FAILED
+        logger.error(f"[{error_code}] Failed to extract text metadata from {file_path}: {e}", exc_info=True)
         metadata["extraction_error"] = str(e)
 
     return metadata

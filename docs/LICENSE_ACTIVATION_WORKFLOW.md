@@ -233,6 +233,49 @@ else:
 
 ## Troubleshooting
 
+### Error: "License command failed with code 1"
+
+**What "code 1" means**: Exit code 1 is a general error code from the Python process. The actual error message is in the stderr output or JSON response.
+
+**Common Causes**:
+
+1. **Invalid license key**: RSA signature validation failed
+2. **License activation limit reached**: Maximum number of activations exceeded
+3. **Import error**: Python can't find the `transmutation_codex` package
+4. **Validation error**: License expired, revoked, or malformed
+
+**How to Debug**:
+
+1. **Check Electron DevTools Console** (if running in dev mode):
+   - Open DevTools: `Ctrl+Shift+I` (Windows) or `Cmd+Option+I` (Mac)
+   - Look for `[PYTHON STDERR]` messages - these contain the actual error
+   - Look for `[PYTHON STDOUT]` - may contain JSON with error details
+
+2. **Check Python Logs**:
+   ```powershell
+   # License bridge logs go to stderr, check Electron console
+   # Or check Python session logs:
+   Get-Content logs/python/app_session_*.log | Select-String -Pattern "LICENSE_BRIDGE|Activation"
+   ```
+
+3. **Test License Key Directly**:
+   ```powershell
+   python -m transmutation_codex.adapters.bridges.license_bridge activate "YOUR_LICENSE_KEY"
+   ```
+
+4. **Common Error Messages**:
+   - `"Invalid license key"` → Check key format, no extra spaces
+   - `"Cannot activate license: max_activations_reached"` → Deactivate on other devices
+   - `"Import error: No module named 'transmutation_codex'"` → Package not installed correctly
+   - `"License expired"` → License has passed expiry date
+
+**Solution Steps**:
+
+1. Copy the exact error message from DevTools console (stderr output)
+2. Verify license key format: Should start with `AICHEMIST:` and be one continuous string
+3. Check if license is already activated: Try deactivating first
+4. For development: Ensure Python environment is activated and package is installed (`pip install -e .`)
+
 ### Error: "License command failed with code 2"
 
 **Cause**: License key is not in Supabase database

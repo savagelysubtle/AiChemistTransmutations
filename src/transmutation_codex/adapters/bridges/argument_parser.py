@@ -9,7 +9,12 @@ import json
 from pathlib import Path
 from typing import Any
 
+from transmutation_codex.core import ErrorCode, get_log_manager
+
 from .base import BridgeValidationError, validate_file_exists, validate_output_directory
+
+# Setup logger
+logger = get_log_manager().get_bridge_logger()
 
 
 class BridgeArguments:
@@ -54,21 +59,37 @@ class BridgeArguments:
         Raises:
             BridgeValidationError: If validation fails
         """
-        if self.mode == "convert":
-            self._validate_convert()
-        elif self.mode == "batch":
-            self._validate_batch()
-        elif self.mode == "merge":
-            self._validate_merge()
-        else:
-            raise BridgeValidationError(f"Unknown mode: {self.mode}")
+        logger.debug(f"Validating arguments for mode: {self.mode}")
+        try:
+            if self.mode == "convert":
+                self._validate_convert()
+            elif self.mode == "batch":
+                self._validate_batch()
+            elif self.mode == "merge":
+                self._validate_merge()
+            else:
+                error_code = ErrorCode.BRIDGE_INVALID_MODE
+                logger.error(f"[{error_code}] Unknown mode: {self.mode}")
+                raise BridgeValidationError(f"Unknown mode: {self.mode}")
+            logger.debug("Argument validation passed")
+        except BridgeValidationError:
+            raise
+        except Exception as e:
+            error_code = ErrorCode.BRIDGE_VALIDATION_FAILED
+            logger.error(f"[{error_code}] Validation error: {e}", exc_info=True)
+            raise BridgeValidationError(f"Validation failed: {e}") from e
 
     def _validate_convert(self) -> None:
         """Validate arguments for single conversion mode."""
+        logger.debug("Validating convert mode arguments")
         if not self.conversion_type:
+            error_code = ErrorCode.BRIDGE_INVALID_ARGUMENTS
+            logger.error(f"[{error_code}] Conversion type is required for convert mode")
             raise BridgeValidationError("Conversion type is required for convert mode")
 
         if not self.input_path:
+            error_code = ErrorCode.BRIDGE_INVALID_ARGUMENTS
+            logger.error(f"[{error_code}] Input path is required for convert mode")
             raise BridgeValidationError("Input path is required for convert mode")
 
         # Validate input file exists
@@ -229,9 +250,13 @@ Examples:
     # Parse options JSON if provided
     options = {}
     if hasattr(parsed, "options_json") and parsed.options_json:
+        logger.debug(f"Parsing options JSON: {parsed.options_json[:200]}...")
         try:
             options = json.loads(parsed.options_json)
+            logger.debug(f"Successfully parsed options: {list(options.keys())}")
         except json.JSONDecodeError as e:
+            error_code = ErrorCode.BRIDGE_INVALID_ARGUMENTS
+            logger.error(f"[{error_code}] Invalid options JSON: {e}", exc_info=True)
             raise BridgeValidationError(f"Invalid options JSON: {e}") from e
 
     # Create BridgeArguments instance
@@ -351,6 +376,34 @@ def parse_legacy_arguments(args: list[str] | None = None) -> BridgeArguments:
     )
     parser.add_argument(
         "--font-size", type=int, help="Font size for TXT to PDF (default: 10)"
+    )
+
+    # DOCX to PDF quality options (LibreOffice v1.1)
+    parser.add_argument(
+        "--use-lossless-compression",
+        action="store_true",
+        help="Use lossless compression for images in DOCX to PDF",
+    )
+    parser.add_argument(
+        "--reduce-image-resolution",
+        action="store_true",
+        help="Reduce image resolution to 300 DPI in DOCX to PDF",
+    )
+    parser.add_argument(
+        "--export-bookmarks",
+        action="store_true",
+        help="Export document bookmarks in DOCX to PDF",
+    )
+    parser.add_argument(
+        "--export-notes",
+        action="store_true",
+        help="Export document comments/notes in DOCX to PDF",
+    )
+    parser.add_argument(
+        "--pdfa", action="store_true", help="Create PDF/A-1b compliant output"
+    )
+    parser.add_argument(
+        "--timeout", type=int, help="Conversion timeout in seconds (default: 120)"
     )
 
     # OCRmyPDF-specific options for pdf2editable

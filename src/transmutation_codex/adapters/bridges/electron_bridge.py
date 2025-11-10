@@ -23,7 +23,7 @@ if str(_backend_dir_path) not in sys.path:
 from transmutation_codex.adapters.bridges.argument_parser import parse_legacy_arguments
 from transmutation_codex.adapters.bridges.base import safe_exit, send_error
 from transmutation_codex.adapters.bridges.conversion_handler import handle_conversion
-from transmutation_codex.core import get_log_manager
+from transmutation_codex.core import ErrorCode, get_log_manager
 
 
 def main() -> int:
@@ -51,14 +51,15 @@ def main() -> int:
         return exit_code
 
     except Exception as e:
+        error_code = ErrorCode.BRIDGE_CONVERSION_EXECUTION_FAILED
         error_msg = f"Bridge error: {e}"
 
         if logger:
-            logger.exception(error_msg)
+            logger.error(f"[{error_code}] {error_msg}", exc_info=True)
         else:
             print(f"ERROR: {error_msg}", file=sys.stderr)
 
-        send_error(error_msg, "bridge_error")
+        send_error(error_msg, "bridge_error", {"error_code": error_code})
         return 1
 
 

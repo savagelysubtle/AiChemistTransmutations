@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from transmutation_codex.core import get_log_manager, get_registry
+from transmutation_codex.core import ErrorCode, get_log_manager, get_registry
 from transmutation_codex.services.batcher import run_batch
 
 from .argument_parser import BridgeArguments
@@ -38,34 +38,47 @@ def handle_single_conversion(
 
     # Import plugins to trigger auto-registration
     reporter.report(10, 100, "Loading converter...")
+    logger.debug("Importing plugins to trigger auto-registration")
     try:
         import transmutation_codex.plugins  # noqa: F401
+        logger.debug("Successfully imported plugins")
     except ImportError as e:
-        logger.error(f"Failed to import plugins: {e}")
+        error_code = ErrorCode.BRIDGE_PLUGIN_LOAD_FAILED
+        logger.error(f"[{error_code}] Failed to import plugins: {e}", exc_info=True)
         raise BridgeConversionError(f"Failed to load plugins: {e}") from e
 
     # Get the plugin registry
     registry = get_registry()
 
     # Parse conversion type (e.g., "pdf2md" -> "pdf", "md")
+    logger.debug(f"Parsing conversion type: {args.conversion_type}")
     if "2" not in args.conversion_type:
+        error_code = ErrorCode.BRIDGE_INVALID_ARGUMENTS
+        logger.error(f"[{error_code}] Invalid conversion type format: {args.conversion_type}")
         raise BridgeConversionError(
             f"Invalid conversion type format: {args.conversion_type}. "
             "Expected format: source2target"
         )
 
     source_format, target_format = args.conversion_type.split("2", 1)
+    logger.debug(f"Parsed conversion: {source_format} -> {target_format}")
 
     # Get converter from registry
     reporter.report(20, 100, f"Finding converter for {args.conversion_type}...")
+    logger.debug(f"Looking up converter in registry: {source_format} -> {target_format}")
 
     plugin_info = registry.get_converter(source_format, target_format)
 
     if not plugin_info:
+        error_code = ErrorCode.BRIDGE_CONVERTER_NOT_FOUND
         # Get available conversions for better error message
         available = registry.get_available_conversions()
         available_str = ", ".join(
             f"{src}2{tgt}" for src, targets in available.items() for tgt in targets
+        )
+        logger.error(
+            f"[{error_code}] No converter found for '{args.conversion_type}'. "
+            f"Available: {available_str or 'none'}"
         )
         raise BridgeConversionError(
             f"No converter found for '{args.conversion_type}'. "
@@ -91,16 +104,21 @@ def handle_single_conversion(
     reporter.report(30, 100, f"Converting {input_path.name}...")
 
     # Execute conversion
+    logger.info(f"Executing conversion: {input_path.name} -> {output_path.name}")
+    logger.debug(f"Converter options: {args.options}")
     start_time = time.time()
     try:
         converter_callable = plugin_info.converter_function
 
         # Call converter with options
         try:
+            logger.debug("Calling converter function")
             result_path = converter_callable(
                 str(input_path), str(output_path), **args.options
             )
+            logger.debug(f"Converter returned result path: {result_path}")
         except Exception as first_error:
+            logger.warning(f"Initial conversion attempt failed: {first_error}", exc_info=True)
             # Special handling for PDF to Editable: retry with force-ocr if it fails
             if target_format == "editable" and source_format == "pdf":
                 # Check if the error is about existing text (PriorOcrFoundError)
@@ -154,12 +172,18 @@ def handle_single_conversion(
 
     except Exception as e:
         duration = time.time() - start_time
-        logger.exception(f"Conversion failed: {e}")
+        error_code = ErrorCode.BRIDGE_CONVERSION_EXECUTION_FAILED
+        logger.error(f"[{error_code}] Conversion failed: {e}", exc_info=True)
 
         reporter.report_error(str(e), "conversion")
         reporter.report_failure(
             f"Conversion failed: {e}",
-            {"input_path": str(input_path), "error": str(e), "duration": duration},
+            {
+                "input_path": str(input_path),
+                "error": str(e),
+                "duration": duration,
+                "error_code": error_code,
+            },
         )
 
         raise BridgeConversionError(f"Conversion failed: {e}") from e
@@ -244,12 +268,18 @@ def handle_batch_conversion(
 
     except Exception as e:
         duration = time.time() - start_time
-        logger.exception(f"Batch conversion failed: {e}")
+        error_code = ErrorCode.BRIDGE_BATCH_EXECUTION_FAILED
+        logger.error(f"[{error_code}] Batch conversion failed: {e}", exc_info=True)
 
         reporter.report_error(str(e), "batch_conversion")
         reporter.report_failure(
             f"Batch conversion failed: {e}",
-            {"total_files": total_files, "error": str(e), "duration": duration},
+            {
+                "total_files": total_files,
+                "error": str(e),
+                "duration": duration,
+                "error_code": error_code,
+            },
         )
 
         raise BridgeConversionError(f"Batch conversion failed: {e}") from e
@@ -280,12 +310,15 @@ def handle_pdf_merge(
 
     # Import merger
     reporter.report(20, 100, "Loading PDF merger...")
+    logger.debug("Importing PDF merger service")
     try:
         from transmutation_codex.services.merger import (
             merge_multiple_pdfs_to_single_pdf,
         )
+        logger.debug("Successfully imported PDF merger")
     except ImportError as e:
-        logger.error(f"Failed to import PDF merger: {e}")
+        error_code = ErrorCode.DEPENDENCY_MISSING_LIBRARY
+        logger.error(f"[{error_code}] Failed to import PDF merger: {e}", exc_info=True)
         raise BridgeConversionError(f"PDF merger not available: {e}") from e
 
     # Execute merge
@@ -324,12 +357,18 @@ def handle_pdf_merge(
 
     except Exception as e:
         duration = time.time() - start_time
-        logger.exception(f"PDF merge failed: {e}")
+        error_code = ErrorCode.BRIDGE_MERGE_EXECUTION_FAILED
+        logger.error(f"[{error_code}] PDF merge failed: {e}", exc_info=True)
 
         reporter.report_error(str(e), "merge")
         reporter.report_failure(
             f"PDF merge failed: {e}",
-            {"input_files": args.input_files, "error": str(e), "duration": duration},
+            {
+                "input_files": args.input_files,
+                "error": str(e),
+                "duration": duration,
+                "error_code": error_code,
+            },
         )
 
         raise BridgeConversionError(f"PDF merge failed: {e}") from e
@@ -363,12 +402,15 @@ def handle_conversion(args: BridgeArguments) -> int:
             return 0
 
         else:
-            logger.error(f"Unknown mode: {args.mode}")
+            error_code = ErrorCode.BRIDGE_INVALID_MODE
+            logger.error(f"[{error_code}] Unknown mode: {args.mode}")
             return 1
 
     except BridgeConversionError as e:
-        logger.error(f"Conversion error: {e}")
+        error_code = ErrorCode.BRIDGE_CONVERSION_EXECUTION_FAILED
+        logger.error(f"[{error_code}] Conversion error: {e}", exc_info=True)
         return 1
     except Exception as e:
-        logger.exception(f"Unexpected error: {e}")
+        error_code = ErrorCode.BRIDGE_CONVERSION_EXECUTION_FAILED
+        logger.error(f"[{error_code}] Unexpected error: {e}", exc_info=True)
         return 1

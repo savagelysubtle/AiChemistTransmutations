@@ -6,7 +6,12 @@ operations to the frontend, with support for both single-file and batch operatio
 
 from typing import Any
 
+from transmutation_codex.core import get_log_manager
+
 from .base import send_progress, send_result, send_error
+
+# Setup logger
+logger = get_log_manager().get_bridge_logger()
 
 
 class ProgressReporter:
@@ -47,6 +52,7 @@ class ProgressReporter:
         self.total_steps = total
 
         progress_type = f"{self.operation_type}_progress"
+        logger.debug(f"Reporting progress: {current}/{total} - {message}")
         send_progress(current, total, message, progress_type, filename or self.current_file)
 
     def report_single(
@@ -88,6 +94,7 @@ class ProgressReporter:
             error_message: Error message
             error_type: Type of error
         """
+        logger.error(f"Reporting error ({error_type}): {error_message}")
         progress_type = f"{self.operation_type}_error"
         send_progress(
             self.current_step,
@@ -105,6 +112,7 @@ class ProgressReporter:
             message: Success message
             data: Optional additional data
         """
+        logger.info(f"Reporting success: {message}")
         send_result(True, message, data)
 
     def report_failure(self, message: str, data: dict[str, Any] | None = None) -> None:
@@ -164,6 +172,7 @@ class BatchProgressReporter(ProgressReporter):
         Args:
             total_files: Total number of files to process
         """
+        logger.info(f"Starting batch operation with {total_files} files")
         self.total_files = total_files
         self.current_file_index = 0
         self.successful_files = 0
@@ -204,6 +213,7 @@ class BatchProgressReporter(ProgressReporter):
             f"Batch complete: {self.successful_files}/{self.total_files} successful, "
             f"{self.failed_files} failed"
         )
+        logger.info(f"Batch operation complete: {self.successful_files}/{self.total_files} successful, {self.failed_files} failed")
         self.report_batch(self.total_files, self.total_files, message)
         self.report_success(message, {
             "total": self.total_files,

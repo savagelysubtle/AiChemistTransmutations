@@ -1,388 +1,301 @@
-# AiChemist Transmutation Codex - Scripts Directory
+# Scripts Directory - Production Ready
 
-This directory contains utility scripts for development, licensing, setup, and build operations.
+This directory contains all scripts for the AiChemist Transmutation Codex project, organized for production readiness with clear separation between development, production, and security-critical scripts.
 
-## Directory Structure
+## 📁 Directory Structure
 
 ```
 scripts/
-├── README.md                        # This file
-├── check_premium_dependencies.py    # Production: Check external dependencies
-├── start_app.py                     # Production: Application launcher
+├── README.md                          # This file
+├── PRODUCTION_READY.md                # Production status documentation
+├── CLEANUP_SUMMARY.md                 # Cleanup history
 │
-├── dev/                            # Development-only scripts
-│   ├── add_licensing_to_converters.py
-│   ├── show_dev_license.py
-│   └── test_supabase_integration.py
+├── [PRODUCTION] Root-Level Scripts    # Production-ready
+│   ├── check_premium_dependencies.py  # Validate external dependencies
+│   ├── start_app.py                   # Application launcher
+│   └── auto_activate_dev_license.py   # Dev license auto-activation
 │
-├── licensing/                      # License management scripts
-│   ├── generate_rsa_keys.py        # One-time: Generate RSA key pair
-│   ├── generate_license.py         # Production: Generate customer licenses
-│   ├── generate_dev_license.py     # Development: Generate dev licenses
-│   ├── quick_license_gen.py        # Quick license generation
-│   └── keys/                       # RSA keys (gitignored for security)
+├── build/                             # Build & Packaging (scripts/build/)
+│   ├── README.md                      # Build documentation
+│   ├── build_installer.ps1            # Windows installer builder
+│   ├── build_installer.sh             # Linux/macOS installer builder
+│   ├── transmutation_codex.spec       # PyInstaller specification file
+│   ├── installer.iss                  # Inno Setup installer script
+│   ├── prepare_dependencies.py        # Windows dependency prep
+│   ├── prepare_dependencies_macos.py  # macOS dependency prep
+│   ├── runtime_hook_paths.py          # PyInstaller runtime hook
+│   └── CONSOLIDATION_COMPLETE.md      # Consolidation summary
 │
-├── setup/                          # Setup and installation scripts
-│   ├── setup_external_dependencies.ps1  # Install all external dependencies
-│   ├── install_tesseract.ps1
-│   ├── install_ghostscript.ps1
-│   ├── install_pandoc.ps1
-│   ├── install_miktex.ps1
-│   ├── add_ghostscript_to_path.ps1
-│   ├── add_miktex_to_path.ps1
-│   ├── fix_miktex.ps1
-│   ├── setup_supabase_schema.py
-│   └── supabase_setup.sql
+├── setup/                             # Setup & Installation (scripts/setup/)
+│   ├── setup_external_dependencies.ps1  # Master installer
+│   ├── install_ghostscript.ps1        # Install Ghostscript
+│   ├── install_miktex.ps1             # Install MiKTeX
+│   ├── install_pandoc.ps1             # Install Pandoc
+│   ├── add_ghostscript_to_path.ps1    # Add Ghostscript to PATH
+│   ├── add_miktex_to_path.ps1         # Add MiKTeX to PATH
+│   ├── fix_miktex.ps1                 # Fix MiKTeX issues
+│   ├── setup_supabase_schema.py       # Database setup
+│   └── supabase_setup.sql             # SQL schema
 │
-└── build/                          # Build and packaging scripts
-    ├── build_installer.ps1         # Windows installer builder
-    ├── build_installer.sh          # Linux/macOS installer builder
-    └── runtime_hook_paths.py       # PyInstaller runtime hook
+├── licensing/                         # License Management ⚠️ SECURITY CRITICAL
+│   ├── generate_rsa_keys.py           # One-time: RSA key generation
+│   ├── generate_license.py            # Production: Customer licenses
+│   ├── generate_dev_license.py        # Development: Dev licenses
+│   ├── quick_license_gen.py           # Quick offline generation
+│   ├── keys/                          # ⚠️ PRIVATE KEYS (gitignored)
+│   └── gumroad/                       # Gumroad webhook integration
+│       ├── README.md                  # Gumroad setup guide
+│       ├── webhook_server.py          # Webhook server (Flask)
+│       ├── gumroad_config.yaml        # Product configuration
+│       ├── validate_setup.py          # Configuration validator
+│       ├── requirements-webhook.txt   # Python dependencies
+│       ├── runtime.txt                # Python version
+│       ├── Procfile                   # Deployment config
+│       ├── railway.json               # Railway config
+│       ├── nixpacks.toml              # Nixpacks config
+│       └── DEPLOYMENT_CHECKLIST.md    # Deployment steps
+│
+└── dev/                               # Development Scripts (scripts/dev/)
+    ├── add_licensing_to_converters.py # Add license checks
+    ├── show_dev_license.py            # Display dev license
+    └── test_supabase_integration.py   # Test database connection
 ```
 
-## Production Scripts
+## 🎯 Quick Reference
 
-### `check_premium_dependencies.py`
+### Production Scripts (Root Level)
 
-**Purpose**: Check availability and configuration of external dependencies (Tesseract, Ghostscript, Pandoc, MiKTeX)
-**Usage**: `python scripts/check_premium_dependencies.py`
-**When to use**: Before deployment, during CI/CD, or troubleshooting dependency issues
+**Always include in production builds:**
 
-### `start_app.py`
+| Script | Purpose | Usage |
+|--------|---------|-------|
+| `check_premium_dependencies.py` | Validate Tesseract, Ghostscript, etc. | `python scripts/check_premium_dependencies.py` |
+| `start_app.py` | Launch application with proper environment | `python scripts/start_app.py` |
+| `auto_activate_dev_license.py` | Auto-activate dev license on startup | Auto-runs in dev mode |
 
-**Purpose**: Launch the application with proper environment setup
-**Usage**: `python scripts/start_app.py`
-**When to use**: Alternative application launcher for development or testing
+### Build Scripts
 
-## Development Scripts (`dev/`)
+**Build installers with bundled dependencies:**
 
-### `add_licensing_to_converters.py`
-
-**Purpose**: Automatically add licensing checks to converter files
-**Usage**: `python scripts/dev/add_licensing_to_converters.py`
-**When to use**: One-time script already executed; kept for reference
-
-### `show_dev_license.py`
-
-**Purpose**: Display current development license information
-**Usage**: `python scripts/dev/show_dev_license.py`
-**When to use**: Verify dev license status during development
-
-### `test_supabase_integration.py`
-
-**Purpose**: Test Supabase license backend integration
-**Usage**: `python scripts/dev/test_supabase_integration.py`
-**When to use**: Verify Supabase connection and license validation
-
-## Licensing Scripts (`licensing/`)
-
-### `generate_rsa_keys.py` ⚠️ SECURITY CRITICAL
-
-**Purpose**: Generate RSA-2048 key pair for license signing
-**Usage**: `python scripts/licensing/generate_rsa_keys.py`
-**When to use**: ONE-TIME ONLY during initial setup
-**Security**:
-
-- Keep `private_key.pem` SECRET and SECURE
-- Only `public_key.pem` should be in the application
-- Store private key in password manager or HSM
-- Never commit private keys to version control
-
-### `generate_license.py` 🔐 PRODUCTION
-
-**Purpose**: Generate signed license keys for customers
-**Usage**:
-
-```bash
-# Single license
-python scripts/licensing/generate_license.py \
-  --email customer@example.com \
-  --type pro \
-  --activations 1
-
-# Batch licenses
-python scripts/licensing/generate_license.py \
-  --email test@test.com \
-  --type trial \
-  --batch 10 \
-  --output licenses.json
-```
-
-**Options**:
-
-- `--type`: `trial`, `pro`, `enterprise`
-- `--activations`: Number of allowed device activations (default: 1)
-- `--expiry-days`: Days until expiry (omit for perpetual)
-- `--name`: Customer name (optional)
-- `--order-id`: Order/transaction ID (optional)
-
-### `generate_dev_license.py` 🔧 DEVELOPMENT
-
-**Purpose**: Generate perpetual enterprise license for development
-**Usage**:
-
-```bash
-# Print only
-python scripts/licensing/generate_dev_license.py --print-only
-
-# Generate and insert into Supabase
-python scripts/licensing/generate_dev_license.py
-```
-
-**Requirements**: `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` environment variables
-
-### `quick_license_gen.py` ⚡
-
-**Purpose**: Quick license generation without Supabase dependency
-**Usage**: `python scripts/licensing/quick_license_gen.py`
-**When to use**: Fast license generation for testing (offline mode)
-
-## Setup Scripts (`setup/`)
-
-### `setup_external_dependencies.ps1` 🔧 PRIMARY SETUP
-
-**Purpose**: Master script to install all external dependencies
-**Usage**: `powershell -ExecutionPolicy Bypass -File scripts/setup/setup_external_dependencies.ps1`
-**What it does**:
-
-- Installs Tesseract OCR
-- Installs Ghostscript
-- Installs Pandoc
-- Installs MiKTeX (optional)
-- Configures PATH environment variables
-- Verifies installations
-
-### Individual Installers
-
-- `install_tesseract.ps1`: Install Tesseract OCR for PDF text extraction
-- `install_ghostscript.ps1`: Install Ghostscript for PDF processing
-- `install_pandoc.ps1`: Install Pandoc for document conversions
-- `install_miktex.ps1`: Install MiKTeX for LaTeX-based PDF generation
-
-### PATH Configuration
-
-- `add_ghostscript_to_path.ps1`: Add Ghostscript to system PATH
-- `add_miktex_to_path.ps1`: Add MiKTeX to system PATH
-- `fix_miktex.ps1`: Fix MiKTeX installation issues
-
-### Supabase Setup
-
-- `setup_supabase_schema.py`: Initialize Supabase database schema
-- `supabase_setup.sql`: SQL schema for licenses, activations, and usage tracking
-
-**Usage**:
-
-```bash
-# Run schema setup
-python scripts/setup/setup_supabase_schema.py
-
-# Or manually execute SQL in Supabase Dashboard
-# Copy contents of supabase_setup.sql
-```
-
-## Build Scripts (`build/`)
-
-### `build_installer.ps1` 📦 WINDOWS
-
-**Purpose**: Build Windows installer with PyInstaller
-**Usage**: `powershell -ExecutionPolicy Bypass -File scripts/build/build_installer.ps1`
-**Output**: Standalone `.exe` installer in `dist/`
-
-### `build_installer.sh` 📦 LINUX/MACOS
-
-**Purpose**: Build Linux/macOS installer with PyInstaller
-**Usage**: `bash scripts/build/build_installer.sh`
-**Output**: Standalone executable in `dist/`
-
-### `runtime_hook_paths.py` ⚙️
-
-**Purpose**: PyInstaller runtime hook to configure bundled executable paths
-**Usage**: Automatically executed by PyInstaller during runtime
-**What it does**: Adds bundled Tesseract, Ghostscript, and Pandoc to PATH
-
-## Environment Variables
-
-### Required for Production
-
-```bash
-# Licensing (for customer license generation)
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_KEY=your-service-role-key
-
-# Optional: Application configuration
-AICHEMIST_CONFIG_PATH=/path/to/config.yaml
-AICHEMIST_LOG_LEVEL=INFO
-```
-
-### Required for Development
-
-```bash
-# Development license generation and testing
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_KEY=your-service-role-key
-
-# Development mode
-AICHEMIST_DEV_MODE=true
-AICHEMIST_LOG_LEVEL=DEBUG
-```
-
-## Security Best Practices
-
-### 🔐 Private Key Management
-
-1. **NEVER** commit `licensing/keys/private_key.pem` to version control
-2. Store private key in secure location (password manager, HSM, encrypted storage)
-3. Use separate key pairs for dev/test/production environments
-4. Rotate keys if compromised
-
-### 🔒 Supabase Credentials
-
-1. Use environment variables for `SUPABASE_URL` and keys
-2. Never hardcode credentials in scripts
-3. Use `SERVICE_ROLE_KEY` only for admin operations (license generation)
-4. Use `ANON_KEY` for client-side operations (license validation)
-
-### 📋 License File Security
-
-- Generated licenses are saved to:
-  - Development: `.licenses/dev_license.txt` (gitignored)
-  - Batch: `licenses.json` (gitignored)
-- Add these to `.gitignore` to prevent accidental commits
-
-## Common Workflows
-
-### Initial Setup (First Time)
-
-```bash
-# 1. Generate RSA keys
-python scripts/licensing/generate_rsa_keys.py
-
-# 2. Update public key in application
-# Copy output to src/transmutation_codex/core/licensing/crypto.py
-
-# 3. Setup Supabase (if using online licensing)
-python scripts/setup/setup_supabase_schema.py
-
-# 4. Generate dev license
-python scripts/licensing/generate_dev_license.py
-
-# 5. Install external dependencies
-powershell -ExecutionPolicy Bypass -File scripts/setup/setup_external_dependencies.ps1
-```
-
-### Generate Customer License
-
-```bash
-# Professional license (1 activation, perpetual)
-python scripts/licensing/generate_license.py \
-  --email customer@example.com \
-  --type pro \
-  --name "John Doe" \
-  --order-id "ORD-12345"
-
-# Enterprise license (5 activations)
-python scripts/licensing/generate_license.py \
-  --email enterprise@company.com \
-  --type enterprise \
-  --activations 5 \
-  --name "Acme Corp"
-
-# Trial license (30 days)
-python scripts/licensing/generate_license.py \
-  --email trial@test.com \
-  --type trial \
-  --expiry-days 30
-```
-
-### Build Installer
-
-```bash
+```powershell
 # Windows
-powershell -ExecutionPolicy Bypass -File scripts/build/build_installer.ps1
+cd scripts/build
+.\build_installer.ps1
 
 # Linux/macOS
-bash scripts/build/build_installer.sh
+cd scripts/build
+./build_installer.sh
 ```
+
+See [scripts/build/README.md](build/README.md) for details.
+
+### Setup Scripts
+
+**Install external dependencies:**
+
+```powershell
+# Master installer (installs all)
+cd scripts/setup
+.\setup_external_dependencies.ps1
+
+# Individual tools
+.\install_ghostscript.ps1
+.\add_ghostscript_to_path.ps1
+```
+
+### Licensing Scripts ⚠️
+
+**SECURITY CRITICAL - Handle with care:**
+
+```powershell
+# One-time setup (generates RSA keys)
+python scripts/licensing/generate_rsa_keys.py
+
+# Generate customer license
+python scripts/licensing/generate_license.py
+
+# Generate dev license
+python scripts/licensing/generate_dev_license.py
+```
+
+**Gumroad Webhook Setup:**
+```bash
+# Validate configuration
+python scripts/licensing/gumroad/validate_setup.py
+
+# Deploy webhook
+cd scripts/licensing/gumroad
+railway up
+```
+
+See [scripts/licensing/gumroad/README.md](licensing/gumroad/README.md) for deployment.
+
+### Development Scripts
+
+**Development-only utilities:**
+
+```powershell
+# Add licensing to converters
+python scripts/dev/add_licensing_to_converters.py
+
+# Show current dev license
+python scripts/dev/show_dev_license.py
+
+# Test Supabase connection
+python scripts/dev/test_supabase_integration.py
+```
+
+## 🔒 Security Guidelines
+
+### Private Keys (CRITICAL)
+
+**NEVER commit these files:**
+- `scripts/licensing/keys/private_key.pem`
+- `scripts/licensing/keys/*.pem`
+- Any `.env` files with credentials
+
+**Storage:**
+- Store private keys in password manager or HSM
+- Use separate keys for dev/test/production
+- Rotate keys if compromised
+
+### Environment Variables
+
+Required for production:
+```bash
+SUPABASE_URL=your_project_url
+SUPABASE_SERVICE_KEY=your_service_key
+SUPABASE_ANON_KEY=your_anon_key
+GUMROAD_WEBHOOK_SECRET=your_webhook_secret
+```
+
+### Secrets Detection
+
+Before committing:
+```powershell
+# Check for hardcoded secrets
+grep -r "SUPABASE" scripts/ --include="*.py"
+grep -r "-----BEGIN" scripts/ --include="*.py"
+```
+
+## 📦 Production Deployment
+
+### Include in Builds
+
+**✅ Always Include:**
+- `check_premium_dependencies.py`
+- `start_app.py`
+- `scripts/setup/` (for user installation)
+- Documentation (README.md)
+
+**❌ Never Include:**
+- `scripts/dev/` (development only)
+- `scripts/licensing/` (except on license server)
+- `scripts/licensing/keys/` (NEVER distribute)
+- Build scripts (unless needed for rebuild)
+- `.env` files
+
+### Gumroad Webhook Deployment
+
+**Platform:** Railway, Heroku, or any Python hosting
+
+**Requirements:**
+- Python 3.13+
+- Flask
+- Supabase account
+- Gumroad account
+
+**Steps:**
+1. Configure products in `gumroad_config.yaml`
+2. Set environment variables
+3. Deploy webhook server
+4. Add webhook URL to Gumroad settings
+5. Test with test purchase
+
+See [scripts/licensing/gumroad/README.md](licensing/gumroad/README.md)
+
+## 📋 Script Naming Conventions
+
+### Python Scripts
+- **Descriptive names:** `check_premium_dependencies.py` not `check_deps.py`
+- **Action prefixes:** `generate_`, `install_`, `setup_`, `fix_`
+- **Module docstrings** required
+- **Type hints** required
+
+### PowerShell Scripts
+- **Descriptive names:** `install_ghostscript.ps1` not `install_gs.ps1`
+- **Action prefixes:** `install_`, `add_`, `fix_`, `setup_`
+- **Comment-based help** at top
+
+### Documentation
+- **Status docs:** SCREAMING_SNAKE_CASE (e.g., `PRODUCTION_READY.md`)
+- **Guides:** Title Case (e.g., `README.md`, `CLEANUP_SUMMARY.md`)
+
+## 🔧 Common Tasks
 
 ### Check Dependencies
-
-```bash
-# Check all external dependencies
+```powershell
 python scripts/check_premium_dependencies.py
-
-# Output shows:
-# - Availability of each dependency
-# - Versions installed
-# - Configuration issues
-# - Recommendations
 ```
 
-## Troubleshooting
+### Install All Dependencies
+```powershell
+cd scripts/setup
+.\setup_external_dependencies.ps1
+```
 
-### "Private key not found" Error
+### Build Windows Installer
+```powershell
+cd scripts/build
+.\build_installer.ps1
+```
 
-**Solution**: Run `python scripts/licensing/generate_rsa_keys.py` first
+### Generate Dev License
+```powershell
+python scripts/licensing/generate_dev_license.py
+```
 
-### "Supabase connection failed" Error
+### Auto-Activate Dev License
+```powershell
+python scripts/auto_activate_dev_license.py
+```
 
-**Solution**:
+## 📚 Related Documentation
 
-1. Check `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` environment variables
-2. Verify Supabase project is active
-3. Check network connectivity
+- **Build Guide:** [gui/BUILD_GUIDE.md](../gui/BUILD_GUIDE.md)
+- **Build Issues:** [gui/BUILD_ISSUES.md](../gui/BUILD_ISSUES.md)
+- **Development Setup:** [AGENTS.md](../AGENTS.md)
+- **AI Guidelines:** [CLAUDE.md](../CLAUDE.md)
+- **Gumroad Setup:** [docs/GUMROAD_SETUP_GUIDE.md](../docs/GUMROAD_SETUP_GUIDE.md)
 
-### "External dependency not found" Error
+## 🎯 Script Organization Rules
 
-**Solution**: Run `powershell -ExecutionPolicy Bypass -File scripts/setup/setup_external_dependencies.ps1`
+Following [.cursor/rules/050-scripts-directory-layout.mdc](.cursor/rules/050-scripts-directory-layout.mdc):
 
-### PyInstaller build fails
+1. **Production scripts** → `scripts/` (root)
+2. **Development scripts** → `scripts/dev/`
+3. **License management** → `scripts/licensing/` (⚠️ SECURITY CRITICAL)
+4. **Setup scripts** → `scripts/setup/`
+5. **Build scripts** → `scripts/build/`
 
-**Solution**:
+**Enforcement:** All new scripts MUST follow this structure. Scripts in wrong locations will be rejected in code review.
 
-1. Check all dependencies are installed
-2. Verify `runtime_hook_paths.py` is in build folder
-3. Check `transmutation_codex.spec` configuration
+## ✅ Recent Changes
 
-## Development vs Production
+### November 2025 - Directory Consolidation
+- ✅ Consolidated build scripts (7 redundant files removed)
+- ✅ Moved `transmutation_codex.spec` to `scripts/build/`
+- ✅ Moved `installer.iss` to `scripts/build/`
+- ✅ Updated all paths in spec and installer files
+- ✅ Moved `gumroad/` to `licensing/gumroad/` (proper organization)
+- ✅ Moved `prepare_dependencies.py` and `runtime_hook_paths.py` to `scripts/build/`
+- ✅ Deleted empty `.keys/` directory
+- ✅ Updated all documentation
 
-### Development Scripts (Keep in source control)
-
-- ✅ All scripts in `dev/` folder
-- ✅ `generate_dev_license.py`, `quick_license_gen.py`
-- ✅ `test_supabase_integration.py`
-
-### Production Scripts (Include in releases)
-
-- ✅ `check_premium_dependencies.py`
-- ✅ `start_app.py`
-- ✅ `generate_license.py` (for license server/admin only)
-
-### Never in Production
-
-- ❌ Private keys (`licensing/keys/private_key.pem`)
-- ❌ Generated license files (`.licenses/`, `licenses.json`)
-- ❌ Development licenses (`DEV_LICENSE.txt`)
-- ❌ Supabase service keys (use environment variables)
-
-## Maintenance
-
-### Regular Tasks
-
-- Review and update dependency versions in setup scripts
-- Rotate RSA keys annually (for high-security deployments)
-- Audit generated licenses and activations in Supabase
-- Test license generation and validation flows
-
-### Before Each Release
-
-1. Run `python scripts/check_premium_dependencies.py`
-2. Test build process on all platforms
-3. Verify license validation works offline and online
-4. Update documentation with any script changes
+**Result:** Clean, organized, production-ready structure with all build files together.
 
 ---
 
-**Last Updated**: October 2025
-**Maintained by**: AiChemist Development Team
-**Questions**: See AGENTS.md and CLAUDE.md for additional guidance
+**Last Updated:** November 9, 2025
+**Maintained By:** @savagelysubtle
+**Status:** ✅ Production Ready

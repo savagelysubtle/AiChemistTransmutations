@@ -5,23 +5,103 @@ import {
   dialog,
   ipcMain,
   IpcMainInvokeEvent,
+  protocol,
 } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 // Removed: import { convertMdxToMd } from '../converters/mdxToMd';
 // This import was causing React to load in the main process, which crashes Electron
 
+// Set app user model ID BEFORE anything else for Windows taskbar icon
+// This must be called before app.whenReady() and before creating windows
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.aichemist.transmutationcodex');
+}
+
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
   app.quit();
 }
 
+// Prevent multiple instances of the app
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  console.log('Another instance is already running. Exiting...');
+  app.quit();
+} else {
+  // Handle second instance attempts
+  app.on('second-instance', () => {
+    // Someone tried to run a second instance, focus our window instead
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
+
 let mainWindow: BrowserWindow | null;
 
+/**
+ * Get the app icon path for the current environment
+ */
+function getIconPath(): string | undefined {
+  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+
+  if (isDev) {
+    // Development: try multiple paths relative to the project root
+    // Windows taskbar REQUIRES .ico file, so prioritize that
+    const projectRoot = path.resolve(__dirname, '../../..');
+    const devIconPaths = process.platform === 'win32'
+      ? [
+          // Windows: prioritize .ico files for taskbar
+          path.join(projectRoot, 'gui/assets/icon.ico'),
+          path.join(projectRoot, 'assets/icon.ico'),
+          path.join(projectRoot, 'gui/assets/icon.png'),
+          path.join(projectRoot, 'assets/icon.png'),
+          path.join(projectRoot, 'public/assets/icon.png'),
+        ]
+      : [
+          // Other platforms: .png is fine
+          path.join(projectRoot, 'gui/assets/icon.png'),
+          path.join(projectRoot, 'assets/icon.png'),
+          path.join(projectRoot, 'public/assets/icon.png'),
+          path.join(projectRoot, 'gui/assets/icon.ico'),
+          path.join(projectRoot, 'assets/icon.ico'),
+        ];
+
+    for (const iconPath of devIconPaths) {
+      if (fs.existsSync(iconPath)) {
+        console.log(`Using icon: ${iconPath}`);
+        return iconPath;
+      }
+    }
+    console.warn('No icon file found in development mode. Using default.');
+    return undefined;
+  } else {
+    // Production: use resources path
+    const prodIconPath = path.join(process.resourcesPath, 'assets/icon.ico');
+    if (fs.existsSync(prodIconPath)) {
+      return prodIconPath;
+    }
+    // Fallback to .png if .ico doesn't exist
+    const prodIconPathPng = path.join(process.resourcesPath, 'assets/icon.png');
+    if (fs.existsSync(prodIconPathPng)) {
+      return prodIconPathPng;
+    }
+    return undefined;
+  }
+}
+
 function createWindow() {
+  const iconPath = getIconPath();
+
+  // On Windows, the icon must be set in BrowserWindow options for both window and taskbar
+  // Windows taskbar uses the same icon as the window, but it's cached by Windows Explorer
   mainWindow = new BrowserWindow({
     width: 1024,
     height: 768,
+    icon: iconPath, // This sets both window icon and taskbar icon on Windows
     webPreferences: {
       preload: path.join(__dirname, '../preload/preload.js'), // Adjusted path from dist-electron/main to dist-electron/preload
       nodeIntegration: false, // Recommended for security
@@ -46,6 +126,36 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Register protocol FIRST, before creating window
+  // This ensures app:// protocol is available when assets load
+  if (app.isPackaged) {
+    // Production mode - register protocol for assets
+    protocol.registerFileProtocol('app', (request, callback) => {
+      const url = request.url.substr(6); // Remove 'app://' prefix
+      // __dirname is dist-electron/main in production
+      // dist/ is at dist-electron/main/../../dist/
+      const filePath = path.normalize(path.join(__dirname, '../../dist', url));
+      console.log(`[Protocol] Serving: app://${url} -> ${filePath}`);
+
+      // Verify file exists
+      if (fs.existsSync(filePath)) {
+        callback({ path: filePath });
+      } else {
+        console.error(`[Protocol] File not found: ${filePath}`);
+        callback({ error: -6 }); // FILE_NOT_FOUND
+      }
+    });
+    console.log('[Protocol] Registered app:// protocol for production');
+  }
+
+  // Get icon path
+  const iconPath = getIconPath();
+
+  // On macOS, set dock icon
+  if (iconPath && process.platform === 'darwin' && app.dock) {
+    app.dock.setIcon(iconPath);
+  }
+
   createWindow();
 
   app.on('activate', () => {
@@ -204,13 +314,33 @@ ipcMain.handle(
               try {
                 const jsonPart = message.substring(message.indexOf(':') + 1);
                 const parsedMessage = JSON.parse(jsonPart);
+                // Extract error code if present
+                const errorCode =
+                  parsedMessage.error_code ||
+                  parsedMessage.errorCode ||
+                  parsedMessage.data?.error_code ||
+                  parsedMessage.data?.errorCode;
+                if (errorCode) {
+                  console.log(
+                    `[${errorCode}] ${
+                      parsedMessage.message ||
+                      JSON.stringify(parsedMessage.data)
+                    }`,
+                  );
+                }
                 mainWindow.webContents.send('conversion-event', parsedMessage);
               } catch (e) {
-                console.error('Failed to parse JSON from Python:', message, e);
+                const errorCode = 'FRONTEND_JSON_PARSE_FAILED';
+                console.error(
+                  `[${errorCode}] Failed to parse JSON from Python:`,
+                  message,
+                  e,
+                );
                 mainWindow.webContents.send('conversion-event', {
                   type: 'raw_error',
                   data: message,
                   error: (e as Error).message,
+                  error_code: errorCode,
                 });
               }
             } else {
@@ -250,23 +380,33 @@ ipcMain.handle(
           });
         }
         if (code === 0) {
+          console.log('[SUCCESS] Python script finished successfully');
           resolve({
             success: true,
             message: 'Python script finished successfully.',
           });
         } else {
+          const errorCode = 'FRONTEND_PYTHON_PROCESS_FAILED';
+          console.error(
+            `[${errorCode}] Python script exited with code ${code}. Check logs for details.`,
+          );
           reject({
             success: false,
             message: `Python script exited with code ${code}. Check logs for details.`,
+            error_code: errorCode,
+            exitCode: code,
           });
         }
       });
 
       pyProcess.on('error', (err: Error) => {
-        console.error('Failed to start Python process:', err);
+        const errorCode = 'FRONTEND_PYTHON_PROCESS_FAILED';
+        console.error(`[${errorCode}] Failed to start Python process:`, err);
         reject({
           success: false,
           message: `Failed to start Python process: ${err.message}`,
+          error_code: errorCode,
+          error: err.message,
         });
       });
     });
@@ -319,6 +459,21 @@ async function runLicenseCommand(
       !process.defaultApp && !process.env.NODE_ENV?.includes('dev');
     const appPath = app.getAppPath();
 
+    console.log('='.repeat(80));
+    console.log('LICENSE COMMAND EXECUTION START');
+    console.log('='.repeat(80));
+    console.log('Command:', command);
+    console.log('Args count:', args.length);
+    console.log(
+      'First 50 chars of first arg:',
+      args[0]?.substring(0, 50) + '...',
+    );
+    console.log('Is Production:', isProduction);
+    console.log('App Path:', appPath);
+    console.log('Platform:', process.platform);
+    console.log('Node ENV:', process.env.NODE_ENV);
+    console.log('Default App:', process.defaultApp);
+
     let pythonExecutable: string;
     let fullArgs: string[];
 
@@ -332,25 +487,63 @@ async function runLicenseCommand(
         'aichemist_transmutation_codex.exe',
       );
 
-      pythonExecutable = pythonBackendExe;
-      // The bundled exe can run Python modules with -m flag
-      fullArgs = [
-        '-m',
-        'transmutation_codex.adapters.bridges.license_bridge',
-        command,
-        ...args,
-      ];
-
-      console.log(
-        'Production mode - using bundled Python backend:',
-        pythonExecutable,
+      // Try to find the license_bridge.py script in the bundle
+      // PyInstaller bundles Python files, so we can call them directly
+      const licenseBridgeScript = path.join(
+        path.dirname(pythonBackendExe),
+        'transmutation_codex',
+        'adapters',
+        'bridges',
+        'license_bridge.py',
       );
+
+      // Check if script exists in bundle
+      if (fs.existsSync(licenseBridgeScript)) {
+        // Call Python executable directly on the script
+        pythonExecutable = pythonBackendExe;
+        fullArgs = [licenseBridgeScript, command, ...args];
+        console.log('  Using direct script execution');
+      } else {
+        // Fallback: Use Python executable with -m flag
+        pythonExecutable = pythonBackendExe;
+        fullArgs = [
+          '-m',
+          'transmutation_codex.adapters.bridges.license_bridge',
+          command,
+          ...args,
+        ];
+        console.log('  Using -m flag (script not found in bundle)');
+      }
+
+      console.log('✓ Production mode detected');
+      console.log('  Python executable:', pythonExecutable);
+      console.log('  Checking if executable exists...');
+
+      try {
+        fs.accessSync(pythonExecutable, fs.constants.X_OK);
+        console.log('  ✓ Executable exists and is accessible');
+      } catch (e) {
+        const errorCode = 'FRONTEND_PYTHON_PROCESS_FAILED';
+        console.error(
+          `[${errorCode}] Executable not found or not accessible:`,
+          e,
+        );
+        reject({
+          error: `Python backend not found at: ${pythonExecutable}`,
+          details: (e as Error).message,
+          error_code: errorCode,
+        });
+        return;
+      }
     } else {
       // Development: Use Python script with venv
       const scriptPath = path.resolve(
         appPath,
         '../src/transmutation_codex/adapters/bridges/license_bridge.py',
       );
+
+      console.log('✓ Development mode detected');
+      console.log('  Script path:', scriptPath);
 
       // Determine Python executable
       const venvPythonPathWindows = path.resolve(
@@ -367,47 +560,201 @@ async function runLicenseCommand(
             : venvPythonPathUnix;
         fs.accessSync(venvPath);
         pythonExecutable = venvPath;
+        console.log('  ✓ Using venv Python:', pythonExecutable);
       } catch (e) {
-        console.log('Using system Python for license command');
+        console.log('  ⚠ Venv not found, using system Python');
+      }
+
+      // Check if script exists
+      try {
+        fs.accessSync(scriptPath);
+        console.log('  ✓ Script exists and is accessible');
+      } catch (e) {
+        const errorCode = 'FRONTEND_PYTHON_PROCESS_FAILED';
+        console.error(`[${errorCode}] Script not found:`, e);
+        reject({
+          error: `License bridge script not found at: ${scriptPath}`,
+          details: (e as Error).message,
+          error_code: errorCode,
+        });
+        return;
       }
 
       fullArgs = [scriptPath, command, ...args];
-      console.log('Development mode - using Python script');
     }
 
-    console.log('Running license command:', command, args);
+    console.log('Final command to execute:');
+    console.log('  Executable:', pythonExecutable);
+    console.log(
+      '  Arguments:',
+      fullArgs
+        .map((arg, i) =>
+          i === fullArgs.length - 1 && arg.length > 100
+            ? `${arg.substring(0, 50)}...${arg.substring(arg.length - 20)}`
+            : arg,
+        )
+        .join(' '),
+    );
+    console.log('-'.repeat(80));
 
-    const pyProcess = spawn(pythonExecutable, fullArgs);
+    console.log('Spawning Python process...');
+
+    // Prepare environment variables for Python subprocess
+    // Include all current environment variables plus any Supabase config
+    const env = {
+      ...process.env,
+      // Pass through Supabase environment variables if they exist
+      ...(process.env.SUPABASE_URL && { SUPABASE_URL: process.env.SUPABASE_URL }),
+      ...(process.env.SUPABASE_ANON_KEY && { SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY }),
+      ...(process.env.SUPABASE_SERVICE_KEY && { SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY }),
+      // Python path for imports
+      PYTHONUNBUFFERED: '1', // Ensure Python output is unbuffered
+    };
+
+    // Ensure stderr is available for Python subprocess
+    // PyInstaller builds sometimes have issues with stderr, so we need to ensure it's open
+
+    console.log('Environment variables:');
+    console.log('  SUPABASE_URL:', process.env.SUPABASE_URL ? '***set***' : 'not set');
+    console.log('  SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? '***set***' : 'not set');
+
+    let pyProcess;
+    try {
+      pyProcess = spawn(pythonExecutable, fullArgs, { env });
+      console.log('✓ Process spawned successfully, PID:', pyProcess.pid);
+    } catch (spawnError) {
+      const errorCode = 'FRONTEND_PYTHON_PROCESS_FAILED';
+      console.error(`[${errorCode}] Failed to spawn process:`, spawnError);
+      reject({
+        error: `Failed to spawn Python process: ${
+          (spawnError as Error).message
+        }`,
+        executable: pythonExecutable,
+        args: fullArgs,
+        error_code: errorCode,
+      });
+      return;
+    }
+
     let stdout = '';
     let stderr = '';
 
     pyProcess.stdout.on('data', (data: Buffer) => {
-      stdout += data.toString();
+      const chunk = data.toString();
+      stdout += chunk;
+      console.log('[PYTHON STDOUT]:', chunk);
+      // Send to renderer for DevTools visibility
+      if (mainWindow) {
+        mainWindow.webContents.send('license-debug', {
+          type: 'stdout',
+          data: chunk,
+        });
+      }
     });
 
     pyProcess.stderr.on('data', (data: Buffer) => {
-      stderr += data.toString();
+      const chunk = data.toString();
+      stderr += chunk;
+      console.error('[PYTHON STDERR]:', chunk);
+      // Send to renderer for DevTools visibility
+      if (mainWindow) {
+        mainWindow.webContents.send('license-debug', {
+          type: 'stderr',
+          data: chunk,
+        });
+      }
     });
 
     pyProcess.on('close', (code: number | null) => {
-      if (code === 0) {
+      const summary = {
+        exitCode: code,
+        stdoutLength: stdout.length,
+        stderrLength: stderr.length,
+        stdout,
+        stderr,
+      };
+
+      console.log('-'.repeat(80));
+      console.log('Process exited with code:', code);
+      console.log('STDOUT length:', stdout.length);
+      console.log('STDERR length:', stderr.length);
+
+      if (stdout) {
+        console.log('Full STDOUT:', stdout);
+      }
+      if (stderr) {
+        console.error('Full STDERR:', stderr);
+      }
+      console.log('='.repeat(80));
+      console.log('LICENSE COMMAND EXECUTION END');
+      console.log('='.repeat(80));
+
+      // Send summary to renderer for debugging
+      if (mainWindow) {
+        mainWindow.webContents.send('license-debug', {
+          type: 'summary',
+          data: summary,
+        });
+      }
+
+      // Try to parse JSON from stdout regardless of exit code
+      // The Python script outputs JSON even on errors before calling sys.exit(1)
+      let parsedResult: any = null;
+      if (stdout.trim()) {
         try {
-          const result = JSON.parse(stdout);
-          resolve(result);
+          parsedResult = JSON.parse(stdout);
+          console.log('✓ Successfully parsed JSON result:', parsedResult);
         } catch (e) {
+          console.warn('Could not parse stdout as JSON:', e);
+        }
+      }
+
+      if (code === 0) {
+        if (parsedResult) {
+          resolve(parsedResult);
+        } else {
+          const errorCode = 'FRONTEND_JSON_PARSE_FAILED';
+          console.error(`[${errorCode}] No valid JSON output`);
+          console.error('Raw stdout:', stdout);
           reject({
             error: 'Failed to parse license command output',
             stdout,
             stderr,
+            error_code: errorCode,
           });
         }
       } else {
-        reject({ error: `License command failed with code ${code}`, stderr });
+        const errorCode = 'FRONTEND_LICENSE_ACTIVATION_FAILED';
+        console.error(`[${errorCode}] Command failed with non-zero exit code ${code}`);
+
+        // If we have parsed JSON with an error, use that error message
+        let errorMessage = `License command failed with code ${code}`;
+        if (parsedResult?.error) {
+          errorMessage = parsedResult.error;
+        } else if (parsedResult?.success === false && parsedResult?.error) {
+          errorMessage = parsedResult.error;
+        }
+
+        reject({
+          error: errorMessage,
+          exitCode: code,
+          stderr,
+          stdout,
+          parsedResult,
+          error_code: errorCode,
+        });
       }
     });
 
     pyProcess.on('error', (err: Error) => {
-      reject({ error: `Failed to run license command: ${err.message}` });
+      const errorCode = 'FRONTEND_PYTHON_PROCESS_FAILED';
+      console.error(`[${errorCode}] Process error event:`, err);
+      reject({
+        error: `Failed to run license command: ${err.message}`,
+        errorName: err.name,
+        errorStack: err.stack,
+        error_code: errorCode,
+      });
     });
   });
 }
@@ -427,11 +774,65 @@ ipcMain.handle('license:get-status', async () => {
 
 // Activate a license key
 ipcMain.handle('license:activate', async (_event, licenseKey: string) => {
+  console.log('='.repeat(80));
+  console.log('LICENSE ACTIVATION REQUESTED');
+  console.log('='.repeat(80));
+  console.log('License key length:', licenseKey?.length || 0);
+  console.log('License key preview:', licenseKey?.substring(0, 50) || 'none');
+
+  // Send initial log to renderer
+  if (mainWindow) {
+    mainWindow.webContents.send('license-debug', {
+      type: 'info',
+      data: { message: 'Starting license activation...', licenseKeyLength: licenseKey?.length || 0 },
+    });
+  }
+
   try {
     return await runLicenseCommand('activate', [licenseKey]);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error activating license:', error);
-    throw new Error((error as any).error || 'License activation failed');
+
+    // Try to extract the actual error message from stderr or stdout
+    let errorMessage = error.error || 'License activation failed';
+
+    // Check if there's JSON output in stdout with an error message
+    if (error.stdout) {
+      try {
+        const stdoutData = JSON.parse(error.stdout);
+        if (stdoutData.error) {
+          errorMessage = stdoutData.error;
+        } else if (stdoutData.success === false && stdoutData.error) {
+          errorMessage = stdoutData.error;
+        }
+      } catch {
+        // stdout is not JSON, ignore
+      }
+    }
+
+    // Extract error from stderr if available (Python logs go to stderr)
+    if (error.stderr) {
+      // Look for error patterns in stderr
+      const stderrLines = error.stderr.split('\n');
+      for (const line of stderrLines) {
+        // Look for lines like: [LICENSE_BRIDGE] ERROR: ✗ Activation failed: <error>
+        if (line.includes('ERROR:') || line.includes('✗')) {
+          const match = line.match(/✗\s+(?:Activation failed|Error):\s*(.+)/i);
+          if (match) {
+            errorMessage = match[1].trim();
+            break;
+          }
+          // Also check for just the error message after ERROR:
+          const errorMatch = line.match(/ERROR:\s*(.+)/i);
+          if (errorMatch) {
+            errorMessage = errorMatch[1].trim();
+            break;
+          }
+        }
+      }
+    }
+
+    throw new Error(errorMessage);
   }
 });
 

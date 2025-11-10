@@ -15,16 +15,23 @@ class TransmutationError(Exception):
     exceptions inherit from, enabling catch-all error handling.
     """
 
-    def __init__(self, message: str, details: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        message: str,
+        details: dict[str, Any] | None = None,
+        error_code: str | None = None,
+    ):
         """Initialize the exception.
 
         Args:
             message: Human-readable error message
             details: Optional dictionary with additional error details
+            error_code: Optional standardized error code for tracking
         """
         super().__init__(message)
         self.message = message
         self.details = details or {}
+        self.error_code = error_code
 
     def __str__(self) -> str:
         """Return string representation of the exception."""
@@ -35,11 +42,14 @@ class TransmutationError(Exception):
 
     def to_dict(self) -> dict[str, Any]:
         """Convert exception to dictionary for serialization."""
-        return {
+        result = {
             "type": self.__class__.__name__,
             "message": self.message,
             "details": self.details,
         }
+        if self.error_code:
+            result["error_code"] = self.error_code
+        return result
 
 
 class ValidationError(TransmutationError):
@@ -50,7 +60,11 @@ class ValidationError(TransmutationError):
     """
 
     def __init__(
-        self, message: str, field: str | None = None, value: Any | None = None
+        self,
+        message: str,
+        field: str | None = None,
+        value: Any | None = None,
+        error_code: str | None = None,
     ):
         """Initialize validation error.
 
@@ -58,14 +72,17 @@ class ValidationError(TransmutationError):
             message: Error message
             field: Name of the field that failed validation
             value: The invalid value that caused the error
+            error_code: Optional standardized error code for tracking
         """
         details = {}
         if field:
             details["field"] = field
         if value is not None:
             details["value"] = str(value)
+        if error_code:
+            details["error_code"] = error_code
 
-        super().__init__(message, details)
+        super().__init__(message, details, error_code)
         self.field = field
         self.value = value
 
@@ -83,6 +100,7 @@ class ConversionError(TransmutationError):
         source_format: str | None = None,
         target_format: str | None = None,
         source_file: str | None = None,
+        error_code: str | None = None,
     ):
         """Initialize conversion error.
 
@@ -91,6 +109,7 @@ class ConversionError(TransmutationError):
             source_format: Source document format
             target_format: Target document format
             source_file: Source file path
+            error_code: Optional standardized error code for tracking
         """
         details = {}
         if source_format:
@@ -99,8 +118,10 @@ class ConversionError(TransmutationError):
             details["target_format"] = target_format
         if source_file:
             details["source_file"] = source_file
+        if error_code:
+            details["error_code"] = error_code
 
-        super().__init__(message, details)
+        super().__init__(message, details, error_code)
         self.source_format = source_format
         self.target_format = target_format
         self.source_file = source_file
@@ -522,10 +543,13 @@ class TrialExpiredError(LicenseError):
 
 
 def raise_validation_error(
-    message: str, field: str | None = None, value: Any | None = None
+    message: str,
+    field: str | None = None,
+    value: Any | None = None,
+    error_code: str | None = None,
 ) -> None:
     """Raise a ValidationError with the given parameters."""
-    raise ValidationError(message, field, value)
+    raise ValidationError(message, field, value, error_code)
 
 
 def raise_conversion_error(
@@ -533,9 +557,10 @@ def raise_conversion_error(
     source_format: str | None = None,
     target_format: str | None = None,
     source_file: str | None = None,
+    error_code: str | None = None,
 ) -> None:
     """Raise a ConversionError with the given parameters."""
-    raise ConversionError(message, source_format, target_format, source_file)
+    raise ConversionError(message, source_format, target_format, source_file, error_code)
 
 
 def raise_ocr_error(

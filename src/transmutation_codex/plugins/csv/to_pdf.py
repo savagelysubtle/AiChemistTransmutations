@@ -33,6 +33,7 @@ except ImportError:
 
 from transmutation_codex.core import (
     ConversionEvent,
+    ErrorCode,
     EventTypes,
     check_feature_access,
     check_file_size_limit,
@@ -90,9 +91,23 @@ def convert_csv_to_pdf(
     """
     # Validate dependencies
     if not PANDAS_AVAILABLE:
-        raise_conversion_error("pandas is required for CSV conversion")
+        error_code = ErrorCode.DEPENDENCY_MISSING_LIBRARY
+        logger.error(f"[{error_code}] pandas library is required but not installed")
+        raise_conversion_error(
+            "pandas is required for CSV conversion",
+            source_format="csv",
+            target_format="pdf",
+            error_code=error_code,
+        )
     if not REPORTLAB_AVAILABLE:
-        raise_conversion_error("reportlab is required for PDF generation")
+        error_code = ErrorCode.DEPENDENCY_MISSING_LIBRARY
+        logger.error(f"[{error_code}] reportlab library is required but not installed")
+        raise_conversion_error(
+            "reportlab is required for PDF generation",
+            source_format="csv",
+            target_format="pdf",
+            error_code=error_code,
+        )
 
     # Start operation
     operation_id = start_operation(
@@ -100,9 +115,23 @@ def convert_csv_to_pdf(
     )
 
     try:
+        logger.info(f"Starting CSV to PDF conversion: {input_path}")
+
         # Check licensing and file size
-        check_feature_access("csv2pdf")
-        check_file_size_limit(input_path)
+        try:
+            check_feature_access("csv2pdf")
+            logger.debug("Feature access check passed for csv2pdf")
+        except Exception as e:
+            logger.error(f"Feature access denied for csv2pdf: {e}", exc_info=True)
+            raise
+
+        try:
+            check_file_size_limit(input_path)
+            logger.debug("File size check passed")
+        except Exception as e:
+            logger.error(f"File size limit exceeded: {e}", exc_info=True)
+            raise
+
         record_conversion_attempt("csv2pdf", str(input_path))
 
         # Convert paths
@@ -139,6 +168,7 @@ def convert_csv_to_pdf(
         update_progress(operation_id, 10, "Reading CSV file...")
 
         # Read CSV file
+        logger.debug(f"Reading CSV file with encoding={encoding}, separator={separator}")
         try:
             df = pd.read_csv(
                 input_path,
@@ -146,8 +176,17 @@ def convert_csv_to_pdf(
                 sep=separator,
                 header=0 if include_header else None,
             )
+            logger.debug(f"Successfully read CSV file: {len(df)} rows, {len(df.columns)} columns")
         except Exception as e:
-            raise_conversion_error(f"Failed to read CSV file: {e}")
+            error_code = ErrorCode.CONVERSION_CSV2PDF_READ_FAILED
+            logger.error(f"[{error_code}] Failed to read CSV file: {input_path}", exc_info=True)
+            raise_conversion_error(
+                f"Failed to read CSV file: {e}",
+                source_format="csv",
+                target_format="pdf",
+                source_file=str(input_path),
+                error_code=error_code,
+            )
 
         update_progress(operation_id, 20, "Creating PDF document...")
 
@@ -233,9 +272,22 @@ def convert_csv_to_pdf(
                     story.append(PageBreak())
 
         update_progress(operation_id, 90, "Generating PDF...")
+        logger.debug(f"Building PDF document with {len(story)} elements")
 
         # Build PDF
-        doc.build(story)
+        try:
+            doc.build(story)
+            logger.debug(f"Successfully generated PDF: {output_path}")
+        except Exception as e:
+            error_code = ErrorCode.CONVERSION_CSV2PDF_GENERATION_FAILED
+            logger.error(f"[{error_code}] Failed to generate PDF: {output_path}", exc_info=True)
+            raise_conversion_error(
+                f"Failed to generate PDF: {e}",
+                source_format="csv",
+                target_format="pdf",
+                source_file=str(input_path),
+                error_code=error_code,
+            )
 
         # Publish success event
         publish(
@@ -248,12 +300,14 @@ def convert_csv_to_pdf(
         )
 
         complete_operation(operation_id, {"output_path": str(output_path)})
-        logger.info(f"CSV to PDF conversion completed: {output_path}")
+        logger.info(f"Successfully completed CSV to PDF conversion: {output_path}")
 
         return output_path
 
     except Exception as e:
-        logger.exception(f"CSV to PDF conversion failed: {e}")
+        error_code = ErrorCode.CONVERSION_CSV2PDF_GENERATION_FAILED
+        logger.error(f"[{error_code}] CSV to PDF conversion failed: {e}", exc_info=True)
+        complete_operation(operation_id, success=False)
         publish(
             ConversionEvent(
                 event_type=EventTypes.CONVERSION_FAILED,
@@ -261,4 +315,10 @@ def convert_csv_to_pdf(
                 conversion_type="conversion",
             )
         )
-        raise_conversion_error(f"Conversion failed: {e}")
+        raise_conversion_error(
+            f"Conversion failed: {e}",
+            source_format="csv",
+            target_format="pdf",
+            source_file=str(input_path),
+            error_code=error_code,
+        )

@@ -13,6 +13,7 @@ from typing import Any
 
 from transmutation_codex.core import (
     ConfigManager,
+    ErrorCode,
     get_log_manager,
     get_registry,
 )
@@ -121,7 +122,8 @@ def _process_single_file_wrapper(
             raise
 
     except Exception as e:
-        logger.exception(f"Error processing {input_path.name}")
+        error_code = ErrorCode.SERVICE_BATCH_FILE_PROCESSING_FAILED
+        logger.error(f"[{error_code}] Error processing {input_path.name}: {e}", exc_info=True)
         error_msg = str(e)
         # Use the output path determined earlier if possible, otherwise default fail path
         failed_output_path = converter_options.get("output_path", output_path)
@@ -199,18 +201,23 @@ def run_batch(
         logger.debug(f"Ensured output directory exists: {output_dir_path}")
 
     # Import plugins to trigger auto-registration
+    logger.debug("Importing plugins to trigger auto-registration")
     try:
         import transmutation_codex.plugins  # noqa: F401
+        logger.debug("Successfully imported plugins")
     except ImportError as e:
-        logger.error(f"Failed to import plugins: {e}")
+        error_code = ErrorCode.BRIDGE_PLUGIN_LOAD_FAILED
+        logger.error(f"[{error_code}] Failed to import plugins: {e}", exc_info=True)
         raise
 
     # Get the plugin registry
     registry = get_registry()
 
     # Parse conversion type (e.g., "pdf2md" -> "pdf", "md")
+    logger.debug(f"Parsing conversion type: {conversion_type}")
     if "2" not in conversion_type:
-        logger.error(f"Invalid conversion type format: {conversion_type}")
+        error_code = ErrorCode.SERVICE_BATCH_INVALID_CONVERSION_TYPE
+        logger.error(f"[{error_code}] Invalid conversion type format: {conversion_type}")
         raise ValueError(
             f"Invalid conversion type format: {conversion_type}. Expected format: source2target"
         )
@@ -222,13 +229,14 @@ def run_batch(
         plugin_info = registry.get_converter(source_format, target_format)
 
         if not plugin_info:
+            error_code = ErrorCode.SERVICE_BATCH_CONVERTER_NOT_FOUND
             # Get available conversions for better error message
             available = registry.get_available_conversions()
             available_str = ", ".join(
                 f"{src}2{tgt}" for src, targets in available.items() for tgt in targets
             )
             logger.error(
-                f"No converter found for '{conversion_type}'. Available: {available_str}"
+                f"[{error_code}] No converter found for '{conversion_type}'. Available: {available_str}"
             )
             raise ValueError(
                 f"Unsupported conversion type: {conversion_type}. "
@@ -242,7 +250,8 @@ def run_batch(
         converter_callable = plugin_info.converter_function
 
     except (ImportError, AttributeError, ValueError) as e:
-        logger.exception(f"Failed to get converter for {conversion_type}: {e}")
+        error_code = ErrorCode.SERVICE_BATCH_CONVERTER_NOT_FOUND
+        logger.error(f"[{error_code}] Failed to get converter for {conversion_type}: {e}", exc_info=True)
         raise ImportError(f"Failed to load converter for {conversion_type}: {e}") from e
 
     total_files = len(input_paths)
@@ -311,8 +320,10 @@ def run_batch(
                         )
 
             except Exception as e:
-                logger.exception(
-                    f"Error processing future result for {input_path.name}"
+                error_code = ErrorCode.SERVICE_BATCH_FILE_PROCESSING_FAILED
+                logger.error(
+                    f"[{error_code}] Error processing future result for {input_path.name}: {e}",
+                    exc_info=True,
                 )
                 failed += 1
                 results.append(
@@ -322,6 +333,7 @@ def run_batch(
                         "success": False,
                         "time": time.time() - start_time,  # Use total time as estimate
                         "error": str(e),
+                        "error_code": error_code,
                     }
                 )
                 # Optionally call progress callback for the failure

@@ -16,7 +16,7 @@ if (-not (Test-Path $gsBasePath)) {
     Write-Host ""
     Write-Host "Please install Ghostscript first:" -ForegroundColor Yellow
     Write-Host "  Download: https://ghostscript.com/releases/gsdnld.html" -ForegroundColor Yellow
-    Write-Host "  File: gs10.04.0-win64.exe" -ForegroundColor Yellow
+    Write-Host "  File: gs10060w64.exe (Ghostscript 10.06.0)" -ForegroundColor Yellow
     exit 1
 }
 

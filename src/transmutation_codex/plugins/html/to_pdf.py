@@ -11,16 +11,20 @@ from typing import Any
 import pdfkit
 
 from transmutation_codex.core import (
-    LogManager,
+    ErrorCode,
     check_feature_access,
     check_file_size_limit,
+    complete_operation,
+    get_log_manager,
+    raise_conversion_error,
+    start_operation,
+    update_progress,
 )
 from transmutation_codex.core.decorators import converter
 from transmutation_codex.core.settings import ConfigManager
 
 # Setup logger
-log_manager = LogManager()
-logger = log_manager.get_converter_logger("html2pdf")
+logger = get_log_manager().get_converter_logger("html2pdf")
 
 
 def _ensure_path(input_val: str | Path) -> Path:
@@ -64,38 +68,61 @@ def convert_html_to_pdf(
         ImportError: If pdfkit or wkhtmltopdf is not installed/found.
         RuntimeError: For other conversion errors.
     """
-    input_path = _ensure_path(input_path).resolve()
-    if not input_path.exists():
-        logger.error(f"Input HTML file not found: {input_path}")
-        raise FileNotFoundError(f"Input file not found: {input_path}")
-    if input_path.suffix.lower() not in [".html", ".htm"]:
-        logger.error(f"Invalid input file type: {input_path.suffix}")
-        raise ValueError(f"Input file must be an HTML file: {input_path}")
-
-    output_path = (
-        _ensure_path(output_path).resolve()
-        if output_path
-        else input_path.with_suffix(".pdf")
+    operation = start_operation(
+        "html2pdf", message=f"Converting {Path(input_path).name} to PDF", total_steps=100
     )
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Get config
-    config = ConfigManager()
-    settings = config.get_converter_config("html2pdf")
-    # Engine is now always pdfkit
-    engine = "pdfkit"
-
-    logger.info(f"Converting {input_path} to PDF using engine: {engine}")
 
     try:
+        logger.info(f"Starting HTML to PDF conversion: {input_path}")
+
+        input_path = _ensure_path(input_path).resolve()
+        if not input_path.exists():
+            error_code = ErrorCode.VALIDATION_FILE_NOT_FOUND
+            logger.error(f"[{error_code}] Input HTML file not found: {input_path}")
+            complete_operation(operation, success=False)
+            raise FileNotFoundError(f"Input file not found: {input_path}")
+        if input_path.suffix.lower() not in [".html", ".htm"]:
+            error_code = ErrorCode.VALIDATION_INVALID_FORMAT
+            logger.error(f"[{error_code}] Invalid input file type: {input_path.suffix}")
+            complete_operation(operation, success=False)
+            raise ValueError(f"Input file must be an HTML file: {input_path}")
+
+        output_path = (
+            _ensure_path(output_path).resolve()
+            if output_path
+            else input_path.with_suffix(".pdf")
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Get config
+        config = ConfigManager()
+        settings = config.get_converter_config("html2pdf")
+        # Engine is now always pdfkit
+        engine = "pdfkit"
+
+        logger.info(f"Converting {input_path} to PDF using engine: {engine}")
+
         # License validation and feature gating (html2pdf is paid-only)
-        check_feature_access("html2pdf")
+        try:
+            check_feature_access("html2pdf")
+            logger.debug("Feature access check passed for html2pdf")
+        except Exception as e:
+            logger.error(f"Feature access denied for html2pdf: {e}", exc_info=True)
+            complete_operation(operation, success=False)
+            raise
 
         # Convert to Path for validation
         input_path = Path(input_path).resolve()
+        logger.debug(f"Resolved input path: {input_path}")
 
         # Check file size limit
-        check_file_size_limit(str(input_path))
+        try:
+            check_file_size_limit(str(input_path))
+            logger.debug("File size check passed")
+        except Exception as e:
+            logger.error(f"File size limit exceeded: {e}", exc_info=True)
+            complete_operation(operation, success=False)
+            raise
 
         # pdfkit options can be passed as a dictionary
         options = {
@@ -130,31 +157,65 @@ def convert_html_to_pdf(
         )
         logger.debug(f"pdfkit options: {options}, config: {pdfkit_config}")
 
-        pdfkit.from_file(
-            str(input_path),
-            str(output_path),
-            options=options,
-            configuration=pdfkit_config,
-        )
+        update_progress(operation, 50, "Converting HTML to PDF...")
+        logger.debug(f"Converting HTML to PDF with pdfkit options: {options}")
 
-        logger.info(f"HTML converted to PDF: {output_path}")
-        return output_path
-    except FileNotFoundError as e:
-        # Check if it's wkhtmltopdf not found
-        if "wkhtmltopdf" in str(e):
-            logger.error(
-                "wkhtmltopdf executable not found. Please install it and ensure it's in PATH "
-                "or specify the path in config (html2pdf.wkhtmltopdf_path)."
+        try:
+            pdfkit.from_file(
+                str(input_path),
+                str(output_path),
+                options=options,
+                configuration=pdfkit_config,
             )
-            raise FileNotFoundError(
-                "wkhtmltopdf not found. Install it or set path in config."
-            ) from e
-        else:
-            logger.exception(f"File not found during conversion: {e}")
-            raise  # Reraise other FileNotFoundError
+            logger.debug(f"Successfully converted HTML to PDF: {output_path}")
+        except FileNotFoundError as e:
+            # Check if it's wkhtmltopdf not found
+            if "wkhtmltopdf" in str(e):
+                error_code = ErrorCode.DEPENDENCY_MISSING_EXECUTABLE
+                logger.error(
+                    f"[{error_code}] wkhtmltopdf executable not found. Please install it and ensure it's in PATH "
+                    "or specify the path in config (html2pdf.wkhtmltopdf_path)."
+                )
+                complete_operation(operation, success=False)
+                raise FileNotFoundError(
+                    "wkhtmltopdf not found. Install it or set path in config."
+                ) from e
+            else:
+                error_code = ErrorCode.VALIDATION_FILE_NOT_FOUND
+                logger.error(f"[{error_code}] File not found during conversion: {e}", exc_info=True)
+                complete_operation(operation, success=False)
+                raise
+        except Exception as e:
+            error_code = ErrorCode.CONVERSION_HTML2PDF_CONVERSION_FAILED
+            logger.error(f"[{error_code}] Error during HTML to PDF conversion using pdfkit: {e}", exc_info=True)
+            complete_operation(operation, success=False)
+            raise_conversion_error(
+                f"Error converting HTML to PDF with pdfkit: {e}",
+                source_format="html",
+                target_format="pdf",
+                source_file=str(input_path),
+                error_code=error_code,
+            )
+
+        update_progress(operation, 100, "Conversion complete")
+        complete_operation(operation, success=True)
+        logger.info(f"Successfully converted HTML to PDF: {output_path}")
+        return output_path
+    except (FileNotFoundError, ValueError) as e:
+        # Already handled above
+        raise
     except Exception as e:
-        logger.exception(f"Error during HTML to PDF conversion using pdfkit: {e}")
-        raise RuntimeError(f"Error converting HTML to PDF with pdfkit: {e}") from e
+        error_code = ErrorCode.CONVERSION_HTML2PDF_CONVERSION_FAILED
+        logger.error(f"[{error_code}] Unexpected error during HTML to PDF conversion: {e}", exc_info=True)
+        if 'operation' in locals():
+            complete_operation(operation, success=False)
+        raise_conversion_error(
+            f"Error converting HTML to PDF: {e}",
+            source_format="html",
+            target_format="pdf",
+            source_file=str(input_path) if isinstance(input_path, Path) else str(input_path),
+            error_code=error_code,
+        )
 
 
 # Alias for naming consistency

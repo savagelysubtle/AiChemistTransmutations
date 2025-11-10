@@ -9,6 +9,11 @@ import os
 import re
 from pathlib import Path
 
+from transmutation_codex.core import ErrorCode, get_log_manager
+
+# Setup logger
+logger = get_log_manager().get_logger("transmutation_codex.utils.validators")
+
 # Supported formats for conversion
 SUPPORTED_INPUT_FORMATS = {"pdf", "md", "markdown", "html", "htm", "txt", "docx", "doc"}
 
@@ -43,10 +48,15 @@ def validate_file_path(file_path: str) -> tuple[bool, str | None]:
     Returns:
         Tuple of (is_valid, error_message)
     """
+    logger.debug(f"Validating file path: {file_path}")
     if not file_path or not isinstance(file_path, str):
+        error_code = ErrorCode.UTILS_VALIDATION_FAILED
+        logger.error(f"[{error_code}] File path must be a non-empty string")
         return False, "File path must be a non-empty string"
 
     if len(file_path.strip()) == 0:
+        error_code = ErrorCode.UTILS_VALIDATION_FAILED
+        logger.error(f"[{error_code}] File path cannot be empty or whitespace")
         return False, "File path cannot be empty or whitespace"
 
     try:
@@ -54,23 +64,34 @@ def validate_file_path(file_path: str) -> tuple[bool, str | None]:
 
         # Check for path traversal attempts
         if ".." in path.parts:
+            error_code = ErrorCode.SECURITY_PATH_TRAVERSAL
+            logger.error(f"[{error_code}] Path traversal detected in file path: {file_path}")
             return False, "Path traversal detected in file path"
 
         # Check if path exists
         if not path.exists():
+            error_code = ErrorCode.VALIDATION_FILE_NOT_FOUND
+            logger.error(f"[{error_code}] File does not exist: {file_path}")
             return False, f"File does not exist: {file_path}"
 
         # Check if it's a file (not directory)
         if not path.is_file():
+            error_code = ErrorCode.VALIDATION_INVALID_FORMAT
+            logger.error(f"[{error_code}] Path is not a file: {file_path}")
             return False, f"Path is not a file: {file_path}"
 
         # Check if file is readable
         if not os.access(path, os.R_OK):
+            error_code = ErrorCode.FILE_OPERATION_PERMISSION_DENIED
+            logger.error(f"[{error_code}] File is not readable: {file_path}")
             return False, f"File is not readable: {file_path}"
 
+        logger.debug(f"File path validation passed: {file_path}")
         return True, None
 
     except (OSError, ValueError) as e:
+        error_code = ErrorCode.UTILS_VALIDATION_FAILED
+        logger.error(f"[{error_code}] Invalid file path: {file_path}: {e}", exc_info=True)
         return False, f"Invalid file path: {e!s}"
 
 
@@ -169,27 +190,40 @@ def validate_file_size(
     Returns:
         Tuple of (is_valid, error_message)
     """
+    logger.debug(f"Validating file size: {file_path} (max: {max_size_mb}MB)")
     if not file_path or not isinstance(file_path, str):
+        error_code = ErrorCode.UTILS_VALIDATION_FAILED
+        logger.error(f"[{error_code}] File path must be a non-empty string")
         return False, "File path must be a non-empty string"
 
     if max_size_mb <= 0:
+        error_code = ErrorCode.UTILS_VALIDATION_FAILED
+        logger.error(f"[{error_code}] Maximum file size must be positive: {max_size_mb}")
         return False, "Maximum file size must be positive"
 
     try:
         path = Path(file_path)
 
         if not path.exists():
+            error_code = ErrorCode.VALIDATION_FILE_NOT_FOUND
+            logger.error(f"[{error_code}] File does not exist: {file_path}")
             return False, f"File does not exist: {file_path}"
 
         file_size_bytes = path.stat().st_size
         file_size_mb = file_size_bytes / (1024 * 1024)
+        logger.debug(f"File size: {file_size_mb:.2f}MB")
 
         if file_size_mb > max_size_mb:
+            error_code = ErrorCode.VALIDATION_FILE_TOO_LARGE
+            logger.error(f"[{error_code}] File too large: {file_size_mb:.2f}MB (max: {max_size_mb}MB)")
             return False, f"File too large: {file_size_mb:.2f}MB (max: {max_size_mb}MB)"
 
+        logger.debug(f"File size validation passed: {file_size_mb:.2f}MB")
         return True, None
 
     except (OSError, ValueError) as e:
+        error_code = ErrorCode.UTILS_VALIDATION_FAILED
+        logger.error(f"[{error_code}] Error checking file size for {file_path}: {e}", exc_info=True)
         return False, f"Error checking file size: {e!s}"
 
 

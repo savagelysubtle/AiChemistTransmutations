@@ -31,10 +31,27 @@ const ConversionLog: React.FC<ConversionLogProps> = ({ logs, onClearLog }) => {
   const parseLogEntry = (log: string): LogEntry => {
     const timestamp = new Date().toLocaleTimeString();
 
-    // Determine log level based on content
+    // Extract error code if present (format: [CODE])
+    const errorCodeMatch = log.match(/\[([A-Z_]+\d+)\]/);
+    const errorCode = errorCodeMatch ? errorCodeMatch[1] : undefined;
+
+    // Determine log level based on content and error code
     let level: LogEntry['level'] = 'info';
-    if (log.includes('ERROR') || log.includes('Error') || log.includes('Failed')) {
-      level = 'error';
+    if (log.includes('ERROR') || log.includes('Error') || log.includes('Failed') || errorCode) {
+      // Check if error code indicates an error
+      if (errorCode && (
+        errorCode.startsWith('FRONTEND_') ||
+        errorCode.startsWith('BRIDGE_') ||
+        errorCode.startsWith('SERVICE_') ||
+        errorCode.startsWith('CONVERSION_') ||
+        errorCode.startsWith('VALIDATION_') ||
+        errorCode.startsWith('FILE_OPERATION_') ||
+        errorCode.startsWith('SECURITY_')
+      )) {
+        level = 'error';
+      } else if (log.includes('ERROR') || log.includes('Error') || log.includes('Failed')) {
+        level = 'error';
+      }
     } else if (log.includes('SUCCESS') || log.includes('Success') || log.includes('Completed')) {
       level = 'success';
     } else if (log.includes('Warning') || log.includes('WARN')) {

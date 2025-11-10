@@ -11,6 +11,11 @@ export default defineConfig({
       {
         // Main-Process entry file of Hot-Reload.
         entry: 'src/main/main.ts',
+        onstart(options) {
+          // Don't auto-launch Electron - we'll launch it manually via electron:dev script
+          // This prevents double launching (vite-plugin-electron + our script)
+          console.log('📦 Electron main process built. Launch Electron manually via "npm run electron:dev"');
+        },
         vite: {
           build: {
             outDir: 'dist-electron/main',
@@ -54,7 +59,19 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist', // Output directory for the renderer process build
+    // Configure asset handling - don't hash public assets
+    assetsInlineLimit: 0, // Don't inline small assets
+    rollupOptions: {
+      output: {
+        // Keep original filenames for all assets (no hashing)
+        assetFileNames: 'assets/[name][extname]',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+      },
+    },
   },
+  // Ensure public directory is copied correctly (this is default, but explicit is better)
+  publicDir: 'public',
   server: {
     port: 3000, // You can specify a port for the dev server
     strictPort: true,

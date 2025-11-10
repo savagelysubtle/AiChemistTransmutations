@@ -23,6 +23,9 @@ export interface ElectronAPI {
   activateLicense: (licenseKey: string) => Promise<any>;
   deactivateLicense: () => Promise<any>;
   getTrialStatus: () => Promise<any>;
+
+  // License debug logging
+  onLicenseDebug: (callback: (data: { type: string; data: any }) => void) => () => void;
 }
 
 const electronAPI: ElectronAPI = {
@@ -47,6 +50,15 @@ const electronAPI: ElectronAPI = {
   activateLicense: (licenseKey: string) => ipcRenderer.invoke('license:activate', licenseKey),
   deactivateLicense: () => ipcRenderer.invoke('license:deactivate'),
   getTrialStatus: () => ipcRenderer.invoke('license:get-trial-status'),
+
+  // License debug logging
+  onLicenseDebug: (callback: (data: { type: string; data: any }) => void) => {
+    const listener = (_event: IpcRendererEvent, data: { type: string; data: any }) => callback(data);
+    ipcRenderer.on('license-debug', listener);
+    return () => {
+      ipcRenderer.removeListener('license-debug', listener);
+    };
+  },
 };
 
 // Expose the API to the renderer process under window.electronAPI

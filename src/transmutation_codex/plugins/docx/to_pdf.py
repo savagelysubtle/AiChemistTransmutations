@@ -79,14 +79,16 @@ def _check_pdf_engine_available(engine: str) -> bool:
     return False
 
 
-def _get_available_pdf_engine() -> str:
+def _get_available_pdf_engine(prefer_quality: bool = False) -> str:
     """Detect and return the first available PDF engine.
 
     Tries engines in order of preference:
-    1. wkhtmltopdf (most compatible, no LaTeX needed)
-    2. pdflatex (best quality, requires MiKTeX)
-    3. xelatex (Unicode support, requires MiKTeX)
-    4. lualatex (Lua scripting, requires MiKTeX)
+    - If prefer_quality=True: Prioritizes quality (xelatex > lualatex > pdflatex > wkhtmltopdf)
+    - If prefer_quality=False: Prioritizes compatibility (wkhtmltopdf > pdflatex > xelatex > lualatex)
+
+    Args:
+        prefer_quality: If True, prefer LaTeX engines for better typography.
+                        If False, prefer wkhtmltopdf for compatibility.
 
     Returns:
         Name of first available PDF engine
@@ -94,8 +96,14 @@ def _get_available_pdf_engine() -> str:
     Raises:
         RuntimeError: If no PDF engines are available
     """
-    # Order of preference: wkhtmltopdf doesn't require LaTeX, so try it first
-    engines_to_try = ["wkhtmltopdf", "pdflatex", "xelatex", "lualatex"]
+    if prefer_quality:
+        # Order for best quality: LaTeX engines produce superior typography
+        engines_to_try = ["xelatex", "lualatex", "pdflatex", "wkhtmltopdf"]
+        logger.info("Preferring quality: trying LaTeX engines first")
+    else:
+        # Order for compatibility: wkhtmltopdf doesn't require LaTeX
+        engines_to_try = ["wkhtmltopdf", "pdflatex", "xelatex", "lualatex"]
+        logger.info("Preferring compatibility: trying wkhtmltopdf first")
 
     for engine in engines_to_try:
         if _check_pdf_engine_available(engine):
@@ -104,8 +112,8 @@ def _get_available_pdf_engine() -> str:
 
     raise RuntimeError(
         "No PDF engines available. Please install one of the following:\n"
-        "  - wkhtmltopdf: https://wkhtmltopdf.org/downloads.html\n"
-        "  - MiKTeX (provides pdflatex/xelatex/lualatex): https://miktex.org/download\n"
+        "  - wkhtmltopdf: https://wkhtmltopdf.org/downloads.html (faster, basic quality)\n"
+        "  - MiKTeX (xelatex/lualatex/pdflatex): https://miktex.org/download (slower, professional quality)\n"
     )
 
 
@@ -194,6 +202,10 @@ def convert_docx_to_pdf(
     input_path: str | Path,
     output_path: str | Path | None = None,
     pdf_engine: str = "auto",
+    prefer_quality: bool = False,  # Changed default to False for better compatibility
+    margin: str = "1in",
+    font_size: int = 11,
+    line_spacing: float = 1.15,
     **options: Any,
 ) -> Path:
     """Converts a DOCX document to a PDF file using pypandoc.
@@ -204,8 +216,14 @@ def convert_docx_to_pdf(
                      If None, uses input filename with .pdf extension.
         pdf_engine: PDF engine to use. Options: "auto" (detect available),
                     "pdflatex", "xelatex", "lualatex", "wkhtmltopdf".
-                    Default is "auto" which tries engines in order:
-                    wkhtmltopdf > pdflatex > xelatex > lualatex.
+                    Default is "auto" which auto-detects based on prefer_quality.
+        prefer_quality: If True and pdf_engine="auto", prioritizes LaTeX engines
+                        for better typography (requires MiKTeX setup).
+                        If False (default), prioritizes wkhtmltopdf for speed
+                        and compatibility. Default is False.
+        margin: Page margins (default: "1in"). Examples: "0.75in", "2cm".
+        font_size: Base font size in points (default: 11).
+        line_spacing: Line height multiplier (default: 1.15).
         **options: Additional keyword arguments.
 
     Returns:
@@ -267,13 +285,13 @@ def convert_docx_to_pdf(
         # Auto-detect PDF engine if set to "auto"
         if pdf_engine == "auto":
             try:
-                pdf_engine = _get_available_pdf_engine()
+                pdf_engine = _get_available_pdf_engine(prefer_quality=prefer_quality)
                 logger.info(f"Auto-detected PDF engine: {pdf_engine}")
             except RuntimeError as e:
                 logger.error(f"PDF engine detection failed: {e}")
                 raise
 
-        logger.info(f"PDF Engine: {pdf_engine}")
+        logger.info(f"PDF Engine: {pdf_engine} (quality mode: {prefer_quality})")
 
         update_progress(operation, 30, "Pandoc initialized. Starting conversion...")
 
@@ -282,8 +300,33 @@ def convert_docx_to_pdf(
 
         update_progress(operation, 50, "Converting DOCX to PDF...")
 
-        # Build extra args
-        extra_args = [f"--pdf-engine={pdf_engine}"]
+        # Build extra args with configurable formatting
+        extra_args = [
+            f"--pdf-engine={pdf_engine}",
+            # Improve typography and formatting
+            f"--variable=geometry:margin={margin}",
+            f"--variable=fontsize={font_size}pt",
+            f"--variable=linestretch={line_spacing}",
+            # Better font rendering (professional serif fonts)
+            "--variable=mainfont:Georgia",
+            "--variable=sansfont:Arial",
+            "--variable=monofont:Courier New",
+            # Preserve formatting
+            "--preserve-tabs",
+            "--standalone",
+            # Better handling of special characters
+            "--toc-depth=3",
+        ]
+
+        # Engine-specific optimizations
+        if pdf_engine == "wkhtmltopdf":
+            # wkhtmltopdf-specific options for better rendering
+            # Note: Pandoc passes limited options to wkhtmltopdf
+            extra_args.extend([
+                "--dpi=300",
+            ])
+        # Note: XeLaTeX/LuaLaTeX have better Unicode support by default
+        # but don't specify CJK fonts that may not be installed
 
         # MiKTeX workaround: Clean PATH of problematic entries
         original_path = os.environ.get("PATH", "")

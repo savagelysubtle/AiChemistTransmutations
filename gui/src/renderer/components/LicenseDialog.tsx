@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Button from './Button';
 import Card from './Card';
+import { logError, logErrorFromException, logInfo } from '../utils/logger';
+import { ErrorCode } from '../utils/errorCodes';
 
 interface LicenseDialogProps {
   isOpen: boolean;
@@ -17,6 +19,40 @@ const LicenseDialog: React.FC<LicenseDialogProps> = ({ isOpen, onClose, onActiva
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
+  // Listen for license debug messages from main process
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleLicenseDebug = (data: { type: string; data: any }) => {
+      if (data.type === 'info') {
+        console.log('[LICENSE DEBUG]:', data.data);
+      } else if (data.type === 'stdout') {
+        console.log('[PYTHON STDOUT]:', data.data);
+      } else if (data.type === 'stderr') {
+        console.error('[PYTHON STDERR]:', data.data);
+      } else if (data.type === 'summary') {
+        console.group('🔍 License Command Summary');
+        console.log('Exit Code:', data.data.exitCode);
+        console.log('STDOUT Length:', data.data.stdoutLength);
+        console.log('STDERR Length:', data.data.stderrLength);
+        if (data.data.stdout) {
+          console.log('Full STDOUT:', data.data.stdout);
+        }
+        if (data.data.stderr) {
+          console.error('Full STDERR:', data.data.stderr);
+        }
+        console.groupEnd();
+      }
+    };
+
+    // Listen for license-debug IPC messages via electronAPI
+    const electronAPI = (window as any).electronAPI;
+    if (electronAPI?.onLicenseDebug) {
+      const cleanup = electronAPI.onLicenseDebug(handleLicenseDebug);
+      return cleanup;
+    }
+  }, [isOpen]);
+
   const handleActivate = async () => {
     if (!licenseKey.trim()) {
       setError('Please enter a license key');
@@ -28,14 +64,18 @@ const LicenseDialog: React.FC<LicenseDialogProps> = ({ isOpen, onClose, onActiva
     setSuccess(false);
 
     try {
+      logInfo('Starting license activation', { licenseKeyLength: licenseKey.trim().length });
       const electronAPI = (window as any).electronAPI;
       if (!electronAPI?.activateLicense) {
-        throw new Error('License activation not available');
+        const errorMsg = 'License activation not available';
+        logError(errorMsg, ErrorCode.FRONTEND_LICENSE_ACTIVATION_FAILED, {});
+        throw new Error(errorMsg);
       }
 
       const result = await electronAPI.activateLicense(licenseKey.trim());
 
       if (result.success) {
+        logInfo('License activated successfully', {});
         setSuccess(true);
         setLicenseKey('');
         setTimeout(() => {
@@ -43,9 +83,12 @@ const LicenseDialog: React.FC<LicenseDialogProps> = ({ isOpen, onClose, onActiva
           onClose();
         }, 2000);
       } else {
-        setError(result.error || 'License activation failed');
+        const errorMsg = result.error || 'License activation failed';
+        logError(errorMsg, ErrorCode.FRONTEND_LICENSE_ACTIVATION_FAILED, { result });
+        setError(errorMsg);
       }
     } catch (err: any) {
+      logErrorFromException(err, ErrorCode.FRONTEND_LICENSE_ACTIVATION_FAILED, {});
       setError(err.message || 'Failed to activate license');
     } finally {
       setIsActivating(false);

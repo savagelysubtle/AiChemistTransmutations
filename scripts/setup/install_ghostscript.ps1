@@ -29,7 +29,7 @@ if ($wingetAvailable) {
     Write-Host "  Found winget, installing Ghostscript..." -ForegroundColor Gray
     try {
         winget install --id=Artifex.Ghostscript --exact --silent --accept-package-agreements --accept-source-agreements
-        
+
         if (Test-Path "C:\Program Files\gs") {
             Write-Host "  ✓ Ghostscript installed successfully via winget!" -ForegroundColor Green
             Write-Host ""
@@ -56,13 +56,13 @@ if ($chocoAvailable) {
     try {
         # Uninstall any broken installations first
         choco uninstall ghostscript ghostscript.app -y 2>$null
-        
+
         # Install the app package which has the actual binaries
         choco install ghostscript.app -y --force
-        
+
         # Wait a moment for installation to complete
         Start-Sleep -Seconds 3
-        
+
         if (Test-Path "C:\Program Files\gs") {
             Write-Host "  ✓ Ghostscript installed successfully via Chocolatey!" -ForegroundColor Green
             Write-Host ""
@@ -86,7 +86,7 @@ Write-Host ""
 Write-Host "Automatic installation failed. Please install manually:" -ForegroundColor White
 Write-Host ""
 Write-Host "Option A - Direct Download (Recommended):" -ForegroundColor Cyan
-Write-Host "  1. Download: https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10040/gs10.04.0-win64.exe" -ForegroundColor White
+Write-Host "  1. Download: https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10060/gs10060w64.exe" -ForegroundColor White
 Write-Host "  2. Run the installer (accept defaults)" -ForegroundColor White
 Write-Host "  3. Run: .\scripts\add_ghostscript_to_path.ps1" -ForegroundColor White
 Write-Host "  4. Restart your GUI" -ForegroundColor White
@@ -103,7 +103,7 @@ Write-Host ""
 # Try to open the download page
 $openBrowser = Read-Host "Open download page in browser? (y/n)"
 if ($openBrowser -eq "y") {
-    Start-Process "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10040/gs10.04.0-win64.exe"
+    Start-Process "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10060/gs10060w64.exe"
     Write-Host "✓ Opening download in browser..." -ForegroundColor Green
 }
 

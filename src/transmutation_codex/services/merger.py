@@ -1,16 +1,14 @@
 # pdf_merger.py
 """Handles the merging of multiple PDF files into a single PDF document."""
 
-import logging
 from pathlib import Path
 
 import PyPDF2
 from PyPDF2.errors import PdfReadError
 
-from transmutation_codex.core import LogManager
+from transmutation_codex.core import ErrorCode, get_log_manager
 
-log_manager = LogManager()
-logger = log_manager.get_converter_logger("pdf_merger")
+logger = get_log_manager().get_converter_logger("pdf_merger")
 
 
 def merge_multiple_pdfs_to_single_pdf(
@@ -68,29 +66,37 @@ def merge_multiple_pdfs_to_single_pdf(
         ...     Path("merged_output.pdf").unlink(missing_ok=True)
         Merged PDF created at: ...merged_output.pdf
     """
+    logger.info(f"Starting PDF merge operation for {len(input_paths)} files")
+
     # Validate that at least two input paths are provided.
     # Merging requires a minimum of two documents.
     if not input_paths or len(input_paths) < 2:
+        error_code = ErrorCode.SERVICE_MERGE_INVALID_INPUT
         error_msg = "At least two PDF files are required for merging."
-        logger.error(error_msg)
+        logger.error(f"[{error_code}] {error_msg}")
         raise ValueError(error_msg)
 
     # Convert all input paths to Path objects and validate them.
     # This ensures consistent path handling and allows for easy checks.
+    logger.debug(f"Validating {len(input_paths)} input PDF files")
     validated_input_paths: list[Path] = []
-    for p in input_paths:
+    for i, p in enumerate(input_paths, 1):
         current_path = Path(p)
+        logger.debug(f"Validating input file {i}/{len(input_paths)}: {current_path.name}")
         # Check if the file exists.
         if not current_path.exists():
+            error_code = ErrorCode.VALIDATION_FILE_NOT_FOUND
             error_msg = f"Input PDF file not found: {current_path}"
-            logger.error(error_msg)
+            logger.error(f"[{error_code}] {error_msg}")
             raise FileNotFoundError(error_msg)
         # Check if the file has a .pdf extension.
         if current_path.suffix.lower() != ".pdf":
+            error_code = ErrorCode.VALIDATION_INVALID_FORMAT
             error_msg = f"Input file is not a PDF: {current_path}. Only PDF files can be merged."
-            logger.error(error_msg)
+            logger.error(f"[{error_code}] {error_msg}")
             raise ValueError(error_msg)
         validated_input_paths.append(current_path.resolve())
+        logger.debug(f"Successfully validated input file {i}: {current_path.name}")
 
     # Convert output path to a Path object and resolve it to an absolute path.
     # This ensures the output path is well-defined.
@@ -102,15 +108,19 @@ def merge_multiple_pdfs_to_single_pdf(
 
     # Check if the output path is a directory; if so, raise an error as a specific filename is needed.
     if output_path_obj.is_dir():
+        error_code = ErrorCode.BRIDGE_OUTPUT_DIRECTORY_INVALID
         error_msg = f"Output path cannot be a directory. Please specify a full file path for the merged PDF: {output_path_obj}"
-        logger.error(error_msg)
+        logger.error(f"[{error_code}] {error_msg}")
         raise ValueError(error_msg)
 
     # Ensure the output path has a .pdf extension.
     if output_path_obj.suffix.lower() != ".pdf":
+        error_code = ErrorCode.VALIDATION_INVALID_FORMAT
         error_msg = f"Output file path must end with .pdf: {output_path_obj}"
-        logger.error(error_msg)
+        logger.error(f"[{error_code}] {error_msg}")
         raise ValueError(error_msg)
+
+    logger.debug(f"Output path validated: {output_path_obj}")
 
     logger.info(
         f"Starting PDF merge operation for {len(validated_input_paths)} files. Output to: {output_path_obj}"
@@ -122,34 +132,52 @@ def merge_multiple_pdfs_to_single_pdf(
 
     try:
         # Iterate through each validated input PDF path.
-        for pdf_path in validated_input_paths:
-            logger.debug(f"Appending PDF: {pdf_path.name}")
-            # The append method adds all pages from the given PDF to the merger.
-            # It can raise PdfReadError if the PDF is corrupted.
-            pdf_merger.append(str(pdf_path))
-            logger.info(f"Successfully appended {pdf_path.name} to the merge list.")
+        for i, pdf_path in enumerate(validated_input_paths, 1):
+            logger.debug(f"Appending PDF {i}/{len(validated_input_paths)}: {pdf_path.name}")
+            try:
+                # The append method adds all pages from the given PDF to the merger.
+                # It can raise PdfReadError if the PDF is corrupted.
+                pdf_merger.append(str(pdf_path))
+                logger.debug(f"Successfully appended {pdf_path.name} to the merge list.")
+            except PdfReadError as e:
+                error_code = ErrorCode.SERVICE_MERGE_PDF_CORRUPTED
+                error_msg = f"Error reading PDF file {pdf_path.name}: {e}. The file might be corrupted or password-protected."
+                logger.error(f"[{error_code}] {error_msg}", exc_info=True)
+                pdf_merger.close()
+                raise PdfReadError(error_msg) from e
+            except Exception as e:
+                error_code = ErrorCode.SERVICE_MERGE_PDF_READ_FAILED
+                error_msg = f"Error reading PDF file {pdf_path.name}: {e}"
+                logger.error(f"[{error_code}] {error_msg}", exc_info=True)
+                pdf_merger.close()
+                raise
 
+        logger.debug(f"All PDFs appended, writing merged PDF to: {output_path_obj}")
         # Write the merged PDF to the specified output file.
         # The 'wb' mode is for writing in binary, which is required for PDF files.
-        with open(output_path_obj, "wb") as f_out:
-            pdf_merger.write(f_out)
+        try:
+            with open(output_path_obj, "wb") as f_out:
+                pdf_merger.write(f_out)
+            logger.debug(f"Successfully wrote merged PDF to: {output_path_obj}")
+        except Exception as e:
+            error_code = ErrorCode.SERVICE_MERGE_PDF_WRITE_FAILED
+            error_msg = f"Error writing merged PDF to {output_path_obj}: {e}"
+            logger.error(f"[{error_code}] {error_msg}", exc_info=True)
+            pdf_merger.close()
+            raise
 
         logger.info(
             f"Successfully merged {len(validated_input_paths)} PDFs into {output_path_obj}"
         )
 
-    except PdfReadError as e:
-        # Handle errors specific to PyPDF2's PDF reading capabilities.
-        # This usually means a file is corrupted or not a standard PDF.
-        error_msg = f"Error reading PDF file {pdf_path.name if 'pdf_path' in locals() else 'one of the inputs'}: {e}. The file might be corrupted or password-protected."
-        logger.error(error_msg)
-        # Close the merger to release any resources, although it might not be strictly necessary here.
-        pdf_merger.close()
-        raise PdfReadError(error_msg) from e
+    except PdfReadError:
+        # Re-raise PdfReadError (already handled above)
+        raise
     except Exception as e:
         # Catch any other unexpected exceptions during the process.
+        error_code = ErrorCode.SERVICE_MERGE_PDF_WRITE_FAILED
         error_msg = f"An unexpected error occurred during PDF merging: {e}"
-        logger.exception(error_msg)  # Use logger.exception to include stack trace
+        logger.error(f"[{error_code}] {error_msg}", exc_info=True)
         # Close the merger.
         pdf_merger.close()
         raise

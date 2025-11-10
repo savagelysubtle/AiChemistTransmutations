@@ -11,6 +11,11 @@ import re
 import urllib.parse
 from pathlib import Path
 
+from transmutation_codex.core import ErrorCode, get_log_manager
+
+# Setup logger
+logger = get_log_manager().get_logger("transmutation_codex.utils.security")
+
 # Dangerous file extensions that should never be processed
 DANGEROUS_EXTENSIONS = {
     "exe",
@@ -167,7 +172,10 @@ def is_safe_file_extension(file_path: str) -> bool:
     Returns:
         True if extension is safe, False otherwise
     """
+    logger.debug(f"Checking file extension safety: {file_path}")
     if not file_path:
+        error_code = ErrorCode.UTILS_SECURITY_CHECK_FAILED
+        logger.error(f"[{error_code}] Empty file path")
         return False
 
     try:
@@ -175,11 +183,20 @@ def is_safe_file_extension(file_path: str) -> bool:
         extension = path.suffix.lower().lstrip(".")
 
         if not extension:
+            logger.debug("File has no extension, considered safe")
             return True  # Files without extensions are generally safe
 
-        return extension not in DANGEROUS_EXTENSIONS
+        is_safe = extension not in DANGEROUS_EXTENSIONS
+        if not is_safe:
+            error_code = ErrorCode.SECURITY_DANGEROUS_FILE_TYPE
+            logger.error(f"[{error_code}] Dangerous file extension detected: .{extension}")
+        else:
+            logger.debug(f"File extension is safe: .{extension}")
+        return is_safe
 
-    except Exception:
+    except Exception as e:
+        error_code = ErrorCode.UTILS_SECURITY_CHECK_FAILED
+        logger.error(f"[{error_code}] Error checking file extension: {file_path}: {e}", exc_info=True)
         return False
 
 

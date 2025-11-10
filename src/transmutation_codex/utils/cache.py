@@ -112,13 +112,18 @@ class ConversionCache:
 
     def _calculate_file_hash(self, file_path: str) -> str | None:
         """Calculate hash of file contents for change detection."""
+        logger.debug(f"Calculating file hash: {file_path}")
         try:
             hasher = hashlib.sha256()
             with open(file_path, "rb") as f:
                 for chunk in iter(lambda: f.read(8192), b""):
                     hasher.update(chunk)
-            return hasher.hexdigest()
-        except Exception:
+            hash_result = hasher.hexdigest()
+            logger.debug(f"File hash calculated: {hash_result[:16]}...")
+            return hash_result
+        except Exception as e:
+            error_code = ErrorCode.UTILS_CACHE_OPERATION_FAILED
+            logger.error(f"[{error_code}] Failed to calculate file hash for {file_path}: {e}", exc_info=True)
             return None
 
     def _is_file_changed(self, file_path: str, cached_hash: str | None) -> bool:
@@ -161,27 +166,36 @@ class ConversionCache:
         if not self.enable_persistence or not self.cache_dir:
             return
 
+        logger.debug(f"Saving persistent cache to: {self.cache_dir}")
         try:
             cache_file = Path(self.cache_dir) / "conversion_cache.pkl"
             with open(cache_file, "wb") as f:
                 pickle.dump(self._cache, f)
-        except Exception:
-            pass  # Fail silently on persistence errors
+            logger.debug(f"Successfully saved persistent cache: {len(self._cache)} entries")
+        except Exception as e:
+            error_code = ErrorCode.UTILS_CACHE_SERIALIZATION_FAILED
+            logger.error(f"[{error_code}] Failed to save persistent cache: {e}", exc_info=True)
 
     def _load_persistent_cache(self):
         """Load cache from persistent storage."""
         if not self.enable_persistence or not self.cache_dir:
             return
 
+        logger.debug(f"Loading persistent cache from: {self.cache_dir}")
         try:
             cache_file = Path(self.cache_dir) / "conversion_cache.pkl"
             if cache_file.exists():
                 with open(cache_file, "rb") as f:
                     self._cache = pickle.load(f)
+                logger.debug(f"Successfully loaded persistent cache: {len(self._cache)} entries")
 
                 # Clean up expired entries after loading
                 self._cleanup_expired()
-        except Exception:
+            else:
+                logger.debug("Persistent cache file does not exist, starting with empty cache")
+        except Exception as e:
+            error_code = ErrorCode.UTILS_CACHE_SERIALIZATION_FAILED
+            logger.error(f"[{error_code}] Failed to load persistent cache: {e}", exc_info=True)
             self._cache = {}  # Start with empty cache on load failure
 
     def get(

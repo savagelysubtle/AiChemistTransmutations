@@ -89,3 +89,21 @@ AICHEMIST:T/nUi8R7rx5PJjRsx2YAfUUVgywuCabYKME5dkjTk7nh5QnlRpQY2YvWiPEu65pfLu/PbX
 
 **Note**: The license activation works perfectly from command line - this was only an issue with how Electron calls the Python backend in production mode.
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

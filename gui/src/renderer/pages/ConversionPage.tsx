@@ -11,6 +11,8 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import TrialStatus from '../components/TrialStatus';
 import LicenseDialog from '../components/LicenseDialog';
+import { logger, logError, logErrorFromException, logInfo, logWarn } from '../utils/logger';
+import { ErrorCode } from '../utils/errorCodes';
 
 // Updated PlaceholderElectronAPI
 interface PlaceholderElectronAPI {
@@ -152,13 +154,26 @@ const ConversionPage: React.FC = () => {
 
   useEffect(() => {
     if (!electronAPI) {
-      setConversionLog(prev => [...prev, "Error: Electron API is not available. Ensure preload script is working."]);
+      const errorMsg = "Error: Electron API is not available. Ensure preload script is working.";
+      logError(errorMsg, ErrorCode.FRONTEND_ELECTRON_API_UNAVAILABLE, {});
+      setConversionLog(prev => [...prev, `[${ErrorCode.FRONTEND_ELECTRON_API_UNAVAILABLE}] ${errorMsg}`]);
       return;
     }
 
+    logger.info('Electron API available, setting up conversion event listener');
+
     const removeListener = electronAPI.onConversionEvent((eventData) => {
-      console.log('Conversion Event:', eventData);
+      logger.debug('Conversion Event received', { type: eventData.type, data: eventData.data });
+
+      // Extract error code if present
+      const errorCode = eventData.error_code || eventData.errorCode ||
+                       (eventData.data?.error_code) || (eventData.data?.errorCode);
+
       let logMessage = `[${eventData.type || 'EVENT'}] `;
+      if (errorCode) {
+        logMessage += `[${errorCode}] `;
+      }
+
       if (eventData.message) {
         logMessage += eventData.message;
       } else if (typeof eventData.data === 'string') {
@@ -168,6 +183,20 @@ const ConversionPage: React.FC = () => {
       } else {
         logMessage += JSON.stringify(eventData);
       }
+
+      // Log based on event type
+      if (eventData.type === 'error' || eventData.type === 'ERROR') {
+        logError(
+          eventData.message || logMessage,
+          errorCode || ErrorCode.BRIDGE_CONVERSION_EXECUTION_FAILED,
+          { eventData }
+        );
+      } else if (eventData.type === 'success' || eventData.type === 'SUCCESS') {
+        logger.info(eventData.message || logMessage, { eventData });
+      } else {
+        logger.debug(eventData.message || logMessage, { eventData });
+      }
+
       setConversionLog(prevLog => [
         ...prevLog,
         logMessage
@@ -232,21 +261,28 @@ const ConversionPage: React.FC = () => {
         dialogOptions.filters = [{ name: 'PDF Files', extensions: ['pdf'] }];
       }
 
+      logger.debug('Opening file dialog', { conversionType, dialogOptions });
       const files = await electronAPI.openFileDialog(dialogOptions);
       if (files.length > 0) {
+        logger.info(`File dialog returned ${files.length} file(s)`, { files });
         // Add new files, preventing duplicates
         setSelectedFiles(prevFiles => {
           const newFiles = files.filter(f => !prevFiles.includes(f));
           if (newFiles.length > 0) {
-            setConversionLog(prev => [...prev, `Added input files: ${newFiles.join(', ')}`]);
+            const logMsg = `Added input files: ${newFiles.join(', ')}`;
+            logger.info(logMsg, { newFiles });
+            setConversionLog(prev => [...prev, logMsg]);
             return [...prevFiles, ...newFiles];
           }
           return prevFiles;
         });
+      } else {
+        logger.debug('File dialog canceled or no files selected');
       }
     } catch (error) {
-      console.error('Error opening file dialog:', error);
-      setConversionLog(prev => [...prev, `Error opening file dialog: ${(error as Error).message}`]);
+      logErrorFromException(error, ErrorCode.FRONTEND_FILE_DIALOG_FAILED, { conversionType });
+      const errorMsg = `Error opening file dialog: ${(error as Error).message}`;
+      setConversionLog(prev => [...prev, `[${ErrorCode.FRONTEND_FILE_DIALOG_FAILED}] ${errorMsg}`]);
     }
   };
 
@@ -277,47 +313,65 @@ const ConversionPage: React.FC = () => {
   };
 
   const handleSelectOutputDir = async () => {
-    if (!electronAPI) return;
+    if (!electronAPI) {
+      logWarn('Electron API not available for directory dialog', ErrorCode.FRONTEND_ELECTRON_API_UNAVAILABLE);
+      return;
+    }
     try {
+      logger.debug('Opening directory dialog');
       const dir = await electronAPI.openDirectoryDialog();
       if (dir) {
+        logger.info('Output directory selected', { dir });
         setOutputDir(dir);
         setConversionLog(prev => [...prev, `Selected output directory: ${dir}`]);
+      } else {
+        logger.debug('Directory dialog canceled');
       }
     } catch (error) {
-      console.error('Error opening directory dialog:', error);
-      setConversionLog(prev => [...prev, `Error opening directory dialog: ${(error as Error).message}`]);
+      logErrorFromException(error, ErrorCode.FRONTEND_DIRECTORY_DIALOG_FAILED);
+      const errorMsg = `Error opening directory dialog: ${(error as Error).message}`;
+      setConversionLog(prev => [...prev, `[${ErrorCode.FRONTEND_DIRECTORY_DIALOG_FAILED}] ${errorMsg}`]);
     }
   };
 
   const handleRunConversion = async () => {
     if (!electronAPI) {
-      setConversionLog(prev => [...prev, 'Error: API not available.']);
+      const errorMsg = 'Error: API not available.';
+      logError(errorMsg, ErrorCode.FRONTEND_ELECTRON_API_UNAVAILABLE, {});
+      setConversionLog(prev => [...prev, `[${ErrorCode.FRONTEND_ELECTRON_API_UNAVAILABLE}] ${errorMsg}`]);
       return;
     }
 
     // Use mergeOrderedFiles for input if in merge_to_pdf mode, otherwise use selectedFiles
     const currentInputFiles = conversionType === 'merge_to_pdf' ? mergeOrderedFiles : selectedFiles;
 
+    logger.info('Starting conversion', { conversionType, fileCount: currentInputFiles.length });
+
     if (currentInputFiles.length === 0) {
-      setConversionLog(prev => [...prev, 'Error: No input files selected.']);
+      const errorMsg = 'Error: No input files selected.';
+      logError(errorMsg, ErrorCode.FRONTEND_NO_FILES_SELECTED, { conversionType });
+      setConversionLog(prev => [...prev, `[${ErrorCode.FRONTEND_NO_FILES_SELECTED}] ${errorMsg}`]);
       return;
     }
 
     // Specific handling for PDF Merging
     if (conversionType === 'merge_to_pdf') {
       if (currentInputFiles.length < 2) {
-        setConversionLog(prev => [...prev, 'Error: PDF Merging requires at least two input files.']);
+        const errorMsg = 'Error: PDF Merging requires at least two input files.';
+        logError(errorMsg, ErrorCode.SERVICE_MERGE_INVALID_INPUT, { fileCount: currentInputFiles.length });
+        setConversionLog(prev => [...prev, `[${ErrorCode.SERVICE_MERGE_INVALID_INPUT}] ${errorMsg}`]);
         return;
       }
       if (!outputDir) {
-        setConversionLog(prev => [...prev, 'Error: An output directory must be selected for PDF Merging.']);
+        const errorMsg = 'Error: An output directory must be selected for PDF Merging.';
+        logError(errorMsg, ErrorCode.BRIDGE_OUTPUT_DIRECTORY_INVALID, {});
+        setConversionLog(prev => [...prev, `[${ErrorCode.BRIDGE_OUTPUT_DIRECTORY_INVALID}] ${errorMsg}`]);
         return;
       }
       if (!mergeOutputFileName || mergeOutputFileName.trim() === '') {
-        setConversionLog(prev => [...prev, 'Error: An output file name must be specified for the merged PDF.']);
-        // Optionally, you could force a default name here if you prefer
-        // setMergeOutputFileName('merged_output.pdf'); // and then proceed
+        const errorMsg = 'Error: An output file name must be specified for the merged PDF.';
+        logError(errorMsg, ErrorCode.BRIDGE_OUTPUT_DIRECTORY_INVALID, {});
+        setConversionLog(prev => [...prev, `[${ErrorCode.BRIDGE_OUTPUT_DIRECTORY_INVALID}] ${errorMsg}`]);
         return;
       }
       setConversionLog(prev => [
@@ -337,9 +391,13 @@ const ConversionPage: React.FC = () => {
           // setSelectedFiles([]); // This would also clear mergeOrderedFiles via useEffect
         }
       } catch (error) {
-        console.error('Error running PDF merge conversion:', error);
+        logErrorFromException(error, ErrorCode.SERVICE_MERGE_PDF_WRITE_FAILED, {
+          fileCount: currentInputFiles.length,
+          outputDir,
+          outputFileName: mergeOutputFileName
+        });
         const errorMessage = (error as any)?.message || JSON.stringify(error);
-        setConversionLog(prev => [...prev, `Error during PDF merge: ${errorMessage}`]);
+        setConversionLog(prev => [...prev, `[${ErrorCode.SERVICE_MERGE_PDF_WRITE_FAILED}] Error during PDF merge: ${errorMessage}`]);
       }
       return; // End here for merge_to_pdf
     }
@@ -349,7 +407,9 @@ const ConversionPage: React.FC = () => {
 
     if (conversionType === 'mdx2md') {
       if (!electronAPI.convertMdxToMd) {
-        setConversionLog(prev => [...prev, 'ERROR: MDX to MD conversion function is not available on electronAPI.']);
+        const errorMsg = 'ERROR: MDX to MD conversion function is not available on electronAPI.';
+        logError(errorMsg, ErrorCode.FRONTEND_INVALID_CONVERSION_TYPE, { conversionType });
+        setConversionLog(prev => [...prev, `[${ErrorCode.FRONTEND_INVALID_CONVERSION_TYPE}] ${errorMsg}`]);
         return;
       }
       if (currentInputFiles.length > 1) {
@@ -405,6 +465,44 @@ const ConversionPage: React.FC = () => {
         } else if (conversionType === 'txt2pdf') { // Added options for txt2pdf
           options.fontName = txtToPdfOptions.fontName;
           options.fontSize = txtToPdfOptions.fontSize;
+        } else if (conversionType === 'docx2pdf') {
+          // Maximum quality settings for DOCX to PDF conversion
+          // These options are passed to the LibreOffice converter (v1.1)
+          options.imageQuality = 95; // Maximum JPEG quality (0-100)
+          options.useLosslessCompression = true; // No image quality loss
+          options.reduceImageResolution = false; // Keep original resolution
+          options.exportBookmarks = true; // Preserve document structure
+          options.exportNotes = false; // Don't export comments
+          options.timeout = 120; // Allow up to 2 minutes for conversion
+          // For archival documents, users could enable PDF/A compliance:
+          // options.pdfa = true;
+        } else if (conversionType === 'pptx2pdf') {
+          // Maximum quality settings for PPTX to PDF conversion
+          // These options are passed to the LibreOffice converter
+          options.imageQuality = 95; // Maximum JPEG quality (0-100)
+          options.useLosslessCompression = true; // No image quality loss
+          options.reduceImageResolution = false; // Keep original resolution
+          options.exportBookmarks = true; // Preserve slide structure
+          options.exportNotes = false; // Don't export speaker notes
+          options.timeout = 120; // Allow up to 2 minutes for conversion
+        } else if (conversionType === 'xlsx2pdf') {
+          // Maximum quality settings for XLSX to PDF conversion
+          // These options are passed to the LibreOffice converter
+          options.imageQuality = 95; // Maximum JPEG quality (0-100)
+          options.useLosslessCompression = true; // No image quality loss
+          options.reduceImageResolution = false; // Keep original resolution
+          options.exportBookmarks = true; // Preserve sheet structure
+          options.exportNotes = false; // Don't export cell comments
+          options.timeout = 120; // Allow up to 2 minutes for conversion
+        } else if (conversionType === 'epub2pdf') {
+          // Maximum quality settings for EPUB to PDF conversion
+          // These options are passed to the LibreOffice converter
+          options.imageQuality = 95; // Maximum JPEG quality (0-100)
+          options.useLosslessCompression = true; // No image quality loss
+          options.reduceImageResolution = false; // Keep original resolution
+          options.exportBookmarks = true; // Preserve chapter structure
+          options.exportNotes = false; // Don't export annotations
+          options.timeout = 120; // Allow up to 2 minutes for conversion
         }
         // Excel/CSV options
         else if (['xlsx2pdf', 'xlsx2html', 'xlsx2md', 'csv2xlsx', 'csv2pdf', 'pdf2xlsx', 'xlsx2csv'].includes(conversionType)) {
@@ -465,9 +563,13 @@ const ConversionPage: React.FC = () => {
           // setSelectedFiles([]); // Optionally clear files on success
         }
       } catch (error) {
-        console.error('Error running Python-based conversion:', error);
+        logErrorFromException(error, ErrorCode.BRIDGE_CONVERSION_EXECUTION_FAILED, {
+          conversionType,
+          fileCount: currentInputFiles.length,
+          outputDir: outputDir || undefined
+        });
         const errorMessage = (error as any)?.message || JSON.stringify(error);
-        setConversionLog(prev => [...prev, `Error during Python-based conversion: ${errorMessage}`]);
+        setConversionLog(prev => [...prev, `[${ErrorCode.BRIDGE_CONVERSION_EXECUTION_FAILED}] Error during Python-based conversion: ${errorMessage}`]);
       }
     }
   };

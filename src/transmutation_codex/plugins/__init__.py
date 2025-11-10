@@ -120,6 +120,7 @@ try:
     from .xlsx.to_html import convert_xlsx_to_html
     from .xlsx.to_markdown import convert_xlsx_to_markdown
     from .xlsx.to_pdf import convert_xlsx_to_pdf
+    from .xlsx.to_pdf_libreoffice import convert_xlsx_to_pdf_libreoffice
 
     _logger.debug("Excel converters loaded")
 except ImportError as e:
@@ -144,6 +145,7 @@ try:
     from .pptx.to_images import convert_pptx_to_images
     from .pptx.to_markdown import convert_pptx_to_markdown
     from .pptx.to_pdf import convert_pptx_to_pdf
+    from .pptx.to_pdf_libreoffice import convert_pptx_to_pdf_libreoffice
 
     _logger.debug("PowerPoint converters loaded")
 except ImportError as e:
@@ -204,6 +206,7 @@ try:
     from .epub.to_html import convert_epub_to_html
     from .epub.to_markdown import convert_epub_to_markdown
     from .epub.to_pdf import convert_epub_to_pdf
+    from .epub.to_pdf_libreoffice import convert_epub_to_pdf_libreoffice
 
     _logger.debug("EPUB converters loaded")
 except ImportError as e:

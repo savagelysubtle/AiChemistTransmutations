@@ -1,0 +1,25 @@
+{
+  "watch": [
+    "../src/transmutation_codex/**/*.py",
+    "../pyproject.toml"
+  ],
+  "ext": "py,toml",
+  "ignore": [
+    "../**/__pycache__/**",
+    "../**/*.pyc",
+    "../**/.pytest_cache/**",
+    "../**/test_*.py",
+    "../**/tests/**"
+  ],
+  "delay": 1000,
+  "verbose": true,
+  "execMap": {
+    "py": "echo"
+  },
+  "events": {
+    "restart": "echo '🔄 Python backend files changed - Restart Electron app to see changes'"
+  },
+  "colours": true,
+  "legacyWatch": false
+}
+
