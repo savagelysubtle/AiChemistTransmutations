@@ -1,6 +1,116 @@
-# RELEASES BRANCH: Only track releases/ directory
-# Ignore everything by default
-*
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+config/user_config.yaml
+logs/*
+!logs/.gitkeep
+*.log
 
-# But allow the releases directory
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+tmp/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.uv_cache/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.ruff_cache/
+.mypy_cache/
+.cursor/
+
+# Project specific
+output/
+*.pdf
+!examples/example.pdf
+!examples/output_examples/*.pdf
+*.html
+!examples/output_examples/*.html
+test.pdf
+
+# Documentation build
+docs/build/
+docs/source/api/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-error.log*
+yarn.lock
+.pnp.*
+
+# GUI specific (Electron, Vite, React, TypeScript)
+gui/node_modules/
+gui/dist/
+gui/dist-electron/
+gui/out/
+gui/release/
+gui/coverage/
+gui/logs/
+gui/.vite/
+gui/.cache/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Licensing - SECURITY CRITICAL - NEVER COMMIT THESE!
+scripts/keys/
+*.pem
+*.key
+private_key*
+public_key*
+licenses.json
+trial.db
+DEV_LICENSE.txt
+.licenses/
+.keys/
+.env
+.env.local
+.env.development
+.env.production
+
+node_modules/
+
 !releases/
