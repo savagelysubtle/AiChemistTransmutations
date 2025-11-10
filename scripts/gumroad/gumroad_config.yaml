@@ -1,0 +1,185 @@
+# Gumroad Product Configuration
+# This file defines all Gumroad products and their corresponding license types
+# Update this file when adding new product tiers or changing licensing terms
+
+version: '1.0'
+last_updated: '2025-10-22'
+
+# Product Information
+store:
+  name: 'AiChemist'
+  url: 'https://aichemist.gumroad.com'
+  support_email: 'support@aichemist.app'
+  documentation_url: 'https://aichemist.app/docs'
+
+# Product Definitions
+# The permalink is what you'll set in Gumroad's product settings (e.g., transmutation-codex-basic)
+products:
+  # Basic Tier - Single user, limited features
+  basic:
+    name: 'AiChemist Transmutation Codex - Basic'
+    permalink: 'transmutation-codex-basic' # Must match Gumroad product permalink
+    price: 29 # USD
+    license_type: 'basic'
+    max_activations: 1
+    features:
+      - 'All core conversion formats (PDF, Markdown, DOCX, HTML)'
+      - 'Batch processing'
+      - 'PDF merging'
+      - 'Basic OCR support'
+      - '1 device activation'
+      - 'Email support'
+    gumroad_url: 'https://aichemist.gumroad.com/l/transmutation-codex-basic'
+
+  # Pro Tier - Single user, all features
+  pro:
+    name: 'AiChemist Transmutation Codex - Pro'
+    permalink: 'transmutation-codex-pro' # Must match Gumroad product permalink
+    price: 79 # USD
+    license_type: 'pro'
+    max_activations: 3
+    features:
+      - 'All Basic features'
+      - 'Advanced OCR with 100+ languages'
+      - 'Custom conversion templates'
+      - 'Priority email support'
+      - '3 device activations'
+      - 'Free updates for 1 year'
+    gumroad_url: 'https://aichemist.gumroad.com/l/transmutation-codex-pro'
+
+  # Enterprise Tier - Multiple users, custom licensing
+  enterprise:
+    name: 'AiChemist Transmutation Codex - Enterprise'
+    permalink: 'transmutation-codex-enterprise' # Must match Gumroad product permalink
+    price: 299 # USD (starting price, can be customized)
+    license_type: 'enterprise'
+    max_activations: 10
+    features:
+      - 'All Pro features'
+      - '10+ device activations'
+      - 'Priority support with SLA'
+      - 'Custom conversion workflows'
+      - 'Bulk license management'
+      - 'Free updates for 2 years'
+      - 'Optional on-premise deployment'
+    gumroad_url: 'https://aichemist.gumroad.com/l/transmutation-codex-enterprise'
+
+# Webhook Configuration
+webhook:
+  endpoint: '/webhook/gumroad'
+  events:
+    - 'sale'
+    - 'refund'
+    - 'dispute'
+  signature_header: 'X-Gumroad-Signature'
+  timeout_seconds: 30
+  retry_attempts: 3
+
+# Email Templates for License Delivery
+email_templates:
+  purchase_confirmation:
+    subject: 'Your AiChemist Transmutation Codex License Key'
+    body: |
+      Thank you for purchasing AiChemist Transmutation Codex!
+
+      Your license key is:
+      {{license_key}}
+
+      To activate your license:
+      1. Open AiChemist Transmutation Codex
+      2. Click "Help" → "Enter License Key"
+      3. Paste your license key
+      4. Click "Activate"
+
+      Your purchase details:
+      - Product: {{product_name}}
+      - License Type: {{license_type}}
+      - Device Activations: {{max_activations}}
+      - Order ID: {{order_id}}
+
+      Need help?
+      📧 Email: support@aichemist.app
+      📚 Documentation: https://aichemist.app/docs
+      💬 Discord: https://discord.gg/aichemist
+
+      Thank you for your purchase!
+      - The AiChemist Team
+
+  refund_notification:
+    subject: 'Your AiChemist License Has Been Refunded'
+    body: |
+      Your AiChemist Transmutation Codex purchase has been refunded.
+
+      Order ID: {{order_id}}
+      License Key: {{license_key}} (now deactivated)
+
+      If you have any questions, please contact support@aichemist.app.
+
+# Testing Configuration
+testing:
+  test_mode_enabled: true
+  test_endpoint: '/webhook/test'
+  test_products:
+    - email: 'test@example.com'
+      product_id: 'transmutation-codex-pro'
+      should_succeed: true
+    - email: 'invalid@example.com'
+      product_id: 'invalid-product'
+      should_succeed: false
+
+# Deployment Targets
+deployment:
+  recommended: 'Railway'
+  alternatives:
+    - 'Render'
+    - 'AWS Lambda'
+    - 'DigitalOcean App Platform'
+    - 'Heroku'
+  requirements:
+    python_version: '3.13+'
+    dependencies:
+      - 'flask'
+      - 'gunicorn'
+      - 'supabase'
+      - 'cryptography'
+  environment_variables:
+    required:
+      - 'GUMROAD_WEBHOOK_SECRET'
+      - 'SUPABASE_URL'
+      - 'SUPABASE_SERVICE_KEY'
+      - 'PRIVATE_KEY_PATH'
+    optional:
+      - 'FLASK_ENV'
+      - 'PORT'
+      - 'LOG_LEVEL'
+
+# Monitoring and Analytics
+monitoring:
+  health_check_endpoint: '/health'
+  health_check_interval_seconds: 60
+  metrics:
+    - 'total_licenses_generated'
+    - 'webhook_requests_received'
+    - 'webhook_failures'
+    - 'average_response_time'
+  alerts:
+    - type: 'webhook_failure'
+      threshold: 3
+      action: 'email_admin'
+    - type: 'high_response_time'
+      threshold_ms: 5000
+      action: 'log_warning'
+
+# Security Settings
+security:
+  verify_signature: true
+  allowed_origins:
+    - 'gumroad.com'
+    - '*.gumroad.com'
+  rate_limiting:
+    enabled: true
+    max_requests_per_minute: 60
+  ip_whitelist:
+    enabled: false
+    addresses: [] # Add Gumroad IPs if needed
+

@@ -70,6 +70,8 @@ class ConfigManager:
         in `__new__`. It sets up configuration paths, loads default, user, and
         Electron configurations, and applies environment variable overrides.
 
+        Automatically loads production_config.yaml in production mode.
+
         Args:
             config_dir (Path | str | None): The directory where configuration files
                 (e.g., `default_config.yaml`, `user_config.yaml`) are located.
@@ -82,8 +84,14 @@ class ConfigManager:
         # Set up paths
         self.config_dir = Path(config_dir) if config_dir is not None else Path("config")
 
-        # Load configurations
+        # Load configurations in order (later configs override earlier ones)
         self.default_config = self._load_yaml("default_config.yaml")
+
+        # Load production config if in production mode
+        self.production_config = {}
+        if self._is_production_mode():
+            self.production_config = self._load_yaml("production_config.yaml")
+
         self.user_config = self._load_yaml("user_config.yaml")
         self.electron_config = self._load_json("electron_config.json")
 
@@ -92,6 +100,42 @@ class ConfigManager:
 
         # Mark as initialized
         self._initialized = True
+
+    @staticmethod
+    def _is_production_mode() -> bool:
+        """Detect if running in production mode.
+
+        Production mode indicators:
+        - NODE_ENV=production
+        - DEV_MODE=false
+        - No pyproject.toml in parent directories
+
+        Returns:
+            bool: True if in production mode.
+        """
+        # Check NODE_ENV
+        node_env = os.getenv("NODE_ENV", "").lower()
+        if node_env == "production":
+            return True
+
+        # Check DEV_MODE
+        dev_mode = os.getenv("DEV_MODE", "").lower()
+        if dev_mode in ("false", "0", "no"):
+            return True
+        if dev_mode in ("true", "1", "yes"):
+            return False
+
+        # Auto-detect: if pyproject.toml doesn't exist in tree, we're in production
+        try:
+            current = Path(__file__).resolve()
+            for parent in [current] + list(current.parents):
+                if (parent / "pyproject.toml").exists():
+                    return False  # Found pyproject.toml = development mode
+        except Exception:
+            pass
+
+        # Default to production mode if unsure
+        return True
 
     def _load_yaml(self, filename: str) -> dict[str, Any]:
         """Loads a YAML configuration file from the config directory.
@@ -225,7 +269,8 @@ class ConfigManager:
         Priority order (highest to lowest):
         1. Environment variables
         2. User configuration
-        3. Default configuration
+        3. Production configuration (if in production mode)
+        4. Default configuration
 
         Performs a deep merge.
 
@@ -237,6 +282,12 @@ class ConfigManager:
         """
         # Start with a deep copy of the default section to avoid modifying it
         merged_config = copy.deepcopy(self.default_config.get(section, {}))
+
+        # Merge production config if available
+        if self.production_config:
+            prod_section = self.production_config.get(section, {})
+            if isinstance(prod_section, MutableMapping):
+                deep_merge(prod_section, merged_config)
 
         # Merge user config into the result
         user_section = self.user_config.get(section, {})

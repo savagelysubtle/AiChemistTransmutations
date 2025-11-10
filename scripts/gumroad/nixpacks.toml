@@ -1,0 +1,13 @@
+[phases.setup]
+nixPkgs = ["python313"]
+
+[phases.install]
+cmds = ["pip install -r requirements-webhook.txt"]
+
+[start]
+cmd = "gunicorn webhook_server:app --bind 0.0.0.0:$PORT --workers 4 --timeout 120"
+
+
+
+
+

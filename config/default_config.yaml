@@ -56,6 +56,19 @@ logging:
   retention: '30 days' # How long to keep log files
   compression: 'zip' # Compression format for rotated logs (e.g., 'zip', 'gz')
 
+# Telemetry settings (requires user consent)
+telemetry:
+  enabled: false # Telemetry disabled by default in development
+  consent_required: true
+  anonymous_only: true
+  collect_pii: false
+  batch_size: 50
+  flush_interval: 300
+  events:
+    track_conversions: true
+    track_errors: true
+    track_features: true
+    track_performance: false
 # Electron specific settings (can also be in electron_config.json)
 # electron:
 #   developer_mode: false

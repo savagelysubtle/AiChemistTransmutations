@@ -1,7 +1,15 @@
 """Command-line interface for Transmutation Codex."""
 
 import argparse
+import logging
 import sys
+
+# Set UTF-8 encoding for stdout/stderr to handle emoji and special characters
+if sys.platform == "win32":
+    import io
+
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 
 from transmutation_codex.adapters.cli.dependency_status import (
     check_converter_dependencies,
@@ -68,8 +76,13 @@ def main() -> None:
 
     # Initialize logging
     log_manager = get_log_manager()
-    log_manager.set_level(args.log_level)
+    # Note: LogManager configures level from config files
+    # The --log-level arg can be used for overriding in future updates
     logger = log_manager.get_converter_logger("cli")
+
+    # Set logger level dynamically if provided
+    if args.log_level:
+        logger.setLevel(getattr(logging, args.log_level))
 
     try:
         if args.check_deps:

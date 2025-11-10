@@ -1,55 +1,129 @@
 # Production Configuration for AiChemist Transmutation Codex
-# This configuration is used when the application runs in production mode
+# This file contains production-specific overrides for default_config.yaml
+# Values here take precedence in production builds
 
-licensing:
-  # Production mode - disables dev license auto-activation
-  mode: 'production'
-  auto_activate_dev: false
+application:
+  name: 'AiChemist Transmutation Codex'
+  version: '1.0.0' # Will be updated by build scripts
+  temp_dir: null # Use system temp directory in production
+  max_workers: 4
 
-  # Trial settings
-  trial_days: 30
-  trial_conversion_limit: 50
+environment:
+  # In production, use auto-detection for external dependencies
+  tesseract_path: null
+  ghostscript_path: null
+  pandoc_path: null
 
-  # Free tier limits
-  free_tier_file_size_limit_mb: 5
-  free_tier_batch_size_limit: 10
+converters:
+  # Production-optimized PDF to Markdown settings
+  pdf2md:
+    engine: 'enhanced_ocr'
+    ocr_enabled: true
+    ocr_languages: 'eng'
+    ocr_dpi: 300
+    ocr_psm: 1
+    ocr_oem: 3
+    force_ocr: false
 
-  # Feature access
-  require_license_for_premium: true
-  allow_offline_validation: true
+  # Production Markdown to PDF settings
+  md2pdf:
+    engine: 'weasyprint'
+    page_size: 'A4'
+    margin_top: '2.54cm'
+    margin_bottom: '2.54cm'
+    margin_left: '2.54cm'
+    margin_right: '2.54cm'
+    custom_css: null
 
-supabase:
-  # Enable cloud-based license validation
-  enabled: true
+  # Production HTML to PDF settings
+  html2pdf:
+    engine: 'weasyprint'
+    page_size: 'A4'
+    margin_top: '1cm'
+    margin_bottom: '1cm'
+    margin_left: '1cm'
+    margin_right: '1cm'
+    enable_javascript: false
 
-  # Fallback to offline RSA validation if Supabase unavailable
-  fallback_to_offline: true
-
-  # Sync activations to cloud when connection restored
-  sync_on_reconnect: true
-
-telemetry:
-  # Anonymous usage statistics (helps improve the product)
-  enabled: true
-  anonymous: true
-
-  # Do not collect personally identifiable information
-  collect_pii: false
+  # Production DOCX to Markdown settings
+  docx2md:
+    style_map: null
+    image_dir: 'images'
 
 logging:
+  # Production logging: INFO level to reduce noise
   level: 'INFO'
-  file_rotation: true
-  max_file_size_mb: 10
-  backup_count: 5
+  rotation: '7 days'
+  retention: '90 days' # Keep logs for 90 days in production
+  compression: 'zip'
 
-performance:
-  # Production optimization settings
-  enable_caching: true
-  max_concurrent_conversions: 3
-  ocr_parallel_processing: true
+# Telemetry settings (with user consent)
+telemetry:
+  enabled: true # Telemetry system available
+  consent_required: true # Must ask user for consent
+  anonymous_only: true # Only collect anonymous usage data
+  collect_pii: false # Never collect personally identifiable information
+  batch_size: 50 # Send events in batches of 50
+  flush_interval: 300 # Flush telemetry every 5 minutes
+  events:
+    track_conversions: true # Track conversion attempts and success
+    track_errors: true # Track error occurrences (no sensitive data)
+    track_features: true # Track feature usage
+    track_performance: true # Track performance metrics
 
+# Licensing settings
+licensing:
+  check_interval: 86400 # Check license validity every 24 hours
+  offline_grace_period: 604800 # 7 days offline grace period
+  trial_conversion_limit: 50
+  trial_file_size_limit_mb: 5
+  free_converters:
+    - 'md2pdf'
+    - 'pdf2md'
+    - 'md2html'
+    - 'txt2pdf'
+
+# Auto-update settings
 updates:
-  # Check for updates on startup
-  check_on_startup: true
-  auto_download: false
-  notify_user: true
+  check_for_updates: true
+  auto_download: false # User must approve downloads
+  check_interval: 86400 # Check daily
+  update_channel: 'stable' # Options: stable, beta, alpha
+
+# Security settings
+security:
+  verify_signatures: true
+  https_only: true
+  certificate_pinning: false # Enable if using custom cert
+
+# Performance settings
+performance:
+  max_file_size_mb: 500 # Maximum file size (overridden by license)
+  max_batch_size: 100
+  memory_limit_mb: 2048 # Soft memory limit
+  enable_compression: true
+
+# Error reporting
+error_reporting:
+  enabled: true # Enable error reporting (anonymous)
+  include_logs: false # Don't send full logs with errors
+  include_system_info: true # Include OS, version, etc.
+  rate_limit: 10 # Max 10 error reports per hour
+
+# Analytics endpoints (Supabase)
+analytics:
+  endpoint: null # Set via SUPABASE_URL environment variable
+  api_key: null # Set via SUPABASE_ANON_KEY environment variable
+  timeout: 10 # Request timeout in seconds
+  retry_attempts: 3
+
+# Feature flags (can be toggled remotely via Supabase)
+features:
+  batch_processing: true
+  pdf_merging: true
+  ocr_support: true
+  cloud_sync: false # Future feature
+  ai_enhancements: false # Future feature
+
+# Development mode override
+dev_mode: false # Always false in production builds

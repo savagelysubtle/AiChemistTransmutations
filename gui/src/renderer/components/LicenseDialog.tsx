@@ -54,7 +54,7 @@ const LicenseDialog: React.FC<LicenseDialogProps> = ({ isOpen, onClose, onActiva
 
   const handleBuyLicense = () => {
     // Open Gumroad/purchase page
-    const purchaseUrl = 'https://gumroad.com/l/aichemist-codex'; // TODO: Update with actual URL
+    const purchaseUrl = 'https://aichemist.gumroad.com/l/transmutation-codex';
     if ((window as any).electronAPI?.openExternal) {
       (window as any).electronAPI.openExternal(purchaseUrl);
     } else {
@@ -152,6 +152,45 @@ const LicenseDialog: React.FC<LicenseDialogProps> = ({ isOpen, onClose, onActiva
               >
                 Purchase License
               </Button>
+
+              {/* Legal and privacy links */}
+              <div className="mt-4 text-center text-xs text-light-textMuted dark:text-dark-textMuted">
+                <button
+                  className="hover:text-light-gradientStart dark:hover:text-dark-gradientStart hover:underline"
+                  onClick={() => {
+                    const electronAPI = (window as any).electronAPI;
+                    if (electronAPI?.openExternal) {
+                      electronAPI.openExternal('https://aichemist.app/privacy');
+                    }
+                  }}
+                >
+                  Privacy Policy
+                </button>
+                {' • '}
+                <button
+                  className="hover:text-light-gradientStart dark:hover:text-dark-gradientStart hover:underline"
+                  onClick={() => {
+                    const electronAPI = (window as any).electronAPI;
+                    if (electronAPI?.openExternal) {
+                      electronAPI.openExternal('https://aichemist.app/terms');
+                    }
+                  }}
+                >
+                  Terms of Service
+                </button>
+                {' • '}
+                <button
+                  className="hover:text-light-gradientStart dark:hover:text-dark-gradientStart hover:underline"
+                  onClick={() => {
+                    const electronAPI = (window as any).electronAPI;
+                    if (electronAPI?.openExternal) {
+                      electronAPI.openExternal('https://aichemist.app/support');
+                    }
+                  }}
+                >
+                  Support
+                </button>
+              </div>
             </div>
           </>
         )}

@@ -1,6 +1,7 @@
 import json
 import logging
 import logging.config
+import os
 import sys
 import uuid
 from datetime import UTC, datetime
@@ -154,8 +155,9 @@ class LogManager:
 
         Args:
             logs_dir (Optional[Path]): The base directory where log files will be
-                stored. If None, defaults to "logs" in the PROJECT ROOT
-                (where pyproject.toml is located), not the current working directory.
+                stored. If None, automatically determines the appropriate location:
+                - Development mode: PROJECT_ROOT/logs (where pyproject.toml is located)
+                - Production mode: AppData directory (platform-specific)
         """
         if self._initialized:  # Check instance attribute
             return
@@ -168,10 +170,15 @@ class LogManager:
         # This ensures all LogRecord instances created henceforth will have session_id.
         logging.setLogRecordFactory(_session_id_log_record_factory)
 
-        # FIX: Use project root instead of cwd() to avoid nested logs/logs/ issue
+        # Determine logs directory based on development vs production mode
         if logs_dir is None:
-            project_root = self._find_project_root()
-            self.logs_dir = project_root / "logs"
+            if self._is_development_mode():
+                # Development: Use project root
+                project_root = self._find_project_root()
+                self.logs_dir = project_root / "logs"
+            else:
+                # Production: Use platform-specific AppData directory
+                self.logs_dir = self._get_app_data_dir() / "logs"
         else:
             self.logs_dir = logs_dir
 
@@ -201,6 +208,71 @@ class LogManager:
         # Fallback: 4 levels up from this file
         # logger.py -> core/ -> transmutation_codex/ -> src/ -> project_root/
         return current.parent.parent.parent.parent
+
+    @staticmethod
+    def _is_development_mode() -> bool:
+        """Detect if running in development mode vs production/installed mode.
+
+        Development indicators:
+        - Running from source (pyproject.toml exists)
+        - DEV_MODE environment variable set to true
+
+        Returns:
+            bool: True if in development mode, False if production/installed.
+        """
+        # Check environment variable first
+        dev_mode_env = os.getenv("DEV_MODE", "").lower()
+        if dev_mode_env in ("true", "1", "yes"):
+            return True
+        if dev_mode_env in ("false", "0", "no"):
+            return False
+
+        # Auto-detect: if pyproject.toml exists in tree, we're in development
+        try:
+            current = Path(__file__).resolve()
+            for parent in [current] + list(current.parents):
+                if (parent / "pyproject.toml").exists():
+                    return True
+        except Exception:
+            pass
+
+        # Default to production mode if unsure
+        return False
+
+    @staticmethod
+    def _get_app_data_dir() -> Path:
+        """Get platform-specific application data directory.
+
+        Returns platform-appropriate paths:
+        - Windows: %APPDATA%/AiChemist (e.g., C:/Users/Name/AppData/Roaming/AiChemist)
+        - macOS: ~/Library/Application Support/AiChemist
+        - Linux: ~/.local/share/aichemist
+
+        Returns:
+            Path: Application data directory path.
+        """
+        import platform
+
+        system = platform.system()
+
+        if system == "Windows":
+            # Windows: Use APPDATA environment variable
+            appdata = os.getenv("APPDATA")
+            if appdata:
+                return Path(appdata) / "AiChemist"
+            # Fallback to user profile
+            return Path.home() / "AppData" / "Roaming" / "AiChemist"
+
+        elif system == "Darwin":
+            # macOS: Use Application Support
+            return Path.home() / "Library" / "Application Support" / "AiChemist"
+
+        else:
+            # Linux and others: Use XDG_DATA_HOME or fallback to ~/.local/share
+            xdg_data_home = os.getenv("XDG_DATA_HOME")
+            if xdg_data_home:
+                return Path(xdg_data_home) / "aichemist"
+            return Path.home() / ".local" / "share" / "aichemist"
 
     def _create_log_directories(self) -> None:
         """Creates the necessary directory structure for log files.
