@@ -110,3 +110,7 @@ DEV_LICENSE.txt
 .env.local
 .env.development
 .env.production
+
+generated_keys/
+node_modules/
+logs/
