@@ -2,6 +2,54 @@
 
 This directory contains the webhook server for automatic license generation when customers purchase via Gumroad.
 
+## 📚 Documentation
+
+- **Complete Setup Guide:** [docs/GUMROAD_SETUP_GUIDE.md](../../docs/GUMROAD_SETUP_GUIDE.md) - Full step-by-step guide
+- **Product Configuration:** [gumroad_config.yaml](gumroad_config.yaml) - Product tiers and settings
+- **Server Environment Template:** [.env.server.template](.env.server.template) - Environment variables for deployment
+- **Validation Tool:** [validate_setup.py](validate_setup.py) - Check your configuration
+
+## Quick Start
+
+### 1. Validate Your Configuration
+
+```bash
+# Check configuration
+python scripts/gumroad/validate_setup.py
+
+# Check deployed webhook (after deployment)
+python scripts/gumroad/validate_setup.py --check-webhook https://your-url.com
+```
+
+### 2. Deploy Webhook Server
+
+See [docs/GUMROAD_SETUP_GUIDE.md](../../docs/GUMROAD_SETUP_GUIDE.md) for complete deployment instructions.
+
+**Quick Railway Deployment:**
+
+```bash
+cd scripts/gumroad
+railway login
+railway init
+railway up
+```
+
+### 3. Configure Gumroad
+
+1. Create products in Gumroad dashboard using permalinks from `gumroad_config.yaml`
+2. Add webhook in Gumroad settings → Advanced → Webhooks
+3. Update `GUMROAD_WEBHOOK_SECRET` in your deployment
+4. Test with a test purchase
+
+## Files in This Directory
+
+- **`webhook_server.py`** - Main webhook server (Flask application)
+- **`gumroad_config.yaml`** - Product configuration and settings
+- **`.env.server.template`** - Environment variables template for deployment
+- **`validate_setup.py`** - Configuration validation tool
+- **`requirements-webhook.txt`** - Python dependencies for deployment
+- **`README.md`** - This file
+
 ## Setup
 
 ### 1. Configure Environment Variables

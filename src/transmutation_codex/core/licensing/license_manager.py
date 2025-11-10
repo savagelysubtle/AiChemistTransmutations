@@ -8,7 +8,6 @@ license validation, storage, and activation. Supports both offline
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
 
 from ..exceptions import LicenseError
 from .activation import ActivationManager, MachineFingerprint
@@ -18,6 +17,7 @@ from .trial_manager import TrialManager
 # Optional Supabase backend
 try:
     from .supabase_backend import SupabaseBackend, is_supabase_configured
+
     SUPABASE_AVAILABLE = True
 except (ImportError, ValueError):
     SUPABASE_AVAILABLE = False
@@ -36,7 +36,10 @@ class LicenseManager:
 
         Args:
             data_dir: Directory for storing license data
-                     Defaults to ~/.aichemist or %APPDATA%/AiChemist
+                     Defaults to platform-specific AppData:
+                     - Windows: %APPDATA%/AiChemist
+                     - macOS: ~/Library/Application Support/AiChemist
+                     - Linux: ~/.local/share/aichemist
 
         Example:
             >>> manager = LicenseManager()
@@ -44,18 +47,8 @@ class LicenseManager:
             >>> print(f"License type: {status['license_type']}")
         """
         if data_dir is None:
-            # Default data directory
-            if Path.home().joinpath(".aichemist").exists():
-                data_dir = Path.home() / ".aichemist"
-            else:
-                # Windows AppData
-                import os
-
-                appdata = os.getenv("APPDATA")
-                if appdata:
-                    data_dir = Path(appdata) / "AiChemist"
-                else:
-                    data_dir = Path.home() / ".aichemist"
+            # Use platform-specific application data directory
+            data_dir = self._get_app_data_dir()
 
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -80,6 +73,42 @@ class LicenseManager:
         # Load current license
         self._current_license = self._load_license()
 
+    @staticmethod
+    def _get_app_data_dir() -> Path:
+        """Get platform-specific application data directory.
+
+        Returns platform-appropriate paths:
+        - Windows: %APPDATA%/AiChemist
+        - macOS: ~/Library/Application Support/AiChemist
+        - Linux: ~/.local/share/aichemist
+
+        Returns:
+            Path: Application data directory path.
+        """
+        import os
+        import platform
+
+        system = platform.system()
+
+        if system == "Windows":
+            # Windows: Use APPDATA environment variable
+            appdata = os.getenv("APPDATA")
+            if appdata:
+                return Path(appdata) / "AiChemist"
+            # Fallback to user profile
+            return Path.home() / "AppData" / "Roaming" / "AiChemist"
+
+        elif system == "Darwin":
+            # macOS: Use Application Support
+            return Path.home() / "Library" / "Application Support" / "AiChemist"
+
+        else:
+            # Linux and others: Use XDG_DATA_HOME or fallback to ~/.local/share
+            xdg_data_home = os.getenv("XDG_DATA_HOME")
+            if xdg_data_home:
+                return Path(xdg_data_home) / "aichemist"
+            return Path.home() / ".local" / "share" / "aichemist"
+
     def _load_license(self) -> dict | None:
         """Load license from disk.
 
@@ -90,7 +119,7 @@ class LicenseManager:
             return None
 
         try:
-            with open(self.license_file, "r") as f:
+            with open(self.license_file) as f:
                 license_data = json.load(f)
 
             # Validate machine binding
@@ -139,8 +168,8 @@ class LicenseManager:
         # Try online validation first
         if self.supabase_backend and self.supabase_backend.is_online_available():
             try:
-                valid, online_data, reason = self.supabase_backend.validate_license_online(
-                    license_key
+                valid, online_data, reason = (
+                    self.supabase_backend.validate_license_online(license_key)
                 )
                 if valid and online_data:
                     license_data = online_data
@@ -228,7 +257,7 @@ class LicenseManager:
         Example:
             >>> manager = LicenseManager()
             >>> status = manager.get_license_status()
-            >>> if status['license_type'] == 'trial':
+            >>> if status["license_type"] == "trial":
             ...     print(f"Trial: {status['trial_status']['remaining']} left")
         """
         if self._current_license:

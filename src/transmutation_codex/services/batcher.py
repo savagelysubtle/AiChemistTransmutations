@@ -187,7 +187,8 @@ def run_batch(
     # app_settings = config.get_config("application") # Removed unused variable
     # Use max_workers from args, then config, then default
     if max_workers is None:
-        max_workers = config.get_value("application", "max_workers", 4)
+        env_config = config.get_environment_config()
+        max_workers = env_config.get("max_workers", 4)
     logger.info(
         f"Running batch conversion: {conversion_type} with {max_workers} workers"
     )

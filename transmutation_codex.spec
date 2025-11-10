@@ -21,20 +21,13 @@ block_cipher = None
 # Collect all data files from important packages
 datas = []
 
-# Bundle Tesseract (copied by build script)
-datas += [
-    ('build/resources/tesseract', 'resources/tesseract'),
-]
-
-# Bundle Ghostscript (copied by build script)
-datas += [
-    ('build/resources/ghostscript', 'resources/ghostscript'),
-]
-
-# Bundle Pandoc (copied by build script)
-datas += [
-    ('build/resources/pandoc', 'resources/pandoc'),
-]
+# Bundle external tools (optional - comment out for first build)
+# These will be found from system PATH if not bundled
+# datas += [
+#     ('build/resources/tesseract', 'resources/tesseract'),
+#     ('build/resources/ghostscript', 'resources/ghostscript'),
+#     ('build/resources/pandoc', 'resources/pandoc'),
+# ]
 
 # Bundle configuration
 datas += [

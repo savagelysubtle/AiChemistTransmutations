@@ -1,14 +1,24 @@
 {
-  "name": "mdtopdf-converter-gui",
-  "version": "0.1.0",
-  "description": "Graphical User Interface for MDtoPDF Converter",
-  "author": "Your Name/Organization",
+  "name": "aichemist-transmutation-codex",
+  "version": "1.0.1",
+  "description": "AiChemist Transmutation Codex - Professional Document Conversion Tool",
+  "author": {
+    "name": "AiChemist",
+    "email": "support@aichemist.app",
+    "url": "https://aichemist.app"
+  },
+  "homepage": "https://aichemist.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/savagelysubtle/AiChemistTransmutations.git"
+  },
   "license": "Apache-2.0",
   "private": true,
   "main": "dist-electron/main/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && electron-builder",
+    "build": "vite build && electron-builder",
+    "build:full": "tsc && vite build && electron-builder",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "start:dev": "vite",
@@ -58,10 +68,26 @@
       "dist-electron/**/*",
       "dist/**/*"
     ],
+    "extraResources": [
+      {
+        "from": "../dist/aichemist_transmutation_codex",
+        "to": "python-backend",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "directories": {
       "buildResources": "assets",
       "output": "release/${version}"
     },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://aichemist.app/releases"
+      }
+    ],
+    "electronUpdaterCompatibility": ">=5.0.0",
     "win": {
       "target": [
         {
@@ -71,30 +97,62 @@
           ]
         },
         {
-          "target": "appx",
+          "target": "portable",
           "arch": [
             "x64"
           ]
         }
-      ]
+      ],
+      "requestedExecutionLevel": "asInvoker",
+      "signAndEditExecutable": false,
+      "verifyUpdateCodeSignature": false,
+      "publisherName": "AiChemist",
+      "rfc3161TimeStampServer": "http://timestamp.digicert.com",
+      "timeStampServer": "http://timestamp.digicert.com"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "AiChemist Transmutation Codex",
+      "license": "../LICENSE",
+      "perMachine": false,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "displayLanguageSelector": false,
+      "menuCategory": true,
+      "installerLanguages": ["en_US"],
+      "language": "en_US",
+      "multiLanguageInstaller": false,
+      "packElevateHelper": true,
+      "removeDefaultUninstallWelcomePage": false,
+      "uninstallDisplayName": "AiChemist Transmutation Codex",
+      "warningsAsErrors": false,
+      "differentialPackage": true,
+      "artifactName": "${productName} Setup ${version}.${ext}",
+      "guid": "c3e3c3f3-3c3e-4c3e-8c3e-3c3e3c3e3c3e"
     },
     "appx": {
       "applicationId": "AiChemist.TransmutationCodex",
       "displayName": "AiChemist Transmutation Codex",
-      "publisherDisplayName": "Your Company Name",
-      "publisher": "CN=YourCompanyName",
+      "publisherDisplayName": "AiChemist",
+      "publisher": "CN=AiChemist",
       "identityName": "AiChemist.TransmutationCodex",
-      "backgroundColor": "#0078D7",
+      "backgroundColor": "#6366F1",
       "languages": [
         "en-US"
       ],
       "addAutoLaunchExtension": false
     },
     "mac": {
-      "target": "dmg"
+      "target": "dmg",
+      "icon": "assets/icon.icns"
     },
     "linux": {
-      "target": "AppImage"
+      "target": "AppImage",
+      "icon": "assets/icon.png"
     }
   }
 }
