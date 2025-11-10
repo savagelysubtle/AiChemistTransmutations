@@ -112,3 +112,7 @@ DEV_LICENSE.txt
 .env.production
 
 node_modules/
+
+generated_keys/
+
+logs/
