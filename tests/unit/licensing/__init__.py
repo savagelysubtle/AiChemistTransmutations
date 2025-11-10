@@ -1,1 +1,0 @@
-"""Licensing system unit tests."""
