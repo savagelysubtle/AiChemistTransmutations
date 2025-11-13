@@ -1,0 +1,120 @@
+END USER LICENSE AGREEMENT
+
+AiChemist Transmutation Codex
+Version 1.1.0
+
+Copyright (c) 2024-2025 AiChemist. All rights reserved.
+
+PLEASE READ THIS LICENSE AGREEMENT CAREFULLY BEFORE USING THIS SOFTWARE.
+
+1. LICENSE GRANT
+
+Subject to your payment of applicable license fees and compliance with this Agreement,
+AiChemist grants you a limited, non-exclusive, non-transferable license to:
+
+- Install and use the Software on devices you own or control
+- Use the Software for personal or commercial purposes according to your license tier
+- Receive updates and support as specified in your license tier
+
+2. LICENSE TIERS
+
+BASIC LICENSE:
+- Single user license
+- Personal and commercial use
+- Unlimited conversions
+- All conversion formats
+- Email support
+
+PROFESSIONAL LICENSE:
+- Everything in Basic
+- Priority email support
+- Advanced features
+- Batch processing
+
+ENTERPRISE LICENSE:
+- Everything in Professional
+- Multi-user licenses
+- Priority support
+- Custom integrations
+- Volume discounts
+
+3. RESTRICTIONS
+
+You may NOT:
+- Distribute, sell, rent, lease, or sublicense the Software
+- Reverse engineer, decompile, or disassemble the Software
+- Remove or modify any copyright notices
+- Use the Software to violate any laws or regulations
+- Share your license key with others
+
+4. OWNERSHIP
+
+This Software is licensed, not sold. AiChemist retains all rights, title, and
+interest in and to the Software, including all intellectual property rights.
+
+5. THIRD-PARTY SOFTWARE
+
+This Software includes third-party open source components listed in
+THIRD-PARTY-LICENSES.md. These components are subject to their respective licenses.
+
+6. WARRANTY DISCLAIMER
+
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+
+7. LIMITATION OF LIABILITY
+
+IN NO EVENT SHALL AICHEMIST BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL,
+CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING OUT OF OR RELATING TO THIS AGREEMENT
+OR THE USE OF THE SOFTWARE.
+
+8. TERMINATION
+
+This license is effective until terminated. Your rights will terminate automatically
+without notice if you fail to comply with any term of this Agreement. Upon termination,
+you must destroy all copies of the Software.
+
+9. PRIVACY
+
+Your use of this Software is subject to our Privacy Policy available at:
+https://savagelysubtle.gumroad.com/l/transmutation-codex-basic
+
+10. UPDATES
+
+AiChemist may provide updates, patches, or bug fixes at its discretion. Updates
+may modify or delete certain features or functionality.
+
+11. SUPPORT
+
+Support is provided via email at simpleflowworks@gmail.com according to your
+license tier. Response times vary by tier.
+
+12. REFUNDS
+
+Refunds are handled according to Gumroad's refund policy. Contact support within
+30 days of purchase for refund requests.
+
+13. GOVERNING LAW
+
+This Agreement shall be governed by and construed in accordance with the laws
+of your jurisdiction, without regard to conflict of law principles.
+
+14. ENTIRE AGREEMENT
+
+This Agreement constitutes the entire agreement between you and AiChemist regarding
+the Software and supersedes all prior agreements.
+
+BY INSTALLING OR USING THIS SOFTWARE, YOU ACKNOWLEDGE THAT YOU HAVE READ THIS
+AGREEMENT, UNDERSTAND IT, AND AGREE TO BE BOUND BY ITS TERMS.
+
+If you do not agree to these terms, do not install or use the Software and contact
+support@aichemist.app for a refund.
+
+---
+
+For questions about this license agreement, contact:
+Email: simpleflowworks@gmail.com
+Web: https://savagelysubtle.gumroad.com/l/transmutation-codex-basic
+
+AiChemist Transmutation Codex is a trademark of AiChemist.

@@ -478,63 +478,79 @@ async function runLicenseCommand(
     let fullArgs: string[];
 
     if (isProduction) {
-      // Production: Use bundled Python backend executable
-      // Path structure: resources/python-backend/aichemist_transmutation_codex.exe
-      const pythonBackendExe = path.join(
-        appPath,
-        '..',
-        'python-backend',
-        'aichemist_transmutation_codex.exe',
-      );
-
-      // Try to find the license_bridge.py script in the bundle
-      // PyInstaller bundles Python files, so we can call them directly
+      // Production: Use system Python with bundled source code
+      // Path structure: resources/python-backend/transmutation_codex/...
       const licenseBridgeScript = path.join(
-        path.dirname(pythonBackendExe),
+        process.resourcesPath,
+        'python-backend',
         'transmutation_codex',
         'adapters',
         'bridges',
         'license_bridge.py',
       );
 
-      // Check if script exists in bundle
-      if (fs.existsSync(licenseBridgeScript)) {
-        // Call Python executable directly on the script
-        pythonExecutable = pythonBackendExe;
-        fullArgs = [licenseBridgeScript, command, ...args];
-        console.log('  Using direct script execution');
-      } else {
-        // Fallback: Use Python executable with -m flag
-        pythonExecutable = pythonBackendExe;
-        fullArgs = [
-          '-m',
-          'transmutation_codex.adapters.bridges.license_bridge',
-          command,
-          ...args,
-        ];
-        console.log('  Using -m flag (script not found in bundle)');
-      }
-
       console.log('✓ Production mode detected');
-      console.log('  Python executable:', pythonExecutable);
-      console.log('  Checking if executable exists...');
+      console.log('  License bridge script:', licenseBridgeScript);
+      console.log('  Resources path:', process.resourcesPath);
 
-      try {
-        fs.accessSync(pythonExecutable, fs.constants.X_OK);
-        console.log('  ✓ Executable exists and is accessible');
-      } catch (e) {
+      // Check if script exists in bundle
+      if (!fs.existsSync(licenseBridgeScript)) {
         const errorCode = 'FRONTEND_PYTHON_PROCESS_FAILED';
-        console.error(
-          `[${errorCode}] Executable not found or not accessible:`,
-          e,
-        );
+        console.error(`[${errorCode}] License bridge script not found`);
         reject({
-          error: `Python backend not found at: ${pythonExecutable}`,
-          details: (e as Error).message,
+          error: `Python backend not found at: ${licenseBridgeScript}`,
+          details: 'The bundled Python source code is missing from the installation',
           error_code: errorCode,
         });
         return;
       }
+
+      console.log('  ✓ Script exists');
+
+      // Use system Python (must be installed)
+      pythonExecutable = 'python';
+
+      // Try common Python locations on Windows
+      const possiblePythonPaths = [
+        'python',  // PATH
+        'python3', // PATH (Linux/macOS)
+        'C:\\Python313\\python.exe',
+        'C:\\Python312\\python.exe',
+        'C:\\Python311\\python.exe',
+        'C:\\Program Files\\Python313\\python.exe',
+        'C:\\Program Files\\Python312\\python.exe',
+      ];
+
+      let pythonFound = false;
+      for (const pyPath of possiblePythonPaths) {
+        try {
+          require('child_process').execSync(`"${pyPath}" --version`, { stdio: 'ignore' });
+          pythonExecutable = pyPath;
+          pythonFound = true;
+          console.log(`  ✓ Found Python at: ${pyPath}`);
+          break;
+        } catch (e) {
+          // Try next path
+        }
+      }
+
+      if (!pythonFound) {
+        const errorCode = 'FRONTEND_PYTHON_PROCESS_FAILED';
+        console.error(`[${errorCode}] Python not found in system PATH or common locations`);
+        reject({
+          error: 'Python 3.13+ is required but not found. Please install Python from python.org',
+          details: 'Searched PATH and common installation locations',
+          error_code: errorCode,
+        });
+        return;
+      }
+
+      // Set PYTHONPATH to include the bundled transmutation_codex module
+      const pythonPath = path.join(process.resourcesPath, 'python-backend');
+      process.env.PYTHONPATH = pythonPath;
+      console.log('  Set PYTHONPATH:', pythonPath);
+
+      fullArgs = [licenseBridgeScript, command, ...args];
     } else {
       // Development: Use Python script with venv
       const scriptPath = path.resolve(

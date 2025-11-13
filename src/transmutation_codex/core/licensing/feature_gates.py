@@ -53,7 +53,7 @@ def check_feature_access(converter_name: str):
             raise_license_error(
                 f"Converter '{converter_name}' requires a paid license. "
                 f"Free trial only includes: {', '.join(manager.trial_manager.FREE_CONVERTERS)}. "
-                "Please purchase a license to access all converters.",
+                "Please purchase a license at https://aichemist.gumroad.com to access all converters.",
                 license_type="trial",
                 feature=converter_name,
                 reason="feature_not_in_trial",

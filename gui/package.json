@@ -1,6 +1,6 @@
 {
   "name": "aichemist-transmutation-codex",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "description": "AiChemist Transmutation Codex - Professional Document Conversion Tool",
   "author": {
     "name": "AiChemist",
@@ -76,12 +76,14 @@
     "files": [
       "dist-electron/**/*",
       "dist/**/*",
-      "public/**/*"
+      "public/**/*",
+      "../THIRD-PARTY-LICENSES.md",
+      "../LICENSE-NOTICE.txt"
     ],
     "extraResources": [
       {
-        "from": "../dist/aichemist_transmutation_codex",
-        "to": "python-backend",
+        "from": "../src/transmutation_codex",
+        "to": "python-backend/transmutation_codex",
         "filter": [
           "**/*"
         ]
@@ -135,7 +137,7 @@
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
       "shortcutName": "AiChemist Transmutation Codex",
-      "license": "../LICENSE",
+      "license": "../LICENSE-NOTICE.txt",
       "perMachine": false,
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,

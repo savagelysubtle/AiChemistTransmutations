@@ -119,6 +119,12 @@ DEV_LICENSE.txt
 .env.local
 .env.development
 .env.production
+gui/.env
+gui/.env.local
+gui/.env.development
+gui/.env.production
+gumroad_license.json
+*_license.json
 
 generated_keys/
 

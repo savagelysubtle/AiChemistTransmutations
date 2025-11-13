@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { ErrorCode } from '../utils/errorCodes';
+import { logError, logErrorFromException, logInfo } from '../utils/logger';
 import Button from './Button';
 import Card from './Card';
-import { logError, logErrorFromException, logInfo } from '../utils/logger';
-import { ErrorCode } from '../utils/errorCodes';
 
 interface LicenseDialogProps {
   isOpen: boolean;
@@ -97,7 +97,7 @@ const LicenseDialog: React.FC<LicenseDialogProps> = ({ isOpen, onClose, onActiva
 
   const handleBuyLicense = () => {
     // Open Gumroad/purchase page
-    const purchaseUrl = 'https://aichemist.gumroad.com/l/transmutation-codex';
+    const purchaseUrl = 'https://savagleysubtle.gumroad.com/l/transmutation-codex-basic';
     if ((window as any).electronAPI?.openExternal) {
       (window as any).electronAPI.openExternal(purchaseUrl);
     } else {

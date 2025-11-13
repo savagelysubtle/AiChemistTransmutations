@@ -46,13 +46,17 @@ PRIVATE_KEY_PATH = os.getenv(
     "PRIVATE_KEY_PATH", "scripts/licensing/keys/private_key.pem"
 )
 
-# Product ID mapping (configure these to match your Gumroad product permalinks)
-# Format: "gumroad-permalink": {"type": "license_type", "max_activations": count}
-# Update these values to match your actual Gumroad product permalinks!
+# Product ID mapping (configure these to match your Gumroad product IDs)
+# Get product IDs from: Gumroad Dashboard → Product → Content tab
+# Format: "gumroad-product-id": {"type": "license_type", "max_activations": count}
 PRODUCT_MAP = {
-    "transmutation-codex-basic": {"type": "basic", "max_activations": 1},
-    "transmutation-codex-pro": {"type": "pro", "max_activations": 3},
-    "transmutation-codex-enterprise": {"type": "enterprise", "max_activations": 10},
+    "E7oYHqtGSVBBWcpbCFyF-A==": {
+        "type": "basic",
+        "max_activations": 1,
+    },  # Current product
+    # TODO: Add Pro and Enterprise product IDs when created
+    # "pro-product-id": {"type": "pro", "max_activations": 3},
+    # "enterprise-product-id": {"type": "enterprise", "max_activations": 10},
 }
 
 

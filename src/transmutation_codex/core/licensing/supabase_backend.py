@@ -63,285 +63,119 @@ class SupabaseBackend:
         self._cache: dict[str, Any] = {}
         self._cache_ttl = timedelta(hours=24)
 
-    def validate_license_online(
-        self, license_key: str
-    ) -> tuple[bool, dict[str, Any] | None, str]:
-        """Validate license key against Supabase backend.
+    def record_gumroad_activation(
+        self, license_key: str, gumroad_data: dict[str, Any], tier: str
+    ) -> bool:
+        """Record a Gumroad license activation in Supabase.
 
         Args:
-            license_key: License key to validate
+            license_key: The Gumroad license key
+            gumroad_data: Full Gumroad API response data
+            tier: License tier (basic, pro, enterprise)
 
         Returns:
-            Tuple of (is_valid, license_data, reason)
-            - is_valid: Whether license is valid
-            - license_data: License information if valid
-            - reason: Reason for validation result
+            True if recorded successfully
 
-        Example:
-            >>> backend = SupabaseBackend()
-            >>> valid, data, reason = backend.validate_license_online("AICHEMIST-...")
-            >>> if valid:
-            ...     print(f"License for {data['email']} is valid")
+        Raises:
+            LicenseError: If recording fails
         """
         try:
-            # Query licenses table
-            response = self.client.table("licenses").select("*").eq(
-                "license_key", license_key
-            ).single().execute()
-
-            if not response.data:
-                return False, None, "License key not found"
-
-            license_data = response.data
-
-            # Check license status
-            if license_data.get("status") != "active":
-                return False, None, f"License status: {license_data.get('status')}"
-
-            # Check expiration
-            expires_at = license_data.get("expires_at")
-            if expires_at:
-                expiry_date = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
-                if expiry_date < datetime.now(expiry_date.tzinfo):
-                    return False, None, "License expired"
-
-            # Cache result
-            self._cache[license_key] = {
-                "data": license_data,
-                "cached_at": datetime.now(),
-            }
-
-            return True, license_data, "Valid"
-
-        except Exception as e:
-            # Check cache for offline operation
-            cached = self._cache.get(license_key)
-            if cached:
-                cache_age = datetime.now() - cached["cached_at"]
-                if cache_age < self._cache_ttl:
-                    return True, cached["data"], "Valid (cached)"
-
-            return False, None, f"Validation error: {str(e)}"
-
-    def record_activation(
-        self,
-        license_id: int | str,
-        machine_id: str | None = None,
-    ) -> tuple[bool, str]:
-        """Record a license activation.
-
-        Args:
-            license_id: ID of the license from licenses table
-            machine_id: Machine fingerprint (auto-generated if not provided)
-
-        Returns:
-            Tuple of (success, message)
-
-        Example:
-            >>> backend = SupabaseBackend()
-            >>> success, msg = backend.record_activation(123, "machine-hash")
-        """
-        if machine_id is None:
+            purchase = gumroad_data.get('purchase', {})
             machine_id = self.fingerprint.get_machine_id()
 
-        try:
-            # Check if already activated on this machine
-            existing = self.client.table("activations").select("*").eq(
-                "license_id", license_id
-            ).eq("machine_id", machine_id).execute()
+            # Prepare license data for Supabase
+            license_data = {
+                "license_key": license_key,
+                "gumroad_purchase_id": purchase.get('id'),
+                "gumroad_product_id": purchase.get('product_id'),
+                "tier": tier,
+                "email": purchase.get('email', ''),
+                "purchase_date": purchase.get('sale_timestamp'),
+                "activation_date": datetime.now().isoformat(),
+                "machine_id": machine_id,
+                "gumroad_data": gumroad_data,
+                "status": "active",
+                "max_activations": self._get_max_activations_for_tier(tier),
+            }
 
-            if existing.data:
-                # Update last_seen_at
-                self.client.table("activations").update({
-                    "last_seen_at": datetime.now().isoformat()
-                }).eq("id", existing.data[0]["id"]).execute()
-                return True, "Activation updated"
-
-            # Check max activations
-            license_data = self.client.table("licenses").select("*").eq(
-                "id", license_id
-            ).single().execute()
-
-            if not license_data.data:
-                return False, "License not found"
-
-            max_activations = license_data.data.get("max_activations", 1)
-
-            # Count current activations
-            all_activations = self.client.table("activations").select("*").eq(
-                "license_id", license_id
+            # Insert or update license record
+            response = self.client.table("gumroad_licenses").upsert(
+                license_data,
+                on_conflict="license_key"
             ).execute()
 
-            if len(all_activations.data) >= max_activations:
-                return False, f"Maximum activations ({max_activations}) reached"
-
-            # Create new activation
-            self.client.table("activations").insert({
-                "license_id": license_id,
-                "machine_id": machine_id,
-                "activated_at": datetime.now().isoformat(),
-                "last_seen_at": datetime.now().isoformat(),
-            }).execute()
-
-            return True, "Activation recorded"
+            return True
 
         except Exception as e:
-            return False, f"Activation error: {str(e)}"
+            raise LicenseError(
+                f"Failed to record Gumroad activation: {e}",
+                license_type="gumroad",
+                reason="supabase_error"
+            )
 
-    def log_usage(
-        self,
-        license_id: int | str,
-        converter_name: str,
-        input_file_size: int,
-        success: bool = True,
-    ) -> bool:
-        """Log a conversion usage event.
+    def record_deactivation(self, license_key: str) -> bool:
+        """Record license deactivation in Supabase.
 
         Args:
-            license_id: ID of the license
+            license_key: The license key being deactivated
+
+        Returns:
+            True if recorded successfully
+        """
+        try:
+            # Update deactivation date
+            self.client.table("gumroad_licenses").update({
+                "deactivation_date": datetime.now().isoformat(),
+                "status": "deactivated"
+            }).eq("license_key", license_key).execute()
+
+            return True
+        except Exception:
+            # Non-critical - don't fail deactivation
+            return False
+
+    def log_gumroad_usage(
+        self,
+        license_key: str,
+        converter_name: str,
+        input_file_size: int,
+        success: bool
+    ) -> bool:
+        """Log conversion usage for Gumroad licenses.
+
+        Args:
+            license_key: The Gumroad license key
             converter_name: Name of converter used
             input_file_size: Size of input file in bytes
             success: Whether conversion succeeded
 
         Returns:
             True if logged successfully
-
-        Example:
-            >>> backend = SupabaseBackend()
-            >>> backend.log_usage(123, "md2pdf", 1024000, True)
         """
         try:
-            self.client.table("usage_logs").insert({
-                "license_id": license_id,
+            usage_data = {
+                "license_key": license_key,
                 "converter_name": converter_name,
                 "input_file_size": input_file_size,
                 "success": success,
-                "created_at": datetime.now().isoformat(),
-            }).execute()
-            return True
-
-        except Exception as e:
-            # Non-critical - don't fail conversion on logging error
-            print(f"Usage logging failed: {e}")
-            return False
-
-    def check_license_status(
-        self, license_key: str
-    ) -> dict[str, Any]:
-        """Get comprehensive license status from Supabase.
-
-        Args:
-            license_key: License key to check
-
-        Returns:
-            Dictionary with license status information
-
-        Example:
-            >>> backend = SupabaseBackend()
-            >>> status = backend.check_license_status("AICHEMIST-...")
-            >>> print(f"Status: {status['status']}")
-        """
-        valid, data, reason = self.validate_license_online(license_key)
-
-        if not valid:
-            return {
-                "valid": False,
-                "reason": reason,
-                "status": "invalid",
+                "timestamp": datetime.now().isoformat(),
+                "machine_id": self.fingerprint.get_machine_id(),
             }
 
-        # Get activation count
-        activations = self.client.table("activations").select("*").eq(
-            "license_id", data["id"]
-        ).execute()
-
-        # Get usage stats
-        usage = self.client.table("usage_logs").select("*").eq(
-            "license_id", data["id"]
-        ).execute()
-
-        return {
-            "valid": True,
-            "status": data.get("status"),
-            "email": data.get("email"),
-            "license_type": data.get("type"),
-            "max_activations": data.get("max_activations"),
-            "current_activations": len(activations.data) if activations.data else 0,
-            "total_conversions": len(usage.data) if usage.data else 0,
-            "created_at": data.get("created_at"),
-            "expires_at": data.get("expires_at"),
-        }
-
-    def deactivate_machine(
-        self, license_id: int | str, machine_id: str | None = None
-    ) -> tuple[bool, str]:
-        """Deactivate a license from a specific machine.
-
-        Args:
-            license_id: ID of the license
-            machine_id: Machine to deactivate (current machine if not provided)
-
-        Returns:
-            Tuple of (success, message)
-        """
-        if machine_id is None:
-            machine_id = self.fingerprint.get_machine_id()
-
-        try:
-            result = self.client.table("activations").delete().eq(
-                "license_id", license_id
-            ).eq("machine_id", machine_id).execute()
-
-            if result.data:
-                return True, "Machine deactivated"
-            return False, "Activation not found"
-
-        except Exception as e:
-            return False, f"Deactivation error: {str(e)}"
-
-    def get_activation_list(self, license_id: int | str) -> list[dict[str, Any]]:
-        """Get list of all activations for a license.
-
-        Args:
-            license_id: ID of the license
-
-        Returns:
-            List of activation records
-
-        Example:
-            >>> backend = SupabaseBackend()
-            >>> activations = backend.get_activation_list(123)
-            >>> for act in activations:
-            ...     print(f"Machine: {act['machine_id'][:8]}...")
-        """
-        try:
-            response = self.client.table("activations").select("*").eq(
-                "license_id", license_id
-            ).order("activated_at", desc=True).execute()
-
-            return response.data if response.data else []
-
-        except Exception as e:
-            print(f"Failed to fetch activations: {e}")
-            return []
-
-    def is_online_available(self) -> bool:
-        """Check if Supabase backend is available.
-
-        Returns:
-            True if can connect to Supabase
-
-        Example:
-            >>> backend = SupabaseBackend()
-            >>> if backend.is_online_available():
-            ...     # Use online validation
-        """
-        try:
-            # Simple health check
-            self.client.table("licenses").select("id").limit(1).execute()
+            self.client.table("gumroad_usage").insert(usage_data).execute()
             return True
         except Exception:
+            # Non-critical - don't fail conversion
             return False
+
+    def _get_max_activations_for_tier(self, tier: str) -> int:
+        """Get maximum activations for a tier."""
+        tier_limits = {
+            "basic": 1,
+            "pro": 3,
+            "enterprise": 10
+        }
+        return tier_limits.get(tier, 1)
 
 
 def is_supabase_configured() -> bool:
